@@ -27,8 +27,7 @@ public class TableRemoveButtonEditor extends DefaultCellEditor {
         button.addActionListener(e -> {
             if (row >= 0 && !manager.isHistoryLoaded()) {
                 String player = (String) metricsTable.getModel().getValueAt(row, 0);
-                if (manager.removePlayerFromActive(player)) {
-                    toast(parent, "Player removed from session.");
+                if (manager.removePlayerFromSession(player)) {
                     requestUiRefresh();
                 } else {
                     toast(parent, "Failed to remove player.");

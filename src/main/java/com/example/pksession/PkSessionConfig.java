@@ -71,7 +71,7 @@ public interface PkSessionConfig extends Config
             description = "Comma-separated known players",
             hidden = true
     )
-    default String peepsCsv() { return ""; }
+    default String knownPlayersCsv() { return ""; }
 
     @ConfigItem(
             keyName = KEY_PEEPS_CSV,
@@ -79,7 +79,7 @@ public interface PkSessionConfig extends Config
             description = "Comma-separated known players",
             hidden = true
     )
-    void peepsCsv(String value);
+    void knownPlayersCsv(String value);
 
     // Visible, user-facing config
 

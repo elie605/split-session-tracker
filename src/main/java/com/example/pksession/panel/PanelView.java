@@ -201,7 +201,7 @@ public class PanelView extends PluginPanel {
         notInCurrentSessionPlayerDropdown.setPreferredSize(new Dimension(94, 24));
         btnAddToSession.setPreferredSize(new Dimension(64, 24));
 
-        String[] peeps = manager.getNonActivePeeps().toArray(new String[0]);
+        String[] peeps = manager.getNonActivePlayers().toArray(new String[0]);
         notInCurrentSessionPlayerDropdown.setModel(new DefaultComboBoxModel<>(peeps));
 
         // Row 0: dropdown (expand) + button (fixed)
@@ -383,7 +383,7 @@ public class PanelView extends PluginPanel {
         tableScroll.setPreferredSize(new Dimension(320, 360));
 
         Session currentSession = manager.getCurrentSession().orElse(null);
-        ((Metrics) metricsTable.getModel()).setData(currentSession, manager.computeMetricsFor(currentSession));
+        ((Metrics) metricsTable.getModel()).setData(currentSession, manager.computeMetricsFor(currentSession, true));
 
         int tableWidth = metricsTable.getWidth();
         int equalWidth = (int)(tableWidth * 0.33); // Equal width for first 3 columns (33% each)
@@ -398,11 +398,68 @@ public class PanelView extends PluginPanel {
         metricsTable.getColumnModel().getColumn(3).setMinWidth(40);
         metricsTable.getColumnModel().getColumn(3).setPreferredWidth(40);
 
-        // Setup remove button renderer and editor for the X column
-        metricsTable.getColumnModel().getColumn(3).setCellRenderer(new TableRemoveButtonRenderer());
+        // Grey-out renderer for columns 0-2 when player is non-active
+        javax.swing.table.DefaultTableCellRenderer greyingRenderer = new javax.swing.table.DefaultTableCellRenderer() {
+            @Override
+            public java.awt.Component getTableCellRendererComponent(JTable table, Object value,
+                                                                    boolean isSelected, boolean hasFocus,
+                                                                    int row, int column) {
+                java.awt.Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+                Metrics model = (Metrics) table.getModel();
+                boolean active = model.isRowActive(row);
+                // Slightly grey out non-active rows; keep selection colors if selected
+                if (!isSelected) {
+                    c.setForeground(active ? table.getForeground() : java.awt.Color.GRAY);
+                }
+                return c;
+            }
+        };
+        metricsTable.getColumnModel().getColumn(0).setCellRenderer(greyingRenderer);
+        metricsTable.getColumnModel().getColumn(1).setCellRenderer(greyingRenderer);
+        metricsTable.getColumnModel().getColumn(2).setCellRenderer(greyingRenderer);
+
+        // Renderer for column 3: show a button "X" for active, and a greyed label "💤" for non-active
+        javax.swing.table.TableCellRenderer actionRenderer = new javax.swing.table.TableCellRenderer() {
+            private final JButton btn = new JButton("X");
+            private final JLabel sleeping = new JLabel("💤", SwingConstants.CENTER);
+            @Override
+            public java.awt.Component getTableCellRendererComponent(JTable table, Object value,
+                                                                    boolean isSelected, boolean hasFocus,
+                                                                    int row, int column) {
+                Metrics model = (Metrics) table.getModel();
+                boolean active = model.isRowActive(row);
+                if (active) {
+                    btn.setText("X");
+                    // Keep button styling; respect selection background
+                    if (isSelected) {
+                        btn.setBackground(table.getSelectionBackground());
+                        btn.setForeground(table.getSelectionForeground());
+                    } else {
+                        btn.setBackground(UIManager.getColor("Button.background"));
+                        btn.setForeground(UIManager.getColor("Button.foreground"));
+                    }
+                    return btn;
+                } else {
+                    sleeping.setText("💤");
+                    sleeping.setOpaque(false);
+                    if (!isSelected) {
+                        sleeping.setForeground(java.awt.Color.GRAY);
+                    } else {
+                        sleeping.setForeground(table.getSelectionForeground());
+                        sleeping.setBackground(table.getSelectionBackground());
+                        sleeping.setOpaque(true);
+                    }
+                    return sleeping;
+                }
+            }
+        };
+        metricsTable.getColumnModel().getColumn(3).setCellRenderer(actionRenderer);
+
+        // Keep the remove editor; it will only activate for active rows (see Metrics.isCellEditable)
         metricsTable.getColumnModel().getColumn(3).setCellEditor(new TableRemoveButtonEditor(this,manager,metricsTable));
 
         return tableScroll;
+
     }
 
 }

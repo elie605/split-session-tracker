@@ -3,6 +3,7 @@ package com.example.pksession;
 import com.example.pksession.model.Kill;
 import com.example.pksession.model.Session;
 import com.google.gson.*;
+import lombok.Getter;
 
 import java.lang.reflect.Type;
 import java.time.Instant;
@@ -28,8 +29,9 @@ public class SessionManager {
 
     private final Map<String, Session> sessions = new LinkedHashMap<>();
     private String currentSessionId;
+    @Getter
     private boolean historyLoaded;
-    private final Set<String> peeps = new LinkedHashSet<>();
+    private final Set<String> knownPlayers = new LinkedHashSet<>();
 
     public SessionManager(PkSessionConfig config) {
         this.config = config;
@@ -55,12 +57,12 @@ public class SessionManager {
 
     public void loadFromConfig() {
         // peeps
-        peeps.clear();
-        String csv = config.peepsCsv();
+        knownPlayers.clear();
+        String csv = config.knownPlayersCsv();
         if (csv != null && !csv.isEmpty()) {
             for (String p : csv.split(",")) {
                 String t = p.trim();
-                if (!t.isEmpty()) peeps.add(t);
+                if (!t.isEmpty()) knownPlayers.add(t);
             }
         }
 
@@ -81,7 +83,7 @@ public class SessionManager {
     }
 
     public void saveToConfig() {
-        config.peepsCsv(String.join(",", peeps));
+        config.knownPlayersCsv(String.join(",", knownPlayers));
         Session[] arr = sessions.values().toArray(new Session[0]);
         config.sessionsJson(gson.toJson(arr));
         config.currentSessionId(nullToEmpty(currentSessionId));
@@ -94,8 +96,7 @@ public class SessionManager {
      * Placeholder for exporting all sessions as JSON (for sharing/backups).
      * Returns a JSON string. Implementation can reuse the existing gson and sessions map.
      */
-    public String exportAllSessionsJson()
-    {
+    public String exportAllSessionsJson() {
         // TODO Implement: return gson.toJson(sessions.values());
         return "";
     }
@@ -104,43 +105,37 @@ public class SessionManager {
      * Placeholder for exporting a single session by id as JSON.
      * Returns a JSON string for the specified session or empty string if not found.
      */
-    public String exportSessionJson(String sessionId)
-    {
+    public String exportSessionJson(String sessionId) {
         // TODO Implement: Session s = sessions.get(sessionId); return s != null ? gson.toJson(s) : "";
         return "";
     }
 
-
-    // Peeps management
-
-    public Set<String> getPeeps() {
-        return Collections.unmodifiableSet(peeps);
+    public Set<String> getKnownPlayers() {
+        return Collections.unmodifiableSet(knownPlayers);
     }
 
-    public Set<String> getNonActivePeeps() {
+    public Set<String> getNonActivePlayers() {
         Session curr = getCurrentSession().orElse(null);
         if (curr == null || !curr.isActive()) {
-            return Collections.unmodifiableSet(peeps);
+            return Collections.unmodifiableSet(knownPlayers);
         }
-        return peeps.stream()
+        return knownPlayers.stream()
                 .filter(p -> !curr.getPlayers().contains(p))
                 .collect(Collectors.toCollection(LinkedHashSet::new));
     }
 
 
-    public boolean addPeep(String name) {
-        boolean added = peeps.add(name.trim());
+    public boolean addKnownPlayer(String name) {
+        boolean added = knownPlayers.add(name.trim());
         if (added) saveToConfig();
         return added;
     }
 
-    public boolean removePeep(String name) {
-        boolean rem = peeps.remove(name.trim());
+    public boolean removeKnownPlayer(String name) {
+        boolean rem = knownPlayers.remove(name.trim());
         if (rem) saveToConfig();
         return rem;
     }
-
-    // Sessions
 
     public Optional<Session> getCurrentSession() {
         return Optional.ofNullable(currentSessionId).map(sessions::get);
@@ -150,10 +145,6 @@ public class SessionManager {
         return sessions.values().stream()
                 .sorted(Comparator.comparing(Session::getStart).reversed())
                 .collect(Collectors.toList());
-    }
-
-    public boolean isHistoryLoaded() {
-        return historyLoaded;
     }
 
     public void unloadHistory() {
@@ -214,10 +205,8 @@ public class SessionManager {
         return true;
     }
 
-    // Roster
-
     public boolean addPlayerToActive(String player) {
-        if (historyLoaded) return false;
+        if (historyLoaded) return false; // TODO support his
         Session curr = getCurrentSession().orElse(null);
         if (curr == null || !curr.isActive()) return false;
 
@@ -249,8 +238,7 @@ public class SessionManager {
         return true;
     }
 
-
-    public boolean removePlayerFromActive(String player) {
+    public boolean removePlayerFromSession(String player) {
         if (historyLoaded) return false;
         Session curr = getCurrentSession().orElse(null);
         if (curr == null || !curr.isActive()) return false;
@@ -277,10 +265,8 @@ public class SessionManager {
         return true;
     }
 
-    // Kills
-
     public boolean addKill(String player, double amount) {
-        if (historyLoaded) return false;
+        if (historyLoaded) return false; //TODO support altering history
         Session curr = getCurrentSession().orElse(null);
         if (curr == null || !curr.isActive()) return false;
 
@@ -292,39 +278,128 @@ public class SessionManager {
         return true;
     }
 
-    // Derived metrics
-
     public static class PlayerMetrics {
         public final String player;
         public final double total;
         public final double split;
+        public final boolean activePlayer;
 
-        public PlayerMetrics(String player, double total, double split) {
+        public PlayerMetrics(String player, double total, double split, boolean activePlayer) {
             this.player = player;
             this.total = total;
             this.split = split;
+            this.activePlayer = activePlayer;
         }
     }
 
+
     public List<PlayerMetrics> computeMetricsFor(Session s) {
+        return computeMetricsFor(s, false);
+    }
+
+    //TODO make this not recalc everything if it does
+    public List<PlayerMetrics> computeMetricsFor(Session s, boolean includeNonActivePlayers) {
         if (s == null) return List.of();
+
+        // Determine the mother (root) id for the session thread
+        String rootId = (s.getMotherId() == null) ? s.getId() : s.getMotherId();
+
+        // Collect all sessions in the thread: mother + all children
+        List<Session> thread = new ArrayList<>();
+        Session mother = sessions.get(rootId);
+        if (mother != null) {
+            thread.add(mother);
+        }
+        for (Session candidate : sessions.values()) {
+            if (rootId.equals(candidate.getMotherId())) {
+                thread.add(candidate);
+            }
+        }
+
+        // Build included players:
+        // - includeNonActivePlayers: union of knownPlayers and everyone who appeared in the thread
+        // - otherwise: only the current session's active roster
+        LinkedHashSet<String> includedPlayers = new LinkedHashSet<>();
+        if (includeNonActivePlayers) {
+            includedPlayers.addAll(knownPlayers);
+            for (Session part : thread) {
+                includedPlayers.addAll(part.getPlayers());
+            }
+        } else {
+            includedPlayers.addAll(s.getPlayers());
+        }
+
+        // Initialize aggregate totals and splits
         Map<String, Double> totals = new LinkedHashMap<>();
-        for (String p : s.getPlayers()) {
+        Map<String, Double> splits = new LinkedHashMap<>();
+        for (String p : includedPlayers) {
             totals.put(p, 0.0);
+            splits.put(p, 0.0);
         }
-        for (Kill k : s.getKills()) {
-            totals.computeIfPresent(k.getPlayer(), (k1, v) -> v + k.getAmount());
+
+        // For each session in the thread:
+        // - compute that session's per-player totals for its own roster
+        // - compute that session's average across its roster (including zeroes)
+        // - for players active in that session, accumulate (playerTotal - sessionAvg) into splits
+        for (Session part : thread) {
+            // Roster for this part (the only players eligible for this part's split)
+            List<String> roster = new ArrayList<>(part.getPlayers());
+            if (roster.isEmpty()) {
+                continue;
+            }
+
+            // Per-session totals for players in this roster
+            Map<String, Double> perSessionTotals = new LinkedHashMap<>();
+            for (String p : roster) {
+                perSessionTotals.put(p, 0.0);
+            }
+            for (Kill k : part.getKills()) {
+                perSessionTotals.computeIfPresent(k.getPlayer(), (k1, v) -> v + k.getAmount());
+            }
+
+            // Session average across the entire roster
+            double sessionAvg = 0.0;
+            if (!perSessionTotals.isEmpty()) {
+                double sum = 0.0;
+                for (double v : perSessionTotals.values()) sum += v;
+                sessionAvg = sum / perSessionTotals.size();
+            }
+
+            // Accumulate totals and splits into the aggregate maps
+            for (Map.Entry<String, Double> e : perSessionTotals.entrySet()) {
+                String player = e.getKey();
+                double playerTotalThisSession = e.getValue();
+
+                // Aggregate total (only if we're showing this player)
+                if (totals.containsKey(player)) {
+                    totals.compute(player, (k, v) -> (v == null ? 0.0 : v) + playerTotalThisSession);
+                }
+
+                // Aggregate split only for players active in THIS session
+                if (splits.containsKey(player)) {
+                    double delta = playerTotalThisSession - sessionAvg;
+                    splits.compute(player, (k, v) -> (v == null ? 0.0 : v) + delta);
+                }
+            }
         }
-        double avg = totals.isEmpty() ? 0.0 : totals.values().stream().mapToDouble(Double::doubleValue).average().orElse(0.0);
+
+        // Build output rows, marking active based on the provided session's current roster
         List<PlayerMetrics> out = new ArrayList<>();
-        for (Map.Entry<String, Double> e : totals.entrySet()) {
-            double split = e.getValue() - avg; // mirrors your sheet's split formula
-            out.add(new PlayerMetrics(e.getKey(), e.getValue(), split));
+        for (String p : includedPlayers) {
+            boolean isActiveNow = s.getPlayers().contains(p);
+            double total = totals.getOrDefault(p, 0.0);
+            double split = splits.getOrDefault(p, 0.0);
+
+            // Skip players with total = 0
+            if (total == 0.0 && split == 0.0) {
+                continue;
+            }
+
+            out.add(new PlayerMetrics(p, total, split, isActiveNow));
         }
         return out;
     }
 
-    // Helpers
 
     private String newId() {
         return UUID.randomUUID().toString();

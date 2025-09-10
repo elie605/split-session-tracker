@@ -27,9 +27,9 @@ public class PkSessionPanel extends PluginPanel {
 
         add(trackerPanelUI);
 
-        trackerPanelUI.getBtnAddToSession().addActionListener(this::onAddToSession);
+        trackerPanelUI.getBtnAddToSession().addActionListener(this::onAddPlayerToSession);
         //trackerPanelUI.getBtnRemoveFromSession().addActionListener(this::onRemoveFromSession);
-        trackerPanelUI.getBtnAddPeep().addActionListener(this::onAddPeep);
+        trackerPanelUI.getBtnAddPeep().addActionListener(this::onAddKnownPlayer);
         trackerPanelUI.getBtnRemovePeep().addActionListener(this::onRemovePeep);
         trackerPanelUI.getBtnStart().addActionListener(this::onStartSession);
         trackerPanelUI.getBtnStop().addActionListener(this::onStopSession);
@@ -58,15 +58,16 @@ public class PkSessionPanel extends PluginPanel {
             toast(this,"Cannot stop while history loaded.");
             return;
         }
-        if (!manager.stopSession()) {
-            toast(this,"No active session.");
-            return;
+        if (manager.stopSession()) {
+            Utils.requestUiRefresh().run();
+            //TODO disable table if session stopped
+            toast(this,"Session stopped.");
+        } else {
+            toast(this,"Failed to stop session.");
         }
-        toast(this,"Session stopped.");
-        Utils.requestUiRefresh().run();
     }
 
-    private void onAddToSession(ActionEvent e) {
+    private void onAddPlayerToSession(ActionEvent e) {
         String player = (String)  trackerPanelUI.getNotInCurrentSessionPlayerDropdown().getSelectedItem();
         if (player == null) {
             toast(this,"Select a player in dropdown.");
@@ -140,13 +141,13 @@ public class PkSessionPanel extends PluginPanel {
         Utils.requestUiRefresh().run();
     }
 
-    private void onAddPeep(ActionEvent e) {
+    private void onAddKnownPlayer(ActionEvent e) {
         String name = trackerPanelUI.getNewPeepField().getText().trim();
         if (name.isEmpty()) {
             toast(this,"Enter a name.");
             return;
         }
-        if (!manager.addPeep(name)) {
+        if (!manager.addKnownPlayer(name)) {
             toast(this,"Player already in list exists.");
             return;
         }
@@ -164,7 +165,7 @@ public class PkSessionPanel extends PluginPanel {
             toast(this,"Select a peep to remove.");
             return;
         }
-        if (!manager.removePeep(selected)) {
+        if (!manager.removeKnownPlayer(selected)) {
             toast(this,"Not found.");
             return;
         }
@@ -187,7 +188,7 @@ public class PkSessionPanel extends PluginPanel {
 
     void refresh() {
         // Update the general dropdown from the Peeps list
-        String[] peeps = manager.getPeeps().toArray(new String[0]);
+        String[] peeps = manager.getKnownPlayers().toArray(new String[0]);
 
         trackerPanelUI.getKnownPlayersDropdown().setModel(new DefaultComboBoxModel<>(peeps));
 
@@ -195,7 +196,7 @@ public class PkSessionPanel extends PluginPanel {
         Session currentSession = manager.getCurrentSession().orElse(null);
         if (currentSession != null && currentSession.isActive()) {
             String[] sessionPlayers = currentSession.getPlayers().toArray(new String[0]);
-            String[] notPeeps = manager.getNonActivePeeps().toArray(new String[0]);
+            String[] notPeeps = manager.getNonActivePlayers().toArray(new String[0]);
 
             trackerPanelUI.getCurrentSessionPlayerDropdown().setModel(new DefaultComboBoxModel<>(sessionPlayers));
             trackerPanelUI.getCurrentSessionPlayerDropdown().setEnabled(true);
@@ -210,9 +211,10 @@ public class PkSessionPanel extends PluginPanel {
         trackerPanelUI.getHistoryLabel().setText("History: " + (manager.isHistoryLoaded() ? "ON" : "OFF"));
 
         // Table data
+        // TODO check and fix?
         Session current = manager.getCurrentSession().orElse(null);
         if (current != null) {
-            ((Metrics) trackerPanelUI.getMetricsTable().getModel()).setData(current, manager.computeMetricsFor(current));
+            ((Metrics) trackerPanelUI.getMetricsTable().getModel()).setData(current, manager.computeMetricsFor(current, true));
         }
 
         // Update recent splits table with the last 10 kills from the current session
@@ -227,6 +229,7 @@ public class PkSessionPanel extends PluginPanel {
         trackerPanelUI.getBtnStart().setEnabled(!ro && !manager.hasActiveSession());
         trackerPanelUI.getBtnStop().setEnabled(!ro && manager.hasActiveSession());
         trackerPanelUI.getBtnAddToSession().setEnabled(!ro && manager.hasActiveSession());
+        trackerPanelUI.getNotInCurrentSessionPlayerDropdown().setEnabled(!ro && manager.hasActiveSession());
         trackerPanelUI.getBtnRemoveFromSession().setEnabled(!ro && manager.hasActiveSession());
         trackerPanelUI.getBtnAddKill().setEnabled(!ro && manager.hasActiveSession() && trackerPanelUI.getCurrentSessionPlayerDropdown().getItemCount() > 0);
         trackerPanelUI.getKillAmountField().setEnabled(!ro && manager.hasActiveSession() && trackerPanelUI.getCurrentSessionPlayerDropdown().getItemCount() > 0);

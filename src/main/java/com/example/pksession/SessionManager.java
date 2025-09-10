@@ -117,6 +117,17 @@ public class SessionManager {
         return Collections.unmodifiableSet(peeps);
     }
 
+    public Set<String> getNonActivePeeps() {
+        Session curr = getCurrentSession().orElse(null);
+        if (curr == null || !curr.isActive()) {
+            return Collections.unmodifiableSet(peeps);
+        }
+        return peeps.stream()
+                .filter(p -> !curr.getPlayers().contains(p))
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+    }
+
+
     public boolean addPeep(String name) {
         boolean added = peeps.add(name.trim());
         if (added) saveToConfig();
@@ -211,7 +222,10 @@ public class SessionManager {
         if (curr == null || !curr.isActive()) return false;
 
         player = player.trim();
-        if (curr.getPlayers().contains(player)) return true;
+        if (curr.getPlayers().contains(player)) {
+            // Return a special value that indicates the player is already in session
+            return false;
+        }
 
         if (curr.hasKills()) {
             // Create a new child session, copy players, add this player, end current child
@@ -234,6 +248,7 @@ public class SessionManager {
         saveToConfig();
         return true;
     }
+
 
     public boolean removePlayerFromActive(String player) {
         if (historyLoaded) return false;

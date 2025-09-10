@@ -27,9 +27,15 @@ public class PkSessionPlugin extends Plugin
 	@Inject private ClientToolbar clientToolbar;
 	@Inject private PkSessionConfig config;
 
-	private com.example.pksession.PkSessionPanel panel;
+	private static com.example.pksession.PkSessionPanel panel;
 	private NavigationButton navButton;
 	private com.example.pksession.SessionManager sessionManager;
+
+    public static PkSessionPanel getPanel(){
+        if ( panel == null)
+            throw new IllegalStateException("Panel not initialized");
+        return panel;
+    }
 
     @Override
     protected void startUp()
@@ -37,7 +43,8 @@ public class PkSessionPlugin extends Plugin
         sessionManager = new com.example.pksession.SessionManager(config);
         sessionManager.loadFromConfig(); // load sessions and players (peeps)
 
-        panel = new com.example.pksession.PkSessionPanel(sessionManager, config, this::requestUiRefresh);
+        panel = new com.example.pksession.PkSessionPanel(sessionManager, config);
+        panel.refresh();
 
         // TODO create an icon
         // Use a transparent placeholder icon so the panel shows in the side menu without bundling an image.

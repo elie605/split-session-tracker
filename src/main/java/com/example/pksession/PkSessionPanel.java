@@ -37,6 +37,10 @@ public class PkSessionPanel extends PluginPanel {
         //        loadHistoryBtn.addActionListener(this::onLoadHistory);
         //        unloadHistoryBtn.addActionListener(this::onUnloadHistory);
 
+        trackerPanelUI.getBtnWaitlistAdd().addActionListener(this::onWaitlistAddSelected);
+        trackerPanelUI.getBtnWaitlistDelete().addActionListener(this::onWaitlistDeleteSelected);
+        trackerPanelUI.getBtnLinkAlt().addActionListener(this::onLinkAltToMain);
+
         refresh();
     }
 
@@ -173,6 +177,57 @@ public class PkSessionPanel extends PluginPanel {
         Utils.requestUiRefresh().run();
     }
 
+    private void onLinkAltToMain(ActionEvent e) {
+        String alt = (String) trackerPanelUI.getAltDropdown().getSelectedItem();
+        String main = (String) trackerPanelUI.getMainDropdown().getSelectedItem();
+        if (alt == null || main == null) {
+            toast(this, "Select both Alt and Main.");
+            return;
+        }
+        manager.setAltMain(alt, main);
+        toast(this, String.format("Linked %s → %s", alt, main));
+        Utils.requestUiRefresh().run();
+    }
+
+    private void onWaitlistAddSelected(ActionEvent e) {
+        int idx = trackerPanelUI.getWaitlistTable().getSelectedRow();
+        if (idx < 0) {
+            toast(this, "Select a detected value first.");
+            return;
+        }
+        if (!manager.hasActiveSession()) {
+            toast(this, "Start a session first.");
+            return;
+        }
+        com.example.pksession.model.WaitlistTableModel m = trackerPanelUI.getWaitlistTableModel();
+        com.example.pksession.model.PendingValue pv = m.getRow(idx);
+        if (pv == null) return;
+        String target = pv.getSuggestedPlayer();
+        if (target == null || target.isBlank()) {
+            toast(this, "Choose a Suggested Player in the table first.");
+            return;
+        }
+        if (manager.applyPendingValueToPlayer(pv.getId(), target)) {
+            Utils.requestUiRefresh().run();
+        } else {
+            toast(this, "Failed to add value. Is the player in the session?");
+        }
+    }
+
+    private void onWaitlistDeleteSelected(ActionEvent e) {
+        int idx = trackerPanelUI.getWaitlistTable().getSelectedRow();
+        if (idx < 0) {
+            toast(this, "Select a detected value first.");
+            return;
+        }
+        com.example.pksession.model.WaitlistTableModel m = trackerPanelUI.getWaitlistTableModel();
+        com.example.pksession.model.PendingValue pv = m.getRow(idx);
+        if (pv == null) return;
+        if (manager.removePendingValueById(pv.getId())) {
+            Utils.requestUiRefresh().run();
+        }
+    }
+
 /*
     private static String sessionLabel(Session s) {
         String mother = s.getMotherId() == null ? "mother" : "child of " + s.getMotherId().substring(0, 8);
@@ -191,6 +246,8 @@ public class PkSessionPanel extends PluginPanel {
         String[] peeps = manager.getKnownPlayers().toArray(new String[0]);
 
         trackerPanelUI.getKnownPlayersDropdown().setModel(new DefaultComboBoxModel<>(peeps));
+        trackerPanelUI.getAltDropdown().setModel(new DefaultComboBoxModel<>(peeps));
+        trackerPanelUI.getMainDropdown().setModel(new DefaultComboBoxModel<>(peeps));
 
         // Update the session player dropdown from the current session's players
         Session currentSession = manager.getCurrentSession().orElse(null);
@@ -224,6 +281,15 @@ public class PkSessionPanel extends PluginPanel {
             trackerPanelUI.getRecentSplitsModel().clear();
         }
 
+        // Update waitlist table
+        com.example.pksession.model.WaitlistTableModel wtm = trackerPanelUI.getWaitlistTableModel();
+        java.util.Set<String> known = manager.getKnownPlayers();
+        java.util.List<com.example.pksession.model.PendingValue> pvals = manager.getPendingValues();
+        wtm.setData(pvals, known);
+        // Update Suggested Player editor (column 2)
+        javax.swing.JComboBox<String> cb = new javax.swing.JComboBox<>(known.toArray(new String[0]));
+        trackerPanelUI.getWaitlistTable().getColumnModel().getColumn(2).setCellEditor(new javax.swing.DefaultCellEditor(cb));
+
         // Enable/disable based on history
         boolean ro = manager.isHistoryLoaded();
         trackerPanelUI.getBtnStart().setEnabled(!ro && !manager.hasActiveSession());
@@ -231,8 +297,13 @@ public class PkSessionPanel extends PluginPanel {
         trackerPanelUI.getBtnAddToSession().setEnabled(!ro && manager.hasActiveSession());
         trackerPanelUI.getNotInCurrentSessionPlayerDropdown().setEnabled(!ro && manager.hasActiveSession());
         trackerPanelUI.getBtnRemoveFromSession().setEnabled(!ro && manager.hasActiveSession());
-        trackerPanelUI.getBtnAddKill().setEnabled(!ro && manager.hasActiveSession() && trackerPanelUI.getCurrentSessionPlayerDropdown().getItemCount() > 0);
-        trackerPanelUI.getKillAmountField().setEnabled(!ro && manager.hasActiveSession() && trackerPanelUI.getCurrentSessionPlayerDropdown().getItemCount() > 0);
+        boolean canAddKill = !ro && manager.hasActiveSession();
+        trackerPanelUI.getBtnAddKill().setEnabled(canAddKill && trackerPanelUI.getCurrentSessionPlayerDropdown().getItemCount() > 0);
+        trackerPanelUI.getKillAmountField().setEnabled(canAddKill && trackerPanelUI.getCurrentSessionPlayerDropdown().getItemCount() > 0);
+        // Waitlist buttons enabled if session active and there are rows
+        int rows = wtm.getRowCount();
+        trackerPanelUI.getBtnWaitlistAdd().setEnabled(!ro && manager.hasActiveSession() && rows > 0);
+        trackerPanelUI.getBtnWaitlistDelete().setEnabled(rows > 0);
     }
 
 }

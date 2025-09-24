@@ -32,8 +32,24 @@ public class PanelView extends PluginPanel {
     @Getter
     private final JTable recentSplitsTable = makeRecentSplitsTable(recentSplitsModel);
 
+    // Waitlist UI (table)
+    @Getter
+    private final com.example.pksession.model.WaitlistTableModel waitlistTableModel = new com.example.pksession.model.WaitlistTableModel();
+    @Getter
+    private final JTable waitlistTable = new JTable(waitlistTableModel);
+    @Getter
+    private final JButton btnWaitlistAdd = new JButton("Add");
+    @Getter
+    private final JButton btnWaitlistDelete = new JButton("Del");
+
     @Getter
     private final JButton btnAddPeep = new JButton("Add peep");
+    @Getter
+    private final JButton btnLinkAlt = new JButton("Link alt → main");
+    @Getter
+    private final JComboBox<String> altDropdown = new JComboBox<>();
+    @Getter
+    private final JComboBox<String> mainDropdown = new JComboBox<>();
     @Getter
     private final JButton btnRemovePeep = new JButton("Remove");
     @Getter
@@ -93,6 +109,8 @@ public class PanelView extends PluginPanel {
         top.add(generateSessionPlayerManagement());
         top.add(Box.createVerticalStrut(3));
         top.add(generateAddSplit());
+        top.add(Box.createVerticalStrut(3));
+        top.add(generateWaitlistPanel());
         top.add(Box.createVerticalStrut(3));
         top.add((generateMetrics()));
         top.add(Box.createVerticalStrut(3));
@@ -289,9 +307,34 @@ public class PanelView extends PluginPanel {
         gbc.weightx = 1.0; gbc.fill = GridBagConstraints.HORIZONTAL; gbc.anchor = GridBagConstraints.CENTER;
         peepsPanel.add(buttonPanel, gbc);
 
-        // Row 3: Session panel (span 2)
-        gbc.gridx = 0; gbc.gridy = 3; gbc.gridwidth = 2;
+        // Row 3: Alt/Main linking controls
+        JLabel altLbl = new JLabel("Alt:");
+        altLbl.setPreferredSize(dl);
+        altLbl.setHorizontalAlignment(SwingConstants.RIGHT);
+        gbc.gridx = 0; gbc.gridy = 3;
+        gbc.weightx = 0; gbc.fill = GridBagConstraints.NONE; gbc.anchor = GridBagConstraints.EAST;
+        peepsPanel.add(altLbl, gbc);
+
+        altDropdown.setPreferredSize(dDrop);
+        gbc.gridx = 1; gbc.gridy = 3;
         gbc.weightx = 1.0; gbc.fill = GridBagConstraints.HORIZONTAL; gbc.anchor = GridBagConstraints.WEST;
+        peepsPanel.add(altDropdown, gbc);
+
+        JLabel mainLbl = new JLabel("Main:");
+        mainLbl.setPreferredSize(dl);
+        mainLbl.setHorizontalAlignment(SwingConstants.RIGHT);
+        gbc.gridx = 0; gbc.gridy = 4;
+        gbc.weightx = 0; gbc.fill = GridBagConstraints.NONE; gbc.anchor = GridBagConstraints.EAST;
+        peepsPanel.add(mainLbl, gbc);
+
+        mainDropdown.setPreferredSize(dDrop);
+        gbc.gridx = 1; gbc.gridy = 4;
+        gbc.weightx = 1.0; gbc.fill = GridBagConstraints.HORIZONTAL; gbc.anchor = GridBagConstraints.WEST;
+        peepsPanel.add(mainDropdown, gbc);
+
+        gbc.gridx = 0; gbc.gridy = 5; gbc.gridwidth = 2;
+        gbc.weightx = 1.0; gbc.fill = GridBagConstraints.HORIZONTAL; gbc.anchor = GridBagConstraints.CENTER;
+        peepsPanel.add(btnLinkAlt, gbc);
 
         return peepsPanel;
     }
@@ -370,6 +413,33 @@ public class PanelView extends PluginPanel {
 //        center.add(historyPanel);
 
         return historyPanel;
+    }
+
+    private JPanel generateWaitlistPanel(){
+        JPanel p = new JPanel();
+        p.setBorder(
+                BorderFactory.createCompoundBorder(
+                        BorderFactory.createTitledBorder("Detected values (waitlist)"),
+                        BorderFactory.createEmptyBorder(3,3,3,3)
+                )
+        );
+        p.setLayout(new GridBagLayout());
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(3,3,3,3);
+        gbc.gridx = 0; gbc.gridy = 0; gbc.gridwidth = 1; gbc.weightx = 1.0; gbc.fill = GridBagConstraints.BOTH;
+        waitlistTable.setFillsViewportHeight(true);
+        waitlistTable.setRowHeight(22);
+        waitlistTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        JScrollPane sc = new JScrollPane(waitlistTable);
+        sc.setPreferredSize(new Dimension(0, 120));
+        p.add(sc, gbc);
+
+        JPanel btns = new JPanel(new GridLayout(1,2,6,0));
+        btns.add(btnWaitlistAdd);
+        btns.add(btnWaitlistDelete);
+        gbc.gridx = 0; gbc.gridy = 1; gbc.gridwidth = 2; gbc.weightx = 1.0; gbc.fill = GridBagConstraints.HORIZONTAL;
+        p.add(btns, gbc);
+        return p;
     }
 
     private JScrollPane generateMetrics(){

@@ -33,6 +33,12 @@ public class SessionManager {
     private boolean historyLoaded;
     private final Set<String> knownPlayers = new LinkedHashSet<>();
 
+    // Transient waitlist of detected values from chat
+    private final java.util.List<com.example.pksession.model.PendingValue> pendingValues = new java.util.ArrayList<>();
+
+    // Alt/main mapping (alt name -> main name)
+    private final Map<String, String> altToMain = new LinkedHashMap<>();
+
     public SessionManager(PkSessionConfig config) {
         this.config = config;
         // Create a custom type adapter for Instant
@@ -65,6 +71,16 @@ public class SessionManager {
                 if (!t.isEmpty()) knownPlayers.add(t);
             }
         }
+        // alts mapping
+        altToMain.clear();
+        String altsJson = config.altsJson();
+        if (altsJson != null && !altsJson.isEmpty()) {
+            try {
+                java.lang.reflect.Type mapType = new com.google.gson.reflect.TypeToken<Map<String, String>>(){}.getType();
+                Map<String,String> m = gson.fromJson(altsJson, mapType);
+                if (m != null) altToMain.putAll(m);
+            } catch (Exception ignored) { }
+        }
 
         // sessions
         sessions.clear();
@@ -84,6 +100,12 @@ public class SessionManager {
 
     public void saveToConfig() {
         config.knownPlayersCsv(String.join(",", knownPlayers));
+        // save alt mapping
+        try {
+            config.altsJson(gson.toJson(altToMain));
+        } catch (Exception e) {
+            // ignore
+        }
         Session[] arr = sessions.values().toArray(new Session[0]);
         config.sessionsJson(gson.toJson(arr));
         config.currentSessionId(nullToEmpty(currentSessionId));
@@ -276,6 +298,83 @@ public class SessionManager {
         curr.getKills().add(new com.example.pksession.model.Kill(curr.getId(), player, amount, Instant.now()));
         saveToConfig();
         return true;
+    }
+
+    // ===== Pending values (waitlist) =====
+    public java.util.List<com.example.pksession.model.PendingValue> getPendingValues() {
+        return java.util.Collections.unmodifiableList(pendingValues);
+    }
+
+    public void addPendingValue(com.example.pksession.model.PendingValue pv) {
+        if (pv == null) return;
+        // Auto-add unknown suggested player to known list
+        String suggested = pv.getSuggestedPlayer();
+        if (suggested != null && !suggested.isBlank()) {
+            if (!knownPlayers.contains(suggested)) {
+                knownPlayers.add(suggested);
+                saveToConfig();
+            }
+        }
+        // Auto-apply if configured and player already in session
+        if (config.autoApplyWhenInSession() && hasActiveSession() && suggested != null && !suggested.isBlank()) {
+            String resolved = getMainName(suggested);
+            Session curr = getCurrentSession().orElse(null);
+            if (curr != null && curr.getPlayers().contains(resolved)) {
+                addKill(resolved, pv.getValue());
+                return; // do not queue
+            }
+        }
+        // Limit size to avoid unbounded growth
+        if (pendingValues.size() > 100) {
+            pendingValues.remove(0);
+        }
+        pendingValues.add(pv);
+    }
+
+    public boolean removePendingValueById(String id) {
+        return pendingValues.removeIf(p -> p.getId().equals(id));
+    }
+
+    public boolean applyPendingValueToPlayer(String id, String player) {
+        com.example.pksession.model.PendingValue pv = pendingValues.stream().filter(p -> p.getId().equals(id)).findFirst().orElse(null);
+        if (pv == null) return false;
+        String target = getMainName(player);
+        boolean ok = addKill(target, pv.getValue());
+        if (ok) {
+            pendingValues.remove(pv);
+        }
+        return ok;
+    }
+
+    // ===== Alt/main mapping =====
+    public String getMainName(String name) {
+        if (name == null) return null;
+        String n = name.trim();
+        String visited = null;
+        // resolve chain up to a few steps to avoid cycles
+        for (int i = 0; i < 5; i++) {
+            String m = altToMain.get(n);
+            if (m == null || m.equalsIgnoreCase(n)) return n;
+            if (visited != null && visited.equalsIgnoreCase(m)) break;
+            visited = n;
+            n = m;
+        }
+        return n;
+    }
+
+    public void setAltMain(String alt, String main) {
+        if (alt == null || main == null) return;
+        alt = alt.trim();
+        main = main.trim();
+        if (alt.isEmpty() || main.isEmpty()) return;
+        if (alt.equalsIgnoreCase(main)) {
+            altToMain.remove(alt);
+        } else {
+            altToMain.put(alt, main);
+            knownPlayers.add(alt);
+            knownPlayers.add(main);
+        }
+        saveToConfig();
     }
 
     public static class PlayerMetrics {

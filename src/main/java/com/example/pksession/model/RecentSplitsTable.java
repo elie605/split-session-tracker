@@ -1,6 +1,8 @@
 package com.example.pksession.model;
 
 
+import lombok.Setter;
+
 public final class RecentSplitsTable extends javax.swing.table.AbstractTableModel {
     private final java.util.List<Row> rows = new java.util.ArrayList<>(10);
     private static final String[] COLS = {"Time", "Player", "Amount"};
@@ -12,15 +14,19 @@ public final class RecentSplitsTable extends javax.swing.table.AbstractTableMode
 
     private static final java.time.ZoneId SYS_TZ = java.time.ZoneId.systemDefault();
 
-    private static final class Row {
-        final String time;
-        final String player;
-        final Long amountK;
+    public interface Listener {
+        void onEdited();
+    }
+    @Setter
+    private Listener listener;
 
-        Row(String time, String player, Long amountK) {
+    private static final class Row {
+        final Kill kill; // keep reference for editing
+        final String time;
+
+        Row(Kill kill, String time) {
+            this.kill = kill;
             this.time = time;
-            this.player = player;
-            this.amountK = amountK;
         }
     }
 
@@ -29,23 +35,48 @@ public final class RecentSplitsTable extends javax.swing.table.AbstractTableMode
     @Override public String getColumnName(int column) { return COLS[column]; }
     @Override public Class<?> getColumnClass(int columnIndex) { return String.class; }
 
+    @Override public boolean isCellEditable(int rowIndex, int columnIndex) {
+        return columnIndex == 1 || columnIndex == 2; // player, amount
+    }
+
     @Override public Object getValueAt(int rowIndex, int columnIndex) {
         Row e = rows.get(rowIndex);
         switch (columnIndex) {
             case 0: return e.time;
-            case 1: return e.player;
-            case 2: return (e.amountK + "K");
+            case 1: return e.kill.getPlayer();
+            case 2: return (e.kill.getAmount() + "K");
             default: return "";
         }
     }
 
-    private void addEntry(String player, Long amountK, java.time.Instant at) {
+    @Override public void setValueAt(Object aValue, int rowIndex, int columnIndex) {
+        if (rowIndex < 0 || rowIndex >= rows.size()) return;
+        Row e = rows.get(rowIndex);
+        if (columnIndex == 1) { // player
+            String v = aValue == null ? null : aValue.toString();
+            if (v != null && !v.isBlank()) {
+                e.kill.setPlayer(v.trim());
+            }
+        } else if (columnIndex == 2) { // amount (K)
+            try {
+                String s = aValue == null ? "" : aValue.toString().trim().toLowerCase();
+                if (s.endsWith("k")) s = s.substring(0, s.length()-1);
+                s = s.replace(",", "");
+                long k = Long.parseLong(s);
+                e.kill.setAmount(k);
+            } catch (Exception ignored) { }
+        }
+        fireTableRowsUpdated(rowIndex, rowIndex);
+        if (listener != null) listener.onEdited();
+    }
+
+    private void addEntry(Kill k) {
         String timeStr = "";
-        if (at != null) {
-            timeStr = TIME_FMT.format(java.time.ZonedDateTime.ofInstant(at, SYS_TZ));
+        if (k.getAt() != null) {
+            timeStr = TIME_FMT.format(java.time.ZonedDateTime.ofInstant(k.getAt(), SYS_TZ));
         }
         // newest on top
-        rows.add(0, new Row(timeStr, player, amountK));
+        rows.add(0, new Row(k, timeStr));
         fireTableDataChanged();
     }
 
@@ -59,8 +90,7 @@ public final class RecentSplitsTable extends javax.swing.table.AbstractTableMode
         // Iterate from newest to oldest
         for (int i = n - 1; i >= 0; i--) {
             com.example.pksession.model.Kill k = kills.get(i);
-            Long amountK = (long) Math.round(k.getAmount());
-            addEntry(k.getPlayer(), amountK, k.getAt());
+            addEntry(k);
         }
         fireTableDataChanged();
     }

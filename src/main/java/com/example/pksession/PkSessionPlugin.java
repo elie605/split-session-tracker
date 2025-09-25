@@ -21,7 +21,7 @@ import java.text.ParseException;
 @Slf4j
 @PluginDescriptor(
 	name = "PK Session",
-	description = "Track PK sessions, roster changes, kills and live splits. Supports history.",
+	description = "Automatic loot splitter for PK sessions. Tracks sessions, roster changes, chat-detected values, editable recent splits, and settlement metrics (copy JSON). Collapsible sections and configurable panel order.",
 	enabledByDefault = true
 )
 public class PkSessionPlugin extends Plugin

@@ -7,11 +7,15 @@ import com.example.pksession.model.Metrics;
 import com.example.pksession.model.RecentSplitsTable;
 import com.example.pksession.model.Session;
 import lombok.Getter;
+import net.runelite.client.config.ConfigSection;
 import net.runelite.client.ui.PluginPanel;
 
 import javax.swing.*;
+import javax.swing.event.TableModelEvent;
+import javax.swing.event.TableModelListener;
 import javax.swing.text.DefaultFormatterFactory;
 import java.awt.*;
+import java.awt.datatransfer.StringSelection;
 
 @Getter
 public class PanelView extends PluginPanel {
@@ -24,7 +28,7 @@ public class PanelView extends PluginPanel {
     private final JFormattedTextField killAmountField = makeOsrsField();
     private final JTable metricsTable = new JTable(new Metrics());
     private final RecentSplitsTable recentSplitsModel = new RecentSplitsTable();
-    private final JTable recentSplitsTable = makeRecentSplitsTable(recentSplitsModel);
+    private JTable recentSplitsTable;
 
     // Waitlist UI (table)
     private final com.example.pksession.model.WaitlistTableModel waitlistTableModel = new com.example.pksession.model.WaitlistTableModel();
@@ -70,13 +74,30 @@ public class PanelView extends PluginPanel {
         t.setFillsViewportHeight(true);
         t.setRowHeight(22);
         t.setShowGrid(false);
-        t.setFocusable(false);
-        t.setEnabled(false); // read-only
+        t.setFocusable(true);
+        t.setEnabled(true); // editable via model
 
         // Right-align amount col
         javax.swing.table.DefaultTableCellRenderer right = new javax.swing.table.DefaultTableCellRenderer();
         right.setHorizontalAlignment(SwingConstants.RIGHT);
         t.getColumnModel().getColumn(2).setCellRenderer(right);
+
+        // Player editor: combo of current session players (fallback to known mains)
+        JComboBox<String> playerEditorCombo = new JComboBox<>();
+        {
+            java.util.Set<String> choices;
+            Session curr = manager.getCurrentSession().orElse(null);
+            if (curr != null && !curr.getPlayers().isEmpty()) choices = new java.util.LinkedHashSet<>(curr.getPlayers());
+            else choices = new java.util.LinkedHashSet<>(manager.getKnownMains());
+            playerEditorCombo.setModel(new DefaultComboBoxModel<>(choices.toArray(new String[0])));
+        }
+        t.getColumnModel().getColumn(1).setCellEditor(new DefaultCellEditor(playerEditorCombo));
+
+        // Amount editor: formatted text field accepting K/M/B
+        JFormattedTextField amtField = new JFormattedTextField(new DefaultFormatterFactory(new Formats.OsrsAmountFormatter()));
+        amtField.setBorder(null);
+        DefaultCellEditor amtEditor = new DefaultCellEditor(amtField);
+        t.getColumnModel().getColumn(2).setCellEditor(amtEditor);
 
         return t;
     }
@@ -84,24 +105,42 @@ public class PanelView extends PluginPanel {
     public PanelView(SessionManager manager, PkSessionConfig config) {
         this.manager = manager;
         this.config = config;
+        // React to edits in recent splits to update metrics
+        recentSplitsModel.setListener(this::refreshMetrics);
+
+        recentSplitsTable = makeRecentSplitsTable(recentSplitsModel);
 
         JPanel top = new JPanel();
         top.setLayout(new javax.swing.BoxLayout(top, javax.swing.BoxLayout.Y_AXIS));
-        top.add(generateSessionPanel());
-        top.add(Box.createVerticalStrut(3));
-        top.add(generateSessionPlayerManagement());
-        top.add(Box.createVerticalStrut(3));
-        top.add(generateAddSplit());
-        top.add(Box.createVerticalStrut(3));
-        top.add(generateWaitlistPanel());
-        top.add(Box.createVerticalStrut(3));
-        top.add((generateMetrics()));
-        top.add(Box.createVerticalStrut(3));
-        top.add(generateKnownPlayersManagement());
 
+        java.util.Map<String, java.util.function.Supplier<java.awt.Component>> sections = new java.util.LinkedHashMap<>();
+        sections.put("session", this::generateSessionPanel);
+        sections.put("sessionplayers", this::generateSessionPlayerManagement);
+        sections.put("addsplit", this::generateAddSplit);
+        sections.put("recentsplits", this::generateRecentSplitsPanel);
+        sections.put("detectedvalues", this::generateWaitlistPanelCollapsible);
+        sections.put("settlement", this::generateMetrics);
+        sections.put("knownplayers", this::generateKnownPlayersManagement);
 
-        JPanel center = new JPanel();
-        center.setLayout(new javax.swing.BoxLayout(center, javax.swing.BoxLayout.Y_AXIS));
+        java.util.Set<String> added = new java.util.LinkedHashSet<>();
+        String orderCsv = config.sectionOrderCsv();
+        if (orderCsv != null && !orderCsv.isBlank()) {
+            for (String key : orderCsv.split(",")) {
+                String k = key.trim().toLowerCase();
+                java.util.function.Supplier<java.awt.Component> sup = sections.get(k);
+                if (sup != null) {
+                    top.add(sup.get());
+                    top.add(Box.createVerticalStrut(3));
+                    added.add(k);
+                }
+            }
+        }
+        for (var e : sections.entrySet()) {
+            if (!added.contains(e.getKey())) {
+                top.add(e.getValue().get());
+                top.add(Box.createVerticalStrut(3));
+            }
+        }
 
         add(top, BorderLayout.NORTH);
     }
@@ -159,17 +198,7 @@ public class PanelView extends PluginPanel {
         gbc.weightx = 1.0; gbc.fill = GridBagConstraints.HORIZONTAL; gbc.anchor = GridBagConstraints.EAST;
         killPanel.add(btnAddKill, gbc);
 
-        // Row 3: Last 10 splits table (spans 2)
-        JPanel recentSplits = new JPanel(new BorderLayout());
-        recentSplits.setBorder(BorderFactory.createTitledBorder("Recent splits"));
-        JScrollPane scroller = new JScrollPane(recentSplitsTable);
-        scroller.setPreferredSize(new Dimension(0, 140)); // height hint
-        recentSplits.add(scroller, BorderLayout.CENTER);
-
-        gbc.gridx = 0; gbc.gridy = 3; gbc.gridwidth = 2;
-        gbc.weightx = 1.0; gbc.fill = GridBagConstraints.BOTH; gbc.anchor = GridBagConstraints.CENTER;
-        gbc.weighty = 1.0; // let the table grow
-        killPanel.add(recentSplits, gbc);
+        // (Recent splits moved to its own section)
 
         // Wire the button (avoid duplicate listeners if called multiple times)
         for (java.awt.event.ActionListener al : btnAddKill.getActionListeners()) {
@@ -428,23 +457,60 @@ public class PanelView extends PluginPanel {
         btns.add(btnWaitlistDelete);
         gbc.gridx = 0; gbc.gridy = 1; gbc.gridwidth = 2; gbc.weightx = 1.0; gbc.fill = GridBagConstraints.HORIZONTAL;
         p.add(btns, gbc);
+
+        // Always keep first row selected
+        waitlistTableModel.addTableModelListener(new TableModelListener() {
+            @Override public void tableChanged(TableModelEvent e) {
+                if (waitlistTable.getRowCount() > 0) {
+                    waitlistTable.getSelectionModel().setSelectionInterval(0, 0);
+                } else {
+                    waitlistTable.clearSelection();
+                }
+            }
+        });
+        if (waitlistTable.getRowCount() > 0) {
+            waitlistTable.getSelectionModel().setSelectionInterval(0, 0);
+        }
+
         return p;
     }
 
-    private JScrollPane generateMetrics(){
-        // Set up the metricsTable with custom column configuration
+    private JComponent generateWaitlistPanelCollapsible() {
+        return new CollapsiblePanel("Detected values", generateWaitlistPanel());
+    }
 
+    private JComponent generateRecentSplitsPanel() {
+        JScrollPane scroller = new JScrollPane(recentSplitsTable);
+        scroller.setPreferredSize(new Dimension(0, 140));
+        return new CollapsiblePanel("Recent splits", scroller);
+    }
+
+    private JComponent generateMetrics(){
+        // Wrapper panel with title and description
+        JPanel wrapper = new JPanel(new BorderLayout(0, 6));
+        JLabel title = new JLabel("Settlement");
+        title.setFont(title.getFont().deriveFont(Font.BOLD));
+        JLabel desc = new JLabel("-100k means you owe that amount to the player; 100k means the player owes you that money.");
+
+        JPanel header = new JPanel(new BorderLayout());
+        header.add(title, BorderLayout.NORTH);
+        header.add(desc, BorderLayout.CENTER);
+
+        JButton copyBtn = new JButton("Copy JSON");
+        copyBtn.addActionListener(e -> copyMetricsJsonToClipboard());
+        header.add(copyBtn, BorderLayout.EAST);
+        wrapper.add(header, BorderLayout.NORTH);
+
+        // Set up the metricsTable with custom column configuration
         metricsTable.setFillsViewportHeight(true);
         metricsTable.setAutoResizeMode(JTable.AUTO_RESIZE_ALL_COLUMNS);
 
-        metricsTable.setFillsViewportHeight(true);
         JScrollPane tableScroll = new JScrollPane(metricsTable);
         tableScroll.setPreferredSize(new Dimension(320, 360));
 
-        Session currentSession = manager.getCurrentSession().orElse(null);
-        ((Metrics) metricsTable.getModel()).setData(manager.computeMetricsFor(currentSession, true));
+        refreshMetrics();
 
-        int tableWidth = metricsTable.getWidth();
+        int tableWidth = Math.max(metricsTable.getWidth(), 1);
         int equalWidth = (int)(tableWidth * 0.33); // Equal width for first 3 columns (33% each)
 
         // Set widths for first 3 columns
@@ -466,7 +532,6 @@ public class PanelView extends PluginPanel {
                 java.awt.Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
                 Metrics model = (Metrics) table.getModel();
                 boolean active = model.isRowActive(row);
-                // Slightly grey out non-active rows; keep selection colors if selected
                 if (!isSelected) {
                     c.setForeground(active ? table.getForeground() : java.awt.Color.GRAY);
                 }
@@ -489,7 +554,6 @@ public class PanelView extends PluginPanel {
                 boolean active = model.isRowActive(row);
                 if (active) {
                     btn.setText("X");
-                    // Keep button styling; respect selection background
                     if (isSelected) {
                         btn.setBackground(table.getSelectionBackground());
                         btn.setForeground(table.getSelectionForeground());
@@ -513,12 +577,34 @@ public class PanelView extends PluginPanel {
             }
         };
         metricsTable.getColumnModel().getColumn(3).setCellRenderer(actionRenderer);
-
         // Keep the remove editor; it will only activate for active rows (see Metrics.isCellEditable)
         metricsTable.getColumnModel().getColumn(3).setCellEditor(new TableRemoveButtonEditor(this,manager,metricsTable));
 
-        return tableScroll;
+        wrapper.add(tableScroll, BorderLayout.CENTER);
+        return wrapper;
+    }
 
+    private void refreshMetrics() {
+        Session currentSession = manager.getCurrentSession().orElse(null);
+        ((Metrics) metricsTable.getModel()).setData(manager.computeMetricsFor(currentSession, true));
+    }
+
+    private void copyMetricsJsonToClipboard() {
+        Session currentSession = manager.getCurrentSession().orElse(null);
+        java.util.List<com.example.pksession.SessionManager.PlayerMetrics> data = manager.computeMetricsFor(currentSession, true);
+        StringBuilder sb = new StringBuilder();
+        sb.append("[");
+        for (int i = 0; i < data.size(); i++) {
+            var pm = data.get(i);
+            sb.append("{\"player\":\"").append(pm.player).append("\",")
+              .append("\"total\":").append(pm.total).append(",")
+              .append("\"split\":").append(pm.split).append(",")
+              .append("\"active\":").append(pm.activePlayer).append("}");
+            if (i < data.size() - 1) sb.append(",");
+        }
+        sb.append("]");
+        StringSelection selection = new StringSelection(sb.toString());
+        java.awt.Toolkit.getDefaultToolkit().getSystemClipboard().setContents(selection, selection);
     }
 
 }

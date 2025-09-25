@@ -148,6 +148,21 @@ public interface PkSessionConfig extends Config
     )
     default boolean autoApplyWhenInSession() { return false; }
 
+    // Panel order (optional, CSV of section keys)
+    @ConfigItem(
+            keyName = "sectionOrderCsv",
+            name = "Panel section order",
+            description = "Comma-separated order of sections: session,sessionPlayers,addSplit,recentSplits,detectedValues,settlement,knownPlayers"
+    )
+    default String sectionOrderCsv() { return "session,sessionPlayers,addSplit,recentSplits,detectedValues,settlement,knownPlayers"; }
+
+    @ConfigItem(
+            keyName = "sectionOrderCsv",
+            name = "Panel section order",
+            description = "Comma-separated order of sections: session,sessionPlayers,addSplit,recentSplits,detectedValues,settlement,knownPlayers"
+    )
+    void sectionOrderCsv(String value);
+
     // Alt/main mapping persistence (hidden JSON)
     String KEY_ALTS_JSON = "altsJson";
 

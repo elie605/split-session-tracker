@@ -13,15 +13,8 @@ public class TableRemoveButtonEditor extends DefaultCellEditor {
     private int row = -1;
 
 
-    private final JTable metricsTable;
-    private final Component parent;
-    private final SessionManager manager;
-
     public TableRemoveButtonEditor(Component parent, SessionManager manager, JTable metricsTable) {
         super(new JCheckBox());
-        this.manager = manager;
-        this.metricsTable = metricsTable;
-        this.parent = parent;
 
         button.setOpaque(true);
         button.addActionListener(e -> {

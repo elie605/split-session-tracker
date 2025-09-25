@@ -16,12 +16,10 @@ import static com.example.pksession.Utils.toast;
 public class PkSessionPanel extends PluginPanel {
 
     private final com.example.pksession.SessionManager manager;
-    private final PkSessionConfig config;
-    private PanelView trackerPanelUI;
+    private final PanelView trackerPanelUI;
 
     public PkSessionPanel(SessionManager manager, PkSessionConfig config) {
         this.manager = manager;
-        this.config = config;
 
         this.trackerPanelUI = new PanelView(manager, config);
 
@@ -39,9 +37,16 @@ public class PkSessionPanel extends PluginPanel {
 
         trackerPanelUI.getBtnWaitlistAdd().addActionListener(this::onWaitlistAddSelected);
         trackerPanelUI.getBtnWaitlistDelete().addActionListener(this::onWaitlistDeleteSelected);
-        trackerPanelUI.getBtnLinkAlt().addActionListener(this::onLinkAltToMain);
+        trackerPanelUI.getBtnAddAlt().addActionListener(this::onAddAltToMain);
+        trackerPanelUI.getBtnRemoveAlt().addActionListener(this::onRemoveAltFromMain);
+        // Refresh alts list when selection changes
+        trackerPanelUI.getKnownPlayersDropdown().addItemListener(e -> {
+            if (e.getStateChange() == java.awt.event.ItemEvent.SELECTED) {
+                refreshAltList();
+            }
+        });
 
-        refresh();
+        refreshAllView();
     }
 
     private void onStartSession(ActionEvent e) {
@@ -105,9 +110,9 @@ public class PkSessionPanel extends PluginPanel {
             return;
         }
         Object val = trackerPanelUI.getKillAmountField().getValue();
-        double amt;
+        long amt;
         try {
-            amt = val == null ? Double.parseDouble(trackerPanelUI.getKillAmountField().getText()) : ((Number) val).doubleValue();
+            amt = val == null ? Long.parseLong(trackerPanelUI.getKillAmountField().getText()) : ((Number) val).longValue();
         } catch (Exception ex) {
             toast(this,"Invalid amount.");
             return;
@@ -135,7 +140,7 @@ public class PkSessionPanel extends PluginPanel {
         Utils.requestUiRefresh().run();
     }
 
-    private void onUnloadHistory(ActionEvent e) {
+    private void onUnloadHistory() {
         if (!manager.isHistoryLoaded()) {
             toast(this,"Nothing to unload.");
             return;
@@ -169,6 +174,14 @@ public class PkSessionPanel extends PluginPanel {
             toast(this,"Select a peep to remove.");
             return;
         }
+        int res = javax.swing.JOptionPane.showConfirmDialog(this,
+                "Remove '" + selected + "'? This will also unlink any alt relationships.",
+                "Confirm removal",
+                javax.swing.JOptionPane.YES_NO_OPTION,
+                javax.swing.JOptionPane.WARNING_MESSAGE);
+        if (res != javax.swing.JOptionPane.YES_OPTION) {
+            return;
+        }
         if (!manager.removeKnownPlayer(selected)) {
             toast(this,"Not found.");
             return;
@@ -177,16 +190,86 @@ public class PkSessionPanel extends PluginPanel {
         Utils.requestUiRefresh().run();
     }
 
-    private void onLinkAltToMain(ActionEvent e) {
-        String alt = (String) trackerPanelUI.getAltDropdown().getSelectedItem();
-        String main = (String) trackerPanelUI.getMainDropdown().getSelectedItem();
-        if (alt == null || main == null) {
-            toast(this, "Select both Alt and Main.");
+    private void onAddAltToMain(ActionEvent e) {
+        String main = (String) trackerPanelUI.getKnownPlayersDropdown().getSelectedItem();
+        String alt = (String) trackerPanelUI.getAddAltDropdown().getSelectedItem();
+        if (main == null || alt == null) {
+            toast(this, "Select a player and an alt to add.");
             return;
         }
-        manager.setAltMain(alt, main);
-        toast(this, String.format("Linked %s → %s", alt, main));
-        Utils.requestUiRefresh().run();
+        if (!manager.canLinkAltToMain(alt, main)) {
+            toast(this, "Cannot link: either main is an alt, alt already linked, or alt is a main.");
+            return;
+        }
+        if (manager.trySetAltMain(alt, main)) {
+            toast(this, String.format("Linked %s → %s", alt, main));
+            Utils.requestUiRefresh().run();
+        } else {
+            toast(this, "Failed to link alt.");
+        }
+    }
+
+    private void onRemoveAltFromMain(ActionEvent e) {
+        String selectedMain = (String) trackerPanelUI.getKnownPlayersDropdown().getSelectedItem();
+        String selectedEntry = trackerPanelUI.getAltsList().getSelectedValue();
+        if (selectedMain == null || selectedMain.isBlank()) {
+            toast(this, "Select a player in Known list.");
+            return;
+        }
+        if (selectedEntry == null || selectedEntry.isBlank()) {
+            toast(this, "Select an alt in the list to remove.");
+            return;
+        }
+
+        // Case 1: Info row like "{player} is an alt of {main}" when the selected player is an alt
+        if (selectedEntry.contains(" is an alt of ")) {
+            String[] parts = selectedEntry.split(" is an alt of ", 2);
+            if (parts.length == 2) {
+                String alt = parts[0].trim();
+                String main = parts[1].trim();
+                if (!manager.isAlt(alt)) {
+                    toast(this, alt + " is not linked as an alt.");
+                    return;
+                }
+                int res = JOptionPane.showConfirmDialog(this,
+                        "Unlink '" + alt + "' from '" + main + "'?",
+                        "Confirm unlink",
+                        JOptionPane.YES_NO_OPTION,
+                        JOptionPane.WARNING_MESSAGE);
+                if (res != JOptionPane.YES_OPTION) return;
+                if (manager.unlinkAlt(alt)) {
+                    toast(this, "Unlinked alt.");
+                    Utils.requestUiRefresh().run();
+                } else {
+                    toast(this, "Failed to unlink alt.");
+                }
+                return;
+            }
+        }
+
+        // Case 2: A plain alt name under the selected main's list
+        String alt = selectedEntry.trim();
+        if (!manager.isAlt(alt)) {
+            toast(this, alt + " is not linked as an alt.");
+            return;
+        }
+        String main = manager.getMainName(alt);
+        if (main == null || !main.equalsIgnoreCase(selectedMain)) {
+            toast(this, String.format("%s is linked to %s, not %s.", alt, main, selectedMain));
+            return;
+        }
+        int res = JOptionPane.showConfirmDialog(this,
+                "Unlink '" + alt + "' from '" + main + "'?",
+                "Confirm unlink",
+                JOptionPane.YES_NO_OPTION,
+                JOptionPane.WARNING_MESSAGE);
+        if (res != JOptionPane.YES_OPTION) return;
+        if (manager.unlinkAlt(alt)) {
+            toast(this, "Unlinked alt.");
+            Utils.requestUiRefresh().run();
+        } else {
+            toast(this, "Failed to unlink alt.");
+        }
     }
 
     private void onWaitlistAddSelected(ActionEvent e) {
@@ -241,13 +324,59 @@ public class PkSessionPanel extends PluginPanel {
     }
 */
 
-    void refresh() {
+    void refreshAltList(){
+        String[] peeps = manager.getKnownPlayers().toArray(new String[0]);
+        refreshAltList(peeps);
+    }
+
+    void refreshAltList(String[] peeps){
+        // Update known count label
+        trackerPanelUI.getKnownListLabel().setText("Known (" + peeps.length + "):");
+        // Populate alts list for the currently selected player
+        String selectedMain = (String) trackerPanelUI.getKnownPlayersDropdown().getSelectedItem();
+        if (selectedMain == null && peeps.length > 0) {
+            selectedMain = peeps[0];
+            trackerPanelUI.getKnownPlayersDropdown().setSelectedIndex(0);
+        }
+        // Update alts label text
+        String altsText = (selectedMain != null && !selectedMain.isBlank())
+                ? (selectedMain + " known alts:")
+                : "Known alts:";
+        trackerPanelUI.getAltsLabel().setText(altsText);
+        DefaultListModel<String> altsModel = (DefaultListModel<String>) trackerPanelUI.getAltsList().getModel();
+        altsModel.clear();
+        // If the selected player is an alt, show that info as the first item in the list instead of a label
+        if (selectedMain != null && manager.isAlt(selectedMain)) {
+            String mainName = manager.getMainName(selectedMain);
+            if (mainName != null && !mainName.equalsIgnoreCase(selectedMain)) {
+                altsModel.addElement(selectedMain + " is an alt of " + mainName);
+            }
+        }
+        if (selectedMain != null) {
+            for (String alt : manager.getAltsOf(selectedMain)) {
+                altsModel.addElement(alt);
+            }
+        }
+        // Populate add-alt dropdown with eligible candidates
+        java.util.List<String> eligible = new java.util.ArrayList<>();
+        for (String p : manager.getKnownPlayers()) {
+            if (selectedMain == null) break;
+            if (manager.canLinkAltToMain(p, selectedMain)) {
+                eligible.add(p);
+            }
+        }
+        trackerPanelUI.getAddAltDropdown().setModel(new DefaultComboBoxModel<>(eligible.toArray(new String[0])));
+
+    }
+
+
+    void refreshAllView() {
         // Update the general dropdown from the Peeps list
         String[] peeps = manager.getKnownPlayers().toArray(new String[0]);
 
         trackerPanelUI.getKnownPlayersDropdown().setModel(new DefaultComboBoxModel<>(peeps));
-        trackerPanelUI.getAltDropdown().setModel(new DefaultComboBoxModel<>(peeps));
-        trackerPanelUI.getMainDropdown().setModel(new DefaultComboBoxModel<>(peeps));
+
+        refreshAltList(peeps);
 
         // Update the session player dropdown from the current session's players
         Session currentSession = manager.getCurrentSession().orElse(null);
@@ -271,7 +400,7 @@ public class PkSessionPanel extends PluginPanel {
         // TODO check and fix?
         Session current = manager.getCurrentSession().orElse(null);
         if (current != null) {
-            ((Metrics) trackerPanelUI.getMetricsTable().getModel()).setData(current, manager.computeMetricsFor(current, true));
+            ((Metrics) trackerPanelUI.getMetricsTable().getModel()).setData(manager.computeMetricsFor(current, true));
         }
 
         // Update recent splits table with the last 10 kills from the current session
@@ -283,11 +412,11 @@ public class PkSessionPanel extends PluginPanel {
 
         // Update waitlist table
         com.example.pksession.model.WaitlistTableModel wtm = trackerPanelUI.getWaitlistTableModel();
-        java.util.Set<String> known = manager.getKnownPlayers();
+        java.util.Set<String> mainsOnly = manager.getKnownMains();
         java.util.List<com.example.pksession.model.PendingValue> pvals = manager.getPendingValues();
-        wtm.setData(pvals, known);
-        // Update Suggested Player editor (column 2)
-        javax.swing.JComboBox<String> cb = new javax.swing.JComboBox<>(known.toArray(new String[0]));
+        wtm.setData(pvals);
+        // Update Suggested Player editor (column 2) to show mains only
+        javax.swing.JComboBox<String> cb = new javax.swing.JComboBox<>(mainsOnly.toArray(new String[0]));
         trackerPanelUI.getWaitlistTable().getColumnModel().getColumn(2).setCellEditor(new javax.swing.DefaultCellEditor(cb));
 
         // Enable/disable based on history

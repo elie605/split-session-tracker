@@ -17,11 +17,11 @@ public class PendingValue {
     private Type type;
     private String source; // e.g., Clan, Friends
     private String message; // original or summary
-    private double value;
+    private Long value;
     private String suggestedPlayer; // may be null
     private Instant detectedAt;
 
-    public static PendingValue of(Type type, String source, String message, double value, String suggestedPlayer) {
+    public static PendingValue of(Type type, String source, String message, Long value, String suggestedPlayer) {
         return new PendingValue(UUID.randomUUID().toString(), type, source, message, value, suggestedPlayer, Instant.now());
         }
 }

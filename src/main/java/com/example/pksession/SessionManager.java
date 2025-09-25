@@ -25,7 +25,7 @@ import java.util.stream.Collectors;
  */
 public class SessionManager {
     private final PkSessionConfig config;
-    private Gson gson = new GsonBuilder().create();
+    private final Gson gson;
 
     private final Map<String, Session> sessions = new LinkedHashMap<>();
     private String currentSessionId;
@@ -136,12 +136,24 @@ public class SessionManager {
         return Collections.unmodifiableSet(knownPlayers);
     }
 
+    /**
+     * Returns only main accounts (known players that are not linked as alts).
+     */
+    public Set<String> getKnownMains() {
+        LinkedHashSet<String> mains = knownPlayers.stream()
+                .filter(p -> !isAlt(p))
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        return Collections.unmodifiableSet(mains);
+    }
+
     public Set<String> getNonActivePlayers() {
+        // Only mains should be offered for adding to session
         Session curr = getCurrentSession().orElse(null);
+        java.util.Set<String> mains = getKnownMains();
         if (curr == null || !curr.isActive()) {
-            return Collections.unmodifiableSet(knownPlayers);
+            return java.util.Collections.unmodifiableSet(mains);
         }
-        return knownPlayers.stream()
+        return mains.stream()
                 .filter(p -> !curr.getPlayers().contains(p))
                 .collect(Collectors.toCollection(LinkedHashSet::new));
     }
@@ -154,8 +166,16 @@ public class SessionManager {
     }
 
     public boolean removeKnownPlayer(String name) {
-        boolean rem = knownPlayers.remove(name.trim());
-        if (rem) saveToConfig();
+        String n = name == null ? null : name.trim();
+        if (n == null || n.isEmpty()) return false;
+        boolean rem = knownPlayers.remove(n);
+        // Clean up alt/main mappings involving this name
+        // Remove if this name is an alt
+        altToMain.remove(n);
+        // Remove any entries where this name is the main
+        altToMain.entrySet().removeIf(e -> e.getValue().equalsIgnoreCase(n));
+        // still persist mapping cleanup
+        saveToConfig();
         return rem;
     }
 
@@ -232,9 +252,11 @@ public class SessionManager {
         Session curr = getCurrentSession().orElse(null);
         if (curr == null || !curr.isActive()) return false;
 
-        player = player.trim();
-        if (curr.getPlayers().contains(player)) {
-            // Return a special value that indicates the player is already in session
+        String mainPlayer = getMainName(player == null ? null : player.trim());
+        if (mainPlayer == null || mainPlayer.isBlank()) return false;
+        final String fMain = mainPlayer;
+        if (curr.getPlayers().stream().anyMatch(p -> p.equalsIgnoreCase(fMain))) {
+            // Player (main) already in session
             return false;
         }
 
@@ -244,7 +266,7 @@ public class SessionManager {
             Session newChild = new Session(newId(), Instant.now(), motherId);
             // copy players
             newChild.getPlayers().addAll(curr.getPlayers());
-            // add the new player
+            // add the new player (main)
             newChild.getPlayers().add(player);
 
             // End current child (but keep kills)
@@ -287,15 +309,16 @@ public class SessionManager {
         return true;
     }
 
-    public boolean addKill(String player, double amount) {
+    public boolean addKill(String player, Long amount) {
         if (historyLoaded) return false; //TODO support altering history
         Session curr = getCurrentSession().orElse(null);
         if (curr == null || !curr.isActive()) return false;
 
-        player = player.trim();
-        if (!curr.getPlayers().contains(player)) return false;
+        String mainPlayer = getMainName(player == null ? null : player.trim());
+        if (mainPlayer == null || mainPlayer.isBlank()) return false;
+        if (curr.getPlayers().stream().noneMatch(p -> p.equalsIgnoreCase(mainPlayer))) return false;
 
-        curr.getKills().add(new com.example.pksession.model.Kill(curr.getId(), player, amount, Instant.now()));
+        curr.getKills().add(new com.example.pksession.model.Kill(curr.getId(), mainPlayer, amount, Instant.now()));
         saveToConfig();
         return true;
     }
@@ -307,19 +330,21 @@ public class SessionManager {
 
     public void addPendingValue(com.example.pksession.model.PendingValue pv) {
         if (pv == null) return;
-        // Auto-add unknown suggested player to known list
+        // Normalize suggested player to main for all downstream uses
         String suggested = pv.getSuggestedPlayer();
-        if (suggested != null && !suggested.isBlank()) {
-            if (!knownPlayers.contains(suggested)) {
-                knownPlayers.add(suggested);
+        String resolved = getMainName(suggested);
+        pv.setSuggestedPlayer(resolved);
+        // Auto-add unknown suggested MAIN to known list
+        if (resolved != null && !resolved.isBlank()) {
+            if (!knownPlayers.contains(resolved)) {
+                knownPlayers.add(resolved);
                 saveToConfig();
             }
         }
         // Auto-apply if configured and player already in session
-        if (config.autoApplyWhenInSession() && hasActiveSession() && suggested != null && !suggested.isBlank()) {
-            String resolved = getMainName(suggested);
+        if (config.autoApplyWhenInSession() && hasActiveSession() && resolved != null && !resolved.isBlank()) {
             Session curr = getCurrentSession().orElse(null);
-            if (curr != null && curr.getPlayers().contains(resolved)) {
+            if (curr != null && curr.getPlayers().stream().anyMatch(p -> p.equalsIgnoreCase(resolved))) {
                 addKill(resolved, pv.getValue());
                 return; // do not queue
             }
@@ -362,28 +387,78 @@ public class SessionManager {
         return n;
     }
 
-    public void setAltMain(String alt, String main) {
-        if (alt == null || main == null) return;
-        alt = alt.trim();
-        main = main.trim();
-        if (alt.isEmpty() || main.isEmpty()) return;
-        if (alt.equalsIgnoreCase(main)) {
-            altToMain.remove(alt);
-        } else {
-            altToMain.put(alt, main);
-            knownPlayers.add(alt);
-            knownPlayers.add(main);
-        }
-        saveToConfig();
+    public boolean isAlt(String name) {
+        if (name == null) return false;
+        return altToMain.containsKey(name.trim());
     }
+
+    public java.util.List<String> getAltsOf(String main) {
+        if (main == null || main.isBlank()) return java.util.List.of();
+        String m = main.trim();
+        java.util.List<String> out = new java.util.ArrayList<>();
+        for (Map.Entry<String, String> e : altToMain.entrySet()) {
+            if (e.getValue() != null && e.getValue().equalsIgnoreCase(m)) {
+                out.add(e.getKey());
+            }
+        }
+        out.sort(String::compareToIgnoreCase);
+        return out;
+    }
+
+    public boolean canLinkAltToMain(String alt, String main) {
+        if (alt == null || main == null) return false;
+        String a = alt.trim();
+        String m = main.trim();
+        if (a.isEmpty() || m.isEmpty()) return false;
+        if (a.equalsIgnoreCase(m)) return false; // cannot link self
+        // main cannot be an alt
+        if (altToMain.containsKey(m)) return false;
+        // alt cannot already have a different main
+        if (altToMain.containsKey(a) && !altToMain.get(a).equalsIgnoreCase(m)) return false;
+        // alt cannot be a main of others (prevents main being alt through this change)
+        for (Map.Entry<String,String> e : altToMain.entrySet()) {
+            if (e.getValue() != null && e.getValue().equalsIgnoreCase(a)) return false;
+        }
+        return true;
+    }
+
+    public boolean trySetAltMain(String alt, String main) {
+        if (!canLinkAltToMain(alt, main)) return false;
+        String a = alt.trim();
+        String m = main.trim();
+        // no-op if already linked
+        if (altToMain.containsKey(a) && altToMain.get(a).equalsIgnoreCase(m)) {
+            return true;
+        }
+        altToMain.put(a, m);
+        knownPlayers.add(a);
+        knownPlayers.add(m);
+        saveToConfig();
+        return true;
+    }
+
+    /**
+     * Unlink the given alt from its main.
+     * @param alt the alt name to unlink
+     * @return true if an existing mapping was removed
+     */
+    public boolean unlinkAlt(String alt) {
+        if (alt == null || alt.trim().isEmpty()) return false;
+        String a = alt.trim();
+        if (!altToMain.containsKey(a)) return false;
+        altToMain.remove(a);
+        saveToConfig();
+        return true;
+    }
+
 
     public static class PlayerMetrics {
         public final String player;
-        public final double total;
-        public final double split;
+        public final Long total;
+        public final Long split;
         public final boolean activePlayer;
 
-        public PlayerMetrics(String player, double total, double split, boolean activePlayer) {
+        public PlayerMetrics(String player, Long total, Long split, boolean activePlayer) {
             this.player = player;
             this.total = total;
             this.split = split;
@@ -429,11 +504,11 @@ public class SessionManager {
         }
 
         // Initialize aggregate totals and splits
-        Map<String, Double> totals = new LinkedHashMap<>();
-        Map<String, Double> splits = new LinkedHashMap<>();
+        Map<String, Long> totals = new LinkedHashMap<>();
+        Map<String, Long> splits = new LinkedHashMap<>();
         for (String p : includedPlayers) {
-            totals.put(p, 0.0);
-            splits.put(p, 0.0);
+            totals.put(p, 0L);
+            splits.put(p, 0L);
         }
 
         // For each session in the thread:
@@ -448,36 +523,36 @@ public class SessionManager {
             }
 
             // Per-session totals for players in this roster
-            Map<String, Double> perSessionTotals = new LinkedHashMap<>();
+            Map<String, Long> perSessionTotals = new LinkedHashMap<>();
             for (String p : roster) {
-                perSessionTotals.put(p, 0.0);
+                perSessionTotals.put(p, 0L);
             }
             for (Kill k : part.getKills()) {
                 perSessionTotals.computeIfPresent(k.getPlayer(), (k1, v) -> v + k.getAmount());
             }
 
             // Session average across the entire roster
-            double sessionAvg = 0.0;
+            Long sessionAvg = 0L;
             if (!perSessionTotals.isEmpty()) {
-                double sum = 0.0;
-                for (double v : perSessionTotals.values()) sum += v;
+                Long sum = 0L;
+                for (Long v : perSessionTotals.values()) sum += v;
                 sessionAvg = sum / perSessionTotals.size();
             }
 
             // Accumulate totals and splits into the aggregate maps
-            for (Map.Entry<String, Double> e : perSessionTotals.entrySet()) {
+            for (Map.Entry<String, Long> e : perSessionTotals.entrySet()) {
                 String player = e.getKey();
-                double playerTotalThisSession = e.getValue();
+                Long playerTotalThisSession = e.getValue();
 
                 // Aggregate total (only if we're showing this player)
                 if (totals.containsKey(player)) {
-                    totals.compute(player, (k, v) -> (v == null ? 0.0 : v) + playerTotalThisSession);
+                    totals.compute(player, (k, v) -> (v) + playerTotalThisSession);
                 }
 
                 // Aggregate split only for players active in THIS session
                 if (splits.containsKey(player)) {
-                    double delta = playerTotalThisSession - sessionAvg;
-                    splits.compute(player, (k, v) -> (v == null ? 0.0 : v) + delta);
+                    Long delta = playerTotalThisSession - sessionAvg;
+                    splits.compute(player, (k, v) -> (v) + delta);
                 }
             }
         }
@@ -486,8 +561,8 @@ public class SessionManager {
         List<PlayerMetrics> out = new ArrayList<>();
         for (String p : includedPlayers) {
             boolean isActiveNow = s.getPlayers().contains(p);
-            double total = totals.getOrDefault(p, 0.0);
-            double split = splits.getOrDefault(p, 0.0);
+            Long total = totals.getOrDefault(p, 0L);
+            Long split = splits.getOrDefault(p, 0L);
 
             // Skip players with total = 0
             if (total == 0.0 && split == 0.0) {

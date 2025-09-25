@@ -16,6 +16,7 @@ import net.runelite.api.ChatMessageType;
 import net.runelite.client.eventbus.Subscribe;
 
 import java.awt.image.BufferedImage;
+import java.text.ParseException;
 
 @Slf4j
 @PluginDescriptor(
@@ -46,7 +47,7 @@ public class PkSessionPlugin extends Plugin
         sessionManager.loadFromConfig(); // load sessions and players (peeps)
 
         panel = new com.example.pksession.PkSessionPanel(sessionManager, config);
-        panel.refresh();
+        panel.refreshAllView();
 
         // TODO create an icon
         // Use a transparent placeholder icon so the panel shows in the side menu without bundling an image.
@@ -88,14 +89,15 @@ public class PkSessionPlugin extends Plugin
 		SwingUtilities.invokeLater(() -> {
 			if (panel != null)
 			{
-				panel.refresh();
+				panel.refreshAllView();
 			}
 		});
 	}
 
 	@Subscribe
-	public void onChatMessage(ChatMessage event)
-	{
+	public void onChatMessage(ChatMessage event) throws ParseException {
+        Formats.OsrsAmountFormatter f = new Formats.OsrsAmountFormatter();
+
 		if (!config.enableChatDetection())
 		{
 			return;
@@ -119,7 +121,7 @@ public class PkSessionPlugin extends Plugin
 			if (m.find())
 			{
 				String player = m.group(1);
-				double value = parseNumber(m.group(2));
+                Long value = (Long) f.stringToValue(m.group(2));
 				queuePending(com.example.pksession.model.PendingValue.Type.PVM, isClan ? "Clan" : "Friends", msg, value, player);
 				return;
 			}
@@ -132,7 +134,7 @@ public class PkSessionPlugin extends Plugin
 			if (m.find())
 			{
 				String player = m.group(1);
-				double value = parseNumber(m.group(3));
+                Long value = (Long) f.stringToValue(m.group(3));
 				queuePending(com.example.pksession.model.PendingValue.Type.PVP, isClan ? "Clan" : "Friends", msg, value, player);
 				return;
 			}
@@ -149,34 +151,19 @@ public class PkSessionPlugin extends Plugin
 			{
 				String who = sender != null ? sender : "";
 				String amtText = m.group(1);
-				double valueK = parseKAmount(amtText);
+				Long valueK = (Long) f.stringToValue(amtText);
 				queuePending(com.example.pksession.model.PendingValue.Type.ADD, isClan ? "Clan" : "Friends", msg, valueK, who);
 			}
 		}
 	}
 
-	private double parseNumber(String s)
+	private Long parseNumber(String s)
 	{
-		if (s == null) return 0;
-		try { return Double.parseDouble(s.replace(",", "")); } catch (Exception e) { return 0; }
+		if (s == null) return 0L;
+		try { return Long.parseLong(s.replace(",", "")); } catch (Exception e) { return 0L; }
 	}
 
-	// Parse amounts like 250k, 1.2m, 3b into K units using the same logic as the UI formatter
-	private double parseKAmount(String text)
-	{
-		try {
-			Formats.OsrsAmountFormatter f = new Formats.OsrsAmountFormatter();
-			Object v = f.stringToValue(text);
-			if (v instanceof Number) {
-				return ((Number) v).doubleValue();
-			}
-		} catch (java.text.ParseException ignored) { }
-		// Fallback: plain number treated as coins -> convert to K
-		double coins = parseNumber(text);
-		return coins / 1000.0;
-	}
-
-	private void queuePending(com.example.pksession.model.PendingValue.Type type, String source, String msg, double value, String suggestedPlayer)
+	private void queuePending(com.example.pksession.model.PendingValue.Type type, String source, String msg, Long value, String suggestedPlayer)
 	{
 		if (sessionManager == null) return;
 		com.example.pksession.model.PendingValue pv = com.example.pksession.model.PendingValue.of(type, source, msg, value, suggestedPlayer);

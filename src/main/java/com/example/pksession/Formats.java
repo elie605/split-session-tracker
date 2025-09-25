@@ -7,7 +7,6 @@ import java.text.DecimalFormat;
 import java.text.ParseException;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class Formats {
@@ -38,6 +37,12 @@ public class Formats {
             BigDecimal number = new BigDecimal(m.group(1));
             char suffix = (m.group(2) == null) ? 'k' : Character.toLowerCase(m.group(2).charAt(0));
 
+            BigDecimal kVal = getBigDecimal(number, suffix);
+            // normalize to whole K (floor)
+            return kVal.setScale(0, RoundingMode.FLOOR).longValueExact();
+        }
+
+        private static BigDecimal getBigDecimal(BigDecimal number, char suffix) throws ParseException {
             if (number.signum() < 0) throw new ParseException("Negative not allowed", 0);
 
             long multiplierK;
@@ -55,15 +60,13 @@ public class Formats {
                     multiplierK = 1L;
             }
 
-            BigDecimal kVal = number.multiply(BigDecimal.valueOf(multiplierK));
-            // normalize to whole K (floor)
-            return kVal.setScale(0, RoundingMode.FLOOR).longValueExact();
+            return number.multiply(BigDecimal.valueOf(multiplierK));
         }
 
         @Override
-        public String valueToString(Object value) throws ParseException {
+        public String valueToString(Object value){
             if (value == null) return "";
-            long k = ((Number) value).longValue();
+            Long k = ((Number) value).longValue();
             return k + "K";
         }
     }

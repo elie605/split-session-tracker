@@ -3,18 +3,15 @@ package com.example.pksession.model;
 import com.example.pksession.Formats;
 import com.example.pksession.SessionManager;
 
-import javax.swing.*;
 import javax.swing.table.AbstractTableModel;
 import java.util.List;
 import java.util.Comparator;
 import java.util.stream.Collectors;
 
 public final class Metrics extends AbstractTableModel {
-    private Session session;
     private List<SessionManager.PlayerMetrics> rows = List.of();
 
-    public void setData(Session session, List<SessionManager.PlayerMetrics> rows) {
-        this.session = session;
+    public void setData(List<SessionManager.PlayerMetrics> rows) {
         // Sort: active first, inactive at bottom; stable within groups
         this.rows = rows.stream()
                 .sorted(Comparator.comparingInt(pm -> pm.activePlayer ? 0 : 1)) // active=true → 0, inactive=false → 1

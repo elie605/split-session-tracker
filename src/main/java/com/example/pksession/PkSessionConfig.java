@@ -83,6 +83,7 @@ public interface PkSessionConfig extends Config
 
     // Visible, user-facing config
 
+    //TODO implement this
     @ConfigItem(
             keyName = "showToasts",
             name = "Show toasts",
@@ -90,13 +91,7 @@ public interface PkSessionConfig extends Config
     )
     default boolean showToasts() { return true; }
 
-    @ConfigItem(
-            keyName = "decimalPlaces",
-            name = "Split decimal places",
-            description = "Number of decimal places to show for totals and splits"
-    )
-    default int decimalPlaces() { return 2; }
-
+    //TODO implement this
     @ConfigItem(
             keyName = "allowNegativeKills",
             name = "Allow negative kill values",

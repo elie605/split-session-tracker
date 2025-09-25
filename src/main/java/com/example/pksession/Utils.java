@@ -14,9 +14,9 @@ public class Utils {
         SwingUtilities.invokeLater(() -> {
             if (panel != null)
             {
-                panel.refresh();
+                panel.refreshAllView();
             }
         });
-        return panel::refresh;
+        return panel::refreshAllView;
     }
 }

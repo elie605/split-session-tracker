@@ -13,63 +13,46 @@ import javax.swing.*;
 import javax.swing.text.DefaultFormatterFactory;
 import java.awt.*;
 
+@Getter
 public class PanelView extends PluginPanel {
     private final com.example.pksession.SessionManager manager;
     private final PkSessionConfig config;
 
-    @Getter
     private final JComboBox<String> knownPlayersDropdown = new JComboBox<>();
-    @Getter
     private final JTextField newPeepField = new JTextField();
-    @Getter
     private final JLabel historyLabel = new JLabel("History: OFF");
-    @Getter
     private final JFormattedTextField killAmountField = makeOsrsField();
-    @Getter
     private final JTable metricsTable = new JTable(new Metrics());
-    @Getter
     private final RecentSplitsTable recentSplitsModel = new RecentSplitsTable();
-    @Getter
     private final JTable recentSplitsTable = makeRecentSplitsTable(recentSplitsModel);
 
     // Waitlist UI (table)
-    @Getter
     private final com.example.pksession.model.WaitlistTableModel waitlistTableModel = new com.example.pksession.model.WaitlistTableModel();
-    @Getter
     private final JTable waitlistTable = new JTable(waitlistTableModel);
-    @Getter
     private final JButton btnWaitlistAdd = new JButton("Add");
-    @Getter
     private final JButton btnWaitlistDelete = new JButton("Del");
 
-    @Getter
     private final JButton btnAddPeep = new JButton("Add peep");
-    @Getter
-    private final JButton btnLinkAlt = new JButton("Link alt → main");
-    @Getter
-    private final JComboBox<String> altDropdown = new JComboBox<>();
-    @Getter
-    private final JComboBox<String> mainDropdown = new JComboBox<>();
-    @Getter
+    // Labels for dynamic text
+    private final JLabel knownListLabel = new JLabel("Known:");
+    private final JLabel altsLabel = new JLabel("Known alts:");
+    // Shows when the selected player is an alt of someone
+    private final JLabel altOfLabel = new JLabel("");
+    // Alt/Main UI (new): list of alts for selected player, and controls to add an alt
+    private final JList<String> altsList = new JList<>(new DefaultListModel<>());
+    private final JComboBox<String> addAltDropdown = new JComboBox<>();
+    private final JButton btnAddAlt = new JButton("Add alt");
+    private final JButton btnRemoveAlt = new JButton("Remove selected alt");
     private final JButton btnRemovePeep = new JButton("Remove");
-    @Getter
     private final JButton btnAddKill = new JButton("Add");
-    @Getter
     private final JButton btnStart = new JButton("Start");
-    @Getter
     private final JButton btnStop = new JButton("Stop");
-    @Getter
     private final JButton btnAddToSession = new JButton("Add");
-    @Getter
     private final JButton btnRemoveFromSession = new JButton("Remove");
 
-    @Getter
     private final JComboBox<String> currentSessionPlayerDropdown = new JComboBox<>();
-    @Getter
     private final JComboBox<String> notInCurrentSessionPlayerDropdown = new JComboBox<>();
-    @Getter
     private final DefaultListModel<Session> historyModel = new DefaultListModel<>();
-    @Getter
     private final JList<Session> historyList = new JList<>(historyModel);
 
 
@@ -286,13 +269,12 @@ public class PanelView extends PluginPanel {
         peepsPanel.add(newPeepField, gbc);
 
         // Row 1: List
-        JLabel listLabel = new JLabel("Known:");
-        listLabel.setPreferredSize(dl);
-        listLabel.setHorizontalAlignment(SwingConstants.RIGHT);
+        knownListLabel.setPreferredSize(dl);
+        knownListLabel.setHorizontalAlignment(SwingConstants.RIGHT);
 
         gbc.gridx = 0; gbc.gridy = 1;
         gbc.weightx = 0; gbc.fill = GridBagConstraints.NONE; gbc.anchor = GridBagConstraints.EAST;
-        peepsPanel.add(listLabel, gbc);
+        peepsPanel.add(knownListLabel, gbc);
 
         gbc.gridx = 1; gbc.gridy = 1;
         gbc.weightx = 1.0; gbc.fill = GridBagConstraints.HORIZONTAL; gbc.anchor = GridBagConstraints.WEST;
@@ -307,34 +289,41 @@ public class PanelView extends PluginPanel {
         gbc.weightx = 1.0; gbc.fill = GridBagConstraints.HORIZONTAL; gbc.anchor = GridBagConstraints.CENTER;
         peepsPanel.add(buttonPanel, gbc);
 
-        // Row 3: Alt/Main linking controls
-        JLabel altLbl = new JLabel("Alt:");
-        altLbl.setPreferredSize(dl);
-        altLbl.setHorizontalAlignment(SwingConstants.RIGHT);
+        // Row 3: Alts list for the selected player
+        altsLabel.setPreferredSize(dl);
+        altsLabel.setHorizontalAlignment(SwingConstants.RIGHT);
         gbc.gridx = 0; gbc.gridy = 3;
+        gbc.weightx = 0; gbc.fill = GridBagConstraints.NONE;
+        peepsPanel.add(altsLabel, gbc);
+
+
+        JScrollPane altsScroll = new JScrollPane(altsList);
+        altsScroll.setPreferredSize(new Dimension(80, 80));
+        gbc.gridx = 0; gbc.gridy = 4; gbc.gridwidth = 2;
+         gbc.weighty = 1; gbc.fill = GridBagConstraints.BOTH;
+        peepsPanel.add(altsScroll, gbc);
+
+        // Row 4: Add alt controls
+        JLabel addAltLbl = new JLabel("Add alt:      ");
+        addAltLbl.setPreferredSize(dl);
+        addAltLbl.setHorizontalAlignment(SwingConstants.RIGHT);
+        gbc.gridx = 0; gbc.gridy = 5;
         gbc.weightx = 0; gbc.fill = GridBagConstraints.NONE; gbc.anchor = GridBagConstraints.EAST;
-        peepsPanel.add(altLbl, gbc);
+        peepsPanel.add(addAltLbl, gbc);
 
-        altDropdown.setPreferredSize(dDrop);
-        gbc.gridx = 1; gbc.gridy = 3;
+        addAltDropdown.setPreferredSize(dDrop);
+        gbc.gridx = 0; gbc.gridy = 5;
         gbc.weightx = 1.0; gbc.fill = GridBagConstraints.HORIZONTAL; gbc.anchor = GridBagConstraints.WEST;
-        peepsPanel.add(altDropdown, gbc);
+        peepsPanel.add(addAltDropdown, gbc);
 
-        JLabel mainLbl = new JLabel("Main:");
-        mainLbl.setPreferredSize(dl);
-        mainLbl.setHorizontalAlignment(SwingConstants.RIGHT);
-        gbc.gridx = 0; gbc.gridy = 4;
-        gbc.weightx = 0; gbc.fill = GridBagConstraints.NONE; gbc.anchor = GridBagConstraints.EAST;
-        peepsPanel.add(mainLbl, gbc);
-
-        mainDropdown.setPreferredSize(dDrop);
-        gbc.gridx = 1; gbc.gridy = 4;
-        gbc.weightx = 1.0; gbc.fill = GridBagConstraints.HORIZONTAL; gbc.anchor = GridBagConstraints.WEST;
-        peepsPanel.add(mainDropdown, gbc);
-
-        gbc.gridx = 0; gbc.gridy = 5; gbc.gridwidth = 2;
+        gbc.gridx = 0; gbc.gridy = 6; gbc.gridwidth = 2;
         gbc.weightx = 1.0; gbc.fill = GridBagConstraints.HORIZONTAL; gbc.anchor = GridBagConstraints.CENTER;
-        peepsPanel.add(btnLinkAlt, gbc);
+        peepsPanel.add(btnAddAlt, gbc);
+
+        // Row 6b: Remove alt button
+        gbc.gridx = 0; gbc.gridy = 7; gbc.gridwidth = 2;
+        gbc.weightx = 1.0; gbc.fill = GridBagConstraints.HORIZONTAL; gbc.anchor = GridBagConstraints.CENTER;
+        peepsPanel.add(btnRemoveAlt, gbc);
 
         return peepsPanel;
     }
@@ -453,7 +442,7 @@ public class PanelView extends PluginPanel {
         tableScroll.setPreferredSize(new Dimension(320, 360));
 
         Session currentSession = manager.getCurrentSession().orElse(null);
-        ((Metrics) metricsTable.getModel()).setData(currentSession, manager.computeMetricsFor(currentSession, true));
+        ((Metrics) metricsTable.getModel()).setData(manager.computeMetricsFor(currentSession, true));
 
         int tableWidth = metricsTable.getWidth();
         int equalWidth = (int)(tableWidth * 0.33); // Equal width for first 3 columns (33% each)

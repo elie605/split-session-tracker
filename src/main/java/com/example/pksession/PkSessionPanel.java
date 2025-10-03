@@ -28,7 +28,7 @@ public class PkSessionPanel extends PluginPanel {
         trackerPanelUI.getBtnAddToSession().addActionListener(this::onAddPlayerToSession);
         //trackerPanelUI.getBtnRemoveFromSession().addActionListener(this::onRemoveFromSession);
         trackerPanelUI.getBtnAddPeep().addActionListener(this::onAddKnownPlayer);
-        trackerPanelUI.getBtnRemovePeep().addActionListener(this::onRemovePeep);
+        trackerPanelUI.getBtnRemovePlayer().addActionListener(this::onRemovePeep);
         trackerPanelUI.getBtnStart().addActionListener(this::onStartSession);
         trackerPanelUI.getBtnStop().addActionListener(this::onStopSession);
         trackerPanelUI.getBtnAddKill().addActionListener(this::onAddKill);

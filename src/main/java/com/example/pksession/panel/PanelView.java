@@ -46,7 +46,7 @@ public class PanelView extends PluginPanel {
     private final JComboBox<String> addAltDropdown = new JComboBox<>();
     private final JButton btnAddAlt = new JButton("Add alt");
     private final JButton btnRemoveAlt = new JButton("Remove alt");
-    private final JButton btnRemovePeep = new JButton("Remove");
+    private final JButton btnRemovePlayer = new JButton("Remove player");
     private final JButton btnAddKill = new JButton("Add");
     private final JButton btnStart = new JButton("Start");
     private final JButton btnStop = new JButton("Stop");
@@ -329,7 +329,7 @@ public class PanelView extends PluginPanel {
         // Row 6: Remove player (100%) — directly under the dropdown
         gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 2;
         gbc.weightx = 1.0; gbc.fill = GridBagConstraints.HORIZONTAL; gbc.anchor = GridBagConstraints.CENTER;
-        peepsPanel.add(btnRemovePeep, gbc);
+        peepsPanel.add(btnRemovePlayer, gbc);
         row++;
 
         // Row 7: "Player known alts" label (own row, 100%)

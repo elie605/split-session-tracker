@@ -45,7 +45,7 @@ public class PanelView extends PluginPanel {
     private final JList<String> altsList = new JList<>(new DefaultListModel<>());
     private final JComboBox<String> addAltDropdown = new JComboBox<>();
     private final JButton btnAddAlt = new JButton("Add alt");
-    private final JButton btnRemoveAlt = new JButton("Remove selected alt");
+    private final JButton btnRemoveAlt = new JButton("Remove alt");
     private final JButton btnRemovePeep = new JButton("Remove");
     private final JButton btnAddKill = new JButton("Add");
     private final JButton btnStart = new JButton("Start");
@@ -256,12 +256,6 @@ public class PanelView extends PluginPanel {
 
     private JPanel generateKnownPlayersManagement() {
         JPanel peepsPanel = new JPanel();
-        peepsPanel.setBorder(
-                BorderFactory.createCompoundBorder(
-                        BorderFactory.createTitledBorder("Edit the known players list:"),
-                        BorderFactory.createEmptyBorder(3, 3, 3, 3)
-                )
-        );
 
         peepsPanel.setLayout(new GridBagLayout());
         GridBagConstraints gbc = new GridBagConstraints();
@@ -269,94 +263,117 @@ public class PanelView extends PluginPanel {
         gbc.anchor = GridBagConstraints.WEST;
         gbc.fill = GridBagConstraints.HORIZONTAL;
 
-        // Sizing
-        Dimension dl = new Dimension(64, 24);     // label width
-        Dimension dField = new Dimension(135, 24);
-        Dimension dDrop = new Dimension(128, 24);
+        // Your sizing pattern
+        Dimension dV = new Dimension(96, 24);  // input/dropdown width
+        Dimension dl = new Dimension(48, 24);  // label width
 
-        knownPlayersDropdown.setPreferredSize(dDrop);
+        // Prepare components
+        JLabel title = new JLabel("Edit the known players list:");
+        title.setFont(title.getFont().deriveFont(Font.BOLD));
 
-        newPeepField.setEditable(true);
-        newPeepField.setFocusable(true);
         newPeepField.setColumns(14);
-        newPeepField.setPreferredSize(dField);
-        newPeepField.setToolTipText("Type a name and click 'Add peep'");
-        newPeepField.setOpaque(true);
+        newPeepField.setPreferredSize(dV);
+        knownPlayersDropdown.setPreferredSize(dV);
+        addAltDropdown.setPreferredSize(dV);
 
-        // Row 0: Name
+        int row = 0;
+
+        // Row 0: Title (100%)
+        gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 2;
+        gbc.weightx = 1.0; gbc.fill = GridBagConstraints.HORIZONTAL; gbc.anchor = GridBagConstraints.WEST;
+        peepsPanel.add(title, gbc);
+        row++;
+
+        // Row 1: Name lbl + field
         JLabel nameLabel = new JLabel("Name:");
         nameLabel.setPreferredSize(dl);
         nameLabel.setHorizontalAlignment(SwingConstants.RIGHT);
 
-        gbc.gridx = 0; gbc.gridy = 0;
+        gbc.gridwidth = 1;
+
+        gbc.gridx = 0; gbc.gridy = row;
         gbc.weightx = 0; gbc.fill = GridBagConstraints.NONE; gbc.anchor = GridBagConstraints.EAST;
         peepsPanel.add(nameLabel, gbc);
 
-        gbc.gridx = 1; gbc.gridy = 0;
+        gbc.gridx = 1; gbc.gridy = row;
         gbc.weightx = 1.0; gbc.fill = GridBagConstraints.HORIZONTAL; gbc.anchor = GridBagConstraints.WEST;
         peepsPanel.add(newPeepField, gbc);
+        row++;
 
-        gbc.gridx = 2; gbc.gridy = 1; gbc.gridwidth = 2;
+        // Row 2: Add player (100%)
+        gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 2;
+        gbc.weightx = 1.0; gbc.fill = GridBagConstraints.HORIZONTAL; gbc.anchor = GridBagConstraints.CENTER;
         peepsPanel.add(btnAddPeep, gbc);
+        row++;
 
-        // Row 1: List
-        knownListLabel.setPreferredSize(dl);
-        knownListLabel.setHorizontalAlignment(SwingConstants.RIGHT);
+        // Row 3: <hr> (100%)
+        gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 2;
+        gbc.weightx = 1.0; gbc.fill = GridBagConstraints.HORIZONTAL; gbc.anchor = GridBagConstraints.CENTER;
+        peepsPanel.add(new JSeparator(SwingConstants.HORIZONTAL), gbc);
+        row++;
 
-        gbc.gridx = 0; gbc.gridy = 1;
-        gbc.weightx = 0; gbc.fill = GridBagConstraints.NONE; gbc.anchor = GridBagConstraints.EAST;
-        peepsPanel.add(knownListLabel, gbc);
+        // Row 4: "Alter player info" label ON ITS OWN ROW (100%)
+        JLabel alterLbl = new JLabel("Alter player info:");
+        alterLbl.setHorizontalAlignment(SwingConstants.LEFT);
+        gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 2;
+        gbc.weightx = 1.0; gbc.fill = GridBagConstraints.HORIZONTAL; gbc.anchor = GridBagConstraints.WEST;
+        peepsPanel.add(alterLbl, gbc);
+        row++;
 
-        gbc.gridx = 1; gbc.gridy = 1;
+        // Row 5: Player select dropdown (single item, 100%)
+        gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 2;
         gbc.weightx = 1.0; gbc.fill = GridBagConstraints.HORIZONTAL; gbc.anchor = GridBagConstraints.WEST;
         peepsPanel.add(knownPlayersDropdown, gbc);
+        row++;
 
-        // Row 2: Add / Remove buttons (span 2, 50/50)
-        //JPanel buttonPanel = new JPanel(new GridLayout(1, 2, 6, 0));
-        //buttonPanel.add(btnAddPeep);     // <-- Add
-        //buttonPanel.add(btnRemovePeep);  // <-- Remove (added back)
-        
-        gbc.gridx = 0; gbc.gridy = 2; gbc.gridwidth = 2;
+        // Row 6: Remove player (100%) — directly under the dropdown
+        gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 2;
         gbc.weightx = 1.0; gbc.fill = GridBagConstraints.HORIZONTAL; gbc.anchor = GridBagConstraints.CENTER;
-        //peepsPanel.add(buttonPanel, gbc);
+        peepsPanel.add(btnRemovePeep, gbc);
+        row++;
 
-        // Row 3: Alts list for the selected player
-        altsLabel.setPreferredSize(dl);
-        altsLabel.setHorizontalAlignment(SwingConstants.RIGHT);
-        gbc.gridx = 0; gbc.gridy = 3;
-        gbc.weightx = 0; gbc.fill = GridBagConstraints.NONE;
+        // Row 7: "Player known alts" label (own row, 100%)
+        altsLabel.setHorizontalAlignment(SwingConstants.LEFT);
+        gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 2;
+        gbc.weightx = 1.0; gbc.fill = GridBagConstraints.HORIZONTAL; gbc.anchor = GridBagConstraints.WEST;
         peepsPanel.add(altsLabel, gbc);
+        row++;
 
-
+        // Row 8: The list (100%, grows vertically)
         JScrollPane altsScroll = new JScrollPane(altsList);
-        altsScroll.setPreferredSize(new Dimension(80, 80));
-        gbc.gridx = 0; gbc.gridy = 4; gbc.gridwidth = 2;
-         gbc.weighty = 1; gbc.fill = GridBagConstraints.BOTH;
+        altsScroll.setPreferredSize(new Dimension(240, 140));
+        gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 2;
+        gbc.weightx = 1.0; gbc.weighty = 1.0; gbc.fill = GridBagConstraints.BOTH; gbc.anchor = GridBagConstraints.CENTER;
         peepsPanel.add(altsScroll, gbc);
+        row++;
 
-        // Row 4: Add alt controls
-        JLabel addAltLbl = new JLabel("Add alt:      ");
+        // Row 9: Add alt lbl + dropdown
+        JLabel addAltLbl = new JLabel("Add alt:");
         addAltLbl.setPreferredSize(dl);
         addAltLbl.setHorizontalAlignment(SwingConstants.RIGHT);
-        gbc.gridx = 0; gbc.gridy = 5;
+
+        gbc.gridwidth = 1; gbc.weighty = 0;
+
+        gbc.gridx = 0; gbc.gridy = row;
         gbc.weightx = 0; gbc.fill = GridBagConstraints.NONE; gbc.anchor = GridBagConstraints.EAST;
         peepsPanel.add(addAltLbl, gbc);
 
-        addAltDropdown.setPreferredSize(dDrop);
-        gbc.gridx = 0; gbc.gridy = 5;
+        gbc.gridx = 1; gbc.gridy = row;
         gbc.weightx = 1.0; gbc.fill = GridBagConstraints.HORIZONTAL; gbc.anchor = GridBagConstraints.WEST;
         peepsPanel.add(addAltDropdown, gbc);
+        row++;
 
-        gbc.gridx = 0; gbc.gridy = 6; gbc.gridwidth = 2;
+        // Row 10: Add/Remove alt buttons on the same row (full-width container)
+        JPanel altButtonsRow = new JPanel(new GridLayout(1, 2, 6, 0));
+        altButtonsRow.add(btnAddAlt);
+        altButtonsRow.add(btnRemoveAlt);
+
+        gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 2;
         gbc.weightx = 1.0; gbc.fill = GridBagConstraints.HORIZONTAL; gbc.anchor = GridBagConstraints.CENTER;
-        peepsPanel.add(btnAddAlt, gbc);
+        peepsPanel.add(altButtonsRow, gbc);
+        row++;
 
-        // Row 6b: Remove alt button
-        gbc.gridx = 0; gbc.gridy = 7; gbc.gridwidth = 2;
-        gbc.weightx = 1.0; gbc.fill = GridBagConstraints.HORIZONTAL; gbc.anchor = GridBagConstraints.CENTER;
-        peepsPanel.add(btnRemoveAlt, gbc);
-
-        return peepsPanel;
+        return new CollapsiblePanel("Known player info", peepsPanel);
     }
 
 
@@ -397,42 +414,8 @@ public class PanelView extends PluginPanel {
 
 
     private JPanel generateHistory(){
-        JPanel historyPanel = new JPanel();
-//        historyPanel.setBorder(
-//                BorderFactory.createCompoundBorder(
-//                        BorderFactory.createTitledBorder("Past Sessions"),
-//                        BorderFactory.createEmptyBorder(3, 3, 64, 3)
-//                )
-//        );
-//        historyList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-//        historyList.setCellRenderer((list, value, index, isSelected, cellHasFocus) -> {
-//            JLabel lbl = new JLabel(sessionLabel(value));
-//            if (isSelected) {
-//                lbl.setOpaque(true);
-//            }
-//            return lbl;
-//        });
-//        JScrollPane histScroll = new JScrollPane(historyList);
-//        histScroll.setPreferredSize(new Dimension(320, 160));
-//        histScroll.setBorder(
-//                BorderFactory.createCompoundBorder(
-//                        histScroll.getBorder(),
-//                        BorderFactory.createEmptyBorder(3, 3, 64, 3)
-//                )
-//        );
-//        historyPanel.add(histScroll);
-//        JButton loadHistoryBtn = new JButton("Load selected");
-//        historyPanel.add(loadHistoryBtn);
-//        JButton unloadHistoryBtn = new JButton("Unload history");
-//        historyPanel.add(unloadHistoryBtn);
-//
-//        JPanel center = new JPanel();
-//        center.setLayout(new javax.swing.BoxLayout(center, javax.swing.BoxLayout.Y_AXIS));
-//        center.add(tableScroll);
-//        center.add(Box.createVerticalStrut(3));
-//        center.add(historyPanel);
-
-        return historyPanel;
+        // TODO
+        return null;
     }
 
     private JPanel generateWaitlistPanel(){
@@ -582,7 +565,7 @@ public class PanelView extends PluginPanel {
         metricsTable.getColumnModel().getColumn(3).setCellEditor(new TableRemoveButtonEditor(this,manager,metricsTable));
 
         wrapper.add(tableScroll, BorderLayout.CENTER);
-        return wrapper;
+        return new CollapsiblePanel("Settlement information", wrapper);
     }
 
     private void refreshMetrics() {

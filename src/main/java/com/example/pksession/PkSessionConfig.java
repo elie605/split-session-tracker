@@ -3,6 +3,7 @@ package com.example.pksession;
 import net.runelite.client.config.Config;
 import net.runelite.client.config.ConfigGroup;
 import net.runelite.client.config.ConfigItem;
+import net.runelite.client.config.ConfigSection;
 
 /**
  * Stores persistent data and JSON blobs via ConfigManager.
@@ -100,51 +101,66 @@ public interface PkSessionConfig extends Config
     default boolean allowNegativeKills() { return true; }
     
     // Chat detection settings
+    @ConfigSection(
+            name = "Chat detection",
+            description = "Detect and queue values from chat",
+            position = 1
+    )
+    String chatDetectionSection = "Chat detection";
+
     @ConfigItem(
             keyName = "enableChatDetection",
             name = "Enable chat detection",
-            description = "Detect values from clan/friends chat and queue them in a waitlist"
+            description = "Detect values from clan/friends chat and queue them in a waitlist",
+            section = chatDetectionSection
     )
     default boolean enableChatDetection() { return false; }
 
     @ConfigItem(
             keyName = "detectInClanChat",
             name = "Detect in Clan Chat",
-            description = "Listen for values in clan chat"
+            description = "Listen for values in clan chat",
+            section = chatDetectionSection
     )
     default boolean detectInClanChat() { return true; }
 
     @ConfigItem(
             keyName = "detectInFriendsChat",
             name = "Detect in Friends Chat",
-            description = "Listen for values in friends chat"
+            description = "Listen for values in friends chat",
+            section = chatDetectionSection
     )
     default boolean detectInFriendsChat() { return true; }
 
     @ConfigItem(
             keyName = "detectPvmValues",
             name = "Detect PvM values",
-            description = "Queue values detected from PvM drop messages"
+            description = "Queue values detected from PvM drop messages",
+            section = chatDetectionSection
     )
     default boolean detectPvmValues() { return true; }
 
     @ConfigItem(
             keyName = "detectPvpValues",
             name = "Detect PvP values",
-            description = "Queue values detected from PvP loot messages"
+            description = "Queue values detected from PvP loot messages",
+            section = chatDetectionSection
     )
     default boolean detectPvpValues() { return true; }
 
     @ConfigItem(
             keyName = "detectPlayerValues",
             name = "Detect player !add",
-            description = "Allow players to queue values by sending !add {value}"
+            description = "Allow players to queue values by sending !add {value}",
+            section = chatDetectionSection
     )
     default boolean detectPlayerValues() { return true; }
+
     @ConfigItem(
             keyName = "autoApplyWhenInSession",
             name = "Auto-apply when in session",
-            description = "Skip waitlist if suggested player (or its main) is already in the active session"
+            description = "Skip waitlist if suggested player (or its main) is already in the active session",
+            section = chatDetectionSection
     )
     default boolean autoApplyWhenInSession() { return false; }
 

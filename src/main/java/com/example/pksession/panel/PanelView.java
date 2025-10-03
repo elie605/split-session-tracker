@@ -7,7 +7,6 @@ import com.example.pksession.model.Metrics;
 import com.example.pksession.model.RecentSplitsTable;
 import com.example.pksession.model.Session;
 import lombok.Getter;
-import net.runelite.client.config.ConfigSection;
 import net.runelite.client.ui.PluginPanel;
 
 import javax.swing.*;
@@ -259,7 +258,7 @@ public class PanelView extends PluginPanel {
         JPanel peepsPanel = new JPanel();
         peepsPanel.setBorder(
                 BorderFactory.createCompoundBorder(
-                        BorderFactory.createTitledBorder("Edit known players:"),
+                        BorderFactory.createTitledBorder("Edit the known players list:"),
                         BorderFactory.createEmptyBorder(3, 3, 3, 3)
                 )
         );
@@ -297,6 +296,9 @@ public class PanelView extends PluginPanel {
         gbc.weightx = 1.0; gbc.fill = GridBagConstraints.HORIZONTAL; gbc.anchor = GridBagConstraints.WEST;
         peepsPanel.add(newPeepField, gbc);
 
+        gbc.gridx = 2; gbc.gridy = 1; gbc.gridwidth = 2;
+        peepsPanel.add(btnAddPeep, gbc);
+
         // Row 1: List
         knownListLabel.setPreferredSize(dl);
         knownListLabel.setHorizontalAlignment(SwingConstants.RIGHT);
@@ -310,13 +312,13 @@ public class PanelView extends PluginPanel {
         peepsPanel.add(knownPlayersDropdown, gbc);
 
         // Row 2: Add / Remove buttons (span 2, 50/50)
-        JPanel buttonPanel = new JPanel(new GridLayout(1, 2, 6, 0));
-        buttonPanel.add(btnAddPeep);     // <-- Add
-        buttonPanel.add(btnRemovePeep);  // <-- Remove (added back)
-
+        //JPanel buttonPanel = new JPanel(new GridLayout(1, 2, 6, 0));
+        //buttonPanel.add(btnAddPeep);     // <-- Add
+        //buttonPanel.add(btnRemovePeep);  // <-- Remove (added back)
+        
         gbc.gridx = 0; gbc.gridy = 2; gbc.gridwidth = 2;
         gbc.weightx = 1.0; gbc.fill = GridBagConstraints.HORIZONTAL; gbc.anchor = GridBagConstraints.CENTER;
-        peepsPanel.add(buttonPanel, gbc);
+        //peepsPanel.add(buttonPanel, gbc);
 
         // Row 3: Alts list for the selected player
         altsLabel.setPreferredSize(dl);
@@ -435,15 +437,8 @@ public class PanelView extends PluginPanel {
 
     private JPanel generateWaitlistPanel(){
         JPanel p = new JPanel();
-        p.setBorder(
-                BorderFactory.createCompoundBorder(
-                        BorderFactory.createTitledBorder("Detected values (waitlist)"),
-                        BorderFactory.createEmptyBorder(3,3,3,3)
-                )
-        );
         p.setLayout(new GridBagLayout());
         GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(3,3,3,3);
         gbc.gridx = 0; gbc.gridy = 0; gbc.gridwidth = 1; gbc.weightx = 1.0; gbc.fill = GridBagConstraints.BOTH;
         waitlistTable.setFillsViewportHeight(true);
         waitlistTable.setRowHeight(22);
@@ -453,9 +448,12 @@ public class PanelView extends PluginPanel {
         p.add(sc, gbc);
 
         JPanel btns = new JPanel(new GridLayout(1,2,6,0));
+        //TODO this does fuck all
+        btns.setOpaque(false);
         btns.add(btnWaitlistAdd);
         btns.add(btnWaitlistDelete);
         gbc.gridx = 0; gbc.gridy = 1; gbc.gridwidth = 2; gbc.weightx = 1.0; gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.insets = new Insets(3, 0, 0, 0);
         p.add(btns, gbc);
 
         // Always keep first row selected
@@ -476,10 +474,15 @@ public class PanelView extends PluginPanel {
     }
 
     private JComponent generateWaitlistPanelCollapsible() {
-        return new CollapsiblePanel("Detected values", generateWaitlistPanel());
+        JPanel content = new JPanel(new BorderLayout());
+        content.add(generateWaitlistPanel(), BorderLayout.CENTER);
+
+        return new CollapsiblePanel("Detected values", content);
     }
 
-    private JComponent generateRecentSplitsPanel() {
+
+    private JComponent generateRecentSplitsPanel()
+    {
         JScrollPane scroller = new JScrollPane(recentSplitsTable);
         scroller.setPreferredSize(new Dimension(0, 140));
         return new CollapsiblePanel("Recent splits", scroller);

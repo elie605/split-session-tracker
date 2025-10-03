@@ -57,7 +57,7 @@ public class WaitlistTableModel extends AbstractTableModel {
             case 0:
                 return pv.getType().name();
             case 1:
-                Long k = pv.getValue();
+                double k = pv.getValue();
                 // show with max one decimal when needed
                 return (k % 1.0 == 0.0) ? String.format("%,.0fK", k) : String.format("%,.1fK", k);
             case 2:

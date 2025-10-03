@@ -448,8 +448,6 @@ public class PanelView extends PluginPanel {
         p.add(sc, gbc);
 
         JPanel btns = new JPanel(new GridLayout(1,2,6,0));
-        //TODO this does fuck all
-        btns.setOpaque(false);
         btns.add(btnWaitlistAdd);
         btns.add(btnWaitlistDelete);
         gbc.gridx = 0; gbc.gridy = 1; gbc.gridwidth = 2; gbc.weightx = 1.0; gbc.fill = GridBagConstraints.HORIZONTAL;

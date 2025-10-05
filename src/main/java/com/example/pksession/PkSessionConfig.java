@@ -186,6 +186,14 @@ public interface PkSessionConfig extends Config
     )
     void sectionOrderCsv(String value);
 
+    // Markdown / copy settings
+    @ConfigItem(
+            keyName = "copyForDiscord",
+            name = "Copy for Discord",
+            description = "Wrap copied Markdown table in ``` and pad columns for monospaced display"
+    )
+    default boolean copyForDiscord() { return true; }
+
     // Alt/main mapping persistence (hidden JSON)
     String KEY_ALTS_JSON = "altsJson";
 

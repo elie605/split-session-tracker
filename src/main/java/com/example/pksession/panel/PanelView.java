@@ -572,7 +572,8 @@ public class PanelView extends PluginPanel {
 
         JButton copyBtn = new JButton("Copy JSON");
         copyBtn.addActionListener(e -> copyMetricsJsonToClipboard());
-        header.add(copyBtn, BorderLayout.EAST);
+        JButton copyMdBtn = new JButton("Copy MD");
+        copyMdBtn.addActionListener(e -> copyMetricsMarkdownToClipboard());
         wrapper.add(header, BorderLayout.NORTH);
 
         // Set up the metricsTable with custom column configuration
@@ -656,6 +657,10 @@ public class PanelView extends PluginPanel {
         metricsTable.getColumnModel().getColumn(3).setCellEditor(new TableRemoveButtonEditor(this, manager, metricsTable));
 
         wrapper.add(tableScroll, BorderLayout.CENTER);
+        JPanel southPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 0));
+        southPanel.add(copyBtn);
+        southPanel.add(copyMdBtn);
+        wrapper.add(southPanel, BorderLayout.SOUTH);
         return new CollapsiblePanel("Settlement information", wrapper);
     }
 
@@ -680,6 +685,83 @@ public class PanelView extends PluginPanel {
         sb.append("]");
         StringSelection selection = new StringSelection(sb.toString());
         java.awt.Toolkit.getDefaultToolkit().getSystemClipboard().setContents(selection, selection);
+    }
+
+    private void copyMetricsMarkdownToClipboard() {
+        Session currentSession = manager.getCurrentSession().orElse(null);
+        java.util.List<com.example.pksession.SessionManager.PlayerMetrics> data = manager.computeMetricsFor(currentSession, true);
+        java.text.DecimalFormat df = com.example.pksession.Formats.getDecimalFormat();
+
+        // Prepare rows and compute max widths for padding
+        java.util.List<String[]> rows = new java.util.ArrayList<>();
+        int maxPlayer = "Player".length();
+        int maxTotal = "Total".length();
+        int maxSplit = "Split".length();
+        for (var pm : data) {
+            String player = pm.player == null ? "" : pm.player.replace("|", "\\|");
+            String total = df.format(pm.total);
+            String split = df.format(pm.split);
+            rows.add(new String[]{player, total, split});
+            if (player.length() > maxPlayer) maxPlayer = player.length();
+            if (total.length() > maxTotal) maxTotal = total.length();
+            if (split.length() > maxSplit) maxSplit = split.length();
+        }
+
+        StringBuilder sb = new StringBuilder();
+        boolean forDiscord = config.copyForDiscord();
+        if (forDiscord) sb.append("```\n");
+
+        // Header
+        sb.append("| ")
+          .append(padRight("Player", maxPlayer)).append(" | ")
+          .append(padLeft("Total", maxTotal)).append(" | ")
+          .append(padLeft("Split", maxSplit)).append(" |\n");
+
+        // Separator sized to widths (right aligned on numeric)
+        sb.append("| ")
+          .append(repeat('-', maxPlayer)).append(" | ")
+          .append(repeat('-', maxTotal - 1)).append(":").append(" | ")
+          .append(repeat('-', maxSplit - 1)).append(":").append(" |\n");
+
+        // Rows
+        for (String[] r : rows) {
+            sb.append("| ")
+              .append(padRight(r[0], maxPlayer)).append(" | ")
+              .append(padLeft(r[1], maxTotal)).append(" | ")
+              .append(padLeft(r[2], maxSplit)).append(" |\n");
+        }
+
+        if (forDiscord) sb.append("```\n");
+
+        StringSelection selection = new StringSelection(sb.toString());
+        java.awt.Toolkit.getDefaultToolkit().getSystemClipboard().setContents(selection, selection);
+    }
+
+    private static String padRight(String s, int width) {
+        if (s == null) s = "";
+        int pad = width - s.length();
+        if (pad <= 0) return s;
+        StringBuilder b = new StringBuilder(width);
+        b.append(s);
+        for (int i = 0; i < pad; i++) b.append(' ');
+        return b.toString();
+    }
+
+    private static String padLeft(String s, int width) {
+        if (s == null) s = "";
+        int pad = width - s.length();
+        if (pad <= 0) return s;
+        StringBuilder b = new StringBuilder(width);
+        for (int i = 0; i < pad; i++) b.append(' ');
+        b.append(s);
+        return b.toString();
+    }
+
+    private static String repeat(char ch, int count) {
+        if (count <= 0) return "";
+        char[] arr = new char[count];
+        java.util.Arrays.fill(arr, ch);
+        return new String(arr);
     }
 
     // Build a top-of-panel section with per-active-player buttons

@@ -1,12 +1,13 @@
-package com.example.pksession.panel;
+package com.example.pksession.views;
 
-import com.example.pksession.Formats;
-import com.example.pksession.PkSessionConfig;
-import com.example.pksession.SessionManager;
-import com.example.pksession.model.Metrics;
-import com.example.pksession.model.RecentSplitsTable;
-import com.example.pksession.model.Session;
-import com.example.pksession.model.Transfer;
+import com.example.pksession.controllers.PanelController;
+import com.example.pksession.models.*;
+import com.example.pksession.views.components.table.RemoveButtonEditor;
+import com.example.pksession.utils.Formats;
+import com.example.pksession.PluginConfig;
+import com.example.pksession.ManagerSession;
+import com.example.pksession.utils.Utils;
+import com.example.pksession.views.components.DropdownRip;
 import lombok.Getter;
 import net.runelite.client.ui.PluginPanel;
 
@@ -17,14 +18,15 @@ import javax.swing.text.DefaultFormatterFactory;
 import java.awt.*;
 import java.awt.datatransfer.StringSelection;
 
-import static com.example.pksession.Formats.OsrsAmountFormatter.toSuffixString;
+import static com.example.pksession.utils.Formats.OsrsAmountFormatter.toSuffixString;
 
 @Getter
 public class PanelView extends PluginPanel {
     // New dynamic panel for active player management buttons (stack one player per row)
     private final JPanel activePlayersButtonsPanel = new JPanel(new GridLayout(0, 1, 0, 2));
-    private final com.example.pksession.SessionManager manager;
-    private final PkSessionConfig config;
+    private final ManagerSession manager;
+    private final PluginConfig config;
+    private final PanelController controller;
 
     private final JComboBox<String> knownPlayersDropdown = new JComboBox<>();
     private final JTextField newPeepField = new JTextField();
@@ -37,7 +39,7 @@ public class PanelView extends PluginPanel {
     private JTable recentSplitsTable;
 
     // Waitlist UI (table)
-    private final com.example.pksession.model.WaitlistTableModel waitlistTableModel = new com.example.pksession.model.WaitlistTableModel();
+    private final WaitlistTable waitlistTableModel = new WaitlistTable();
     private final JTable waitlistTable = new JTable(waitlistTableModel);
     private final JButton btnWaitlistAdd = new JButton("Add");
     private final JButton btnWaitlistDelete = new JButton("Del");
@@ -109,9 +111,10 @@ public class PanelView extends PluginPanel {
         return t;
     }
 
-    public PanelView(SessionManager manager, PkSessionConfig config) {
+    public PanelView(ManagerSession manager, PluginConfig config) {
         this.manager = manager;
         this.config = config;
+        this.controller = new PanelController(manager, config);
         // React to edits in recent splits to update metrics
         recentSplitsModel.setListener(this::refreshMetrics);
 
@@ -459,7 +462,7 @@ public class PanelView extends PluginPanel {
         peepsPanel.add(altButtonsRow, gbc);
         row++;
 
-        return new CollapsiblePanel("Known player info", peepsPanel);
+        return new DropdownRip("Known player info", peepsPanel);
     }
 
 
@@ -552,14 +555,14 @@ public class PanelView extends PluginPanel {
         JPanel content = new JPanel(new BorderLayout());
         content.add(generateWaitlistPanel(), BorderLayout.CENTER);
 
-        return new CollapsiblePanel("Detected values", content);
+        return new DropdownRip("Detected values", content);
     }
 
 
     private JComponent generateRecentSplitsPanel() {
         JScrollPane scroller = new JScrollPane(recentSplitsTable);
         scroller.setPreferredSize(new Dimension(0, 140));
-        return new CollapsiblePanel("Recent splits", scroller);
+        return new DropdownRip("Recent splits", scroller);
     }
 
     private JComponent generateMetrics() {
@@ -642,7 +645,7 @@ public class PanelView extends PluginPanel {
                 long raw = model.getRawSplitAt(row);
                 long disp = raw;
                 if (!config.directPayments() && config.flipSettlementSign()) disp = -raw;
-                java.text.DecimalFormat df = com.example.pksession.Formats.getDecimalFormat();
+                java.text.DecimalFormat df = Formats.getDecimalFormat();
                 java.awt.Component c = super.getTableCellRendererComponent(table, df.format(disp), isSelected, hasFocus, row, column);
                 if (!isSelected) c.setForeground(active ? table.getForeground() : java.awt.Color.GRAY);
                 setHorizontalAlignment(SwingConstants.RIGHT);
@@ -659,7 +662,7 @@ public class PanelView extends PluginPanel {
         try {
             int actionIdx = metricsTable.getColumnModel().getColumnIndex("X");
             metricsTable.getColumnModel().getColumn(actionIdx)
-                    .setCellEditor(new TableRemoveButtonEditor(this, manager, metricsTable));
+                    .setCellEditor(new RemoveButtonEditor(this, manager, metricsTable));
         } catch (IllegalArgumentException ignored) {
         }
 
@@ -668,15 +671,18 @@ public class PanelView extends PluginPanel {
 
         if (direct) {
             Session currentSession = manager.getCurrentSession().orElse(null);
-            java.util.List<com.example.pksession.SessionManager.PlayerMetrics> data =
+            java.util.List<ManagerSession.PlayerMetrics> data =
                     manager.computeMetricsFor(currentSession, true);
 
-            java.util.List<Transfer> transfers = computeDirectPaymentsStructured(data);
+            java.util.List<Transfer> transfers = controller.computeDirectPaymentsStructured(data);
 
             if (transfers != null && !transfers.isEmpty()) {
                 javax.swing.table.DefaultTableModel txModel =
                         new javax.swing.table.DefaultTableModel(new Object[]{"Suggested direct payments"}, 0) {
-                            @Override public boolean isCellEditable(int r, int c) { return false; }
+                            @Override
+                            public boolean isCellEditable(int r, int c) {
+                                return false;
+                            }
                         };
 
                 for (Transfer t : transfers) {
@@ -720,7 +726,7 @@ public class PanelView extends PluginPanel {
         southPanel.add(copyMdBtn);
         wrapper.add(southPanel, BorderLayout.SOUTH);
 
-        return new CollapsiblePanel("Settlement information", wrapper);
+        return new DropdownRip("Settlement information", wrapper);
     }
 
     /**
@@ -738,144 +744,15 @@ public class PanelView extends PluginPanel {
     }
 
     private void copyMetricsJsonToClipboard() {
-        Session currentSession = manager.getCurrentSession().orElse(null);
-        java.util.List<com.example.pksession.SessionManager.PlayerMetrics> data = manager.computeMetricsFor(currentSession, true);
-        StringBuilder sb = new StringBuilder();
-        sb.append("[");
-        for (int i = 0; i < data.size(); i++) {
-            var pm = data.get(i);
-            sb.append("{\"player\":\"").append(pm.player).append("\",")
-                    .append("\"total\":").append(pm.total).append(",")
-                    .append("\"split\":").append(pm.split).append(",")
-                    .append("\"active\":").append(pm.activePlayer).append("}");
-            if (i < data.size() - 1) sb.append(",");
-        }
-        sb.append("]");
-        StringSelection selection = new StringSelection(sb.toString());
+        String payload = controller.buildMetricsJson();
+        StringSelection selection = new StringSelection(payload);
         java.awt.Toolkit.getDefaultToolkit().getSystemClipboard().setContents(selection, selection);
     }
 
     private void copyMetricsMarkdownToClipboard() {
-        Session currentSession = manager.getCurrentSession().orElse(null);
-        java.util.List<com.example.pksession.SessionManager.PlayerMetrics> data = manager.computeMetricsFor(currentSession, true);
-        java.text.DecimalFormat df = com.example.pksession.Formats.getDecimalFormat();
-
-        // Build table: in direct mode, omit the Total column to save space
-        boolean directMode = config.directPayments();
-
-        StringBuilder sb = new StringBuilder();
-        boolean forDiscord = config.copyForDiscord();
-        if (forDiscord) sb.append("```\n");
-
-        if (!directMode) {
-            // Prepare rows and compute max widths for padding (Player, Total, Split)
-            java.util.List<String[]> rows = new java.util.ArrayList<>();
-            int maxPlayer = "Player".length();
-            int maxTotal = "Total".length();
-            int maxSplit = "Split".length();
-            for (var pm : data) {
-                String player = pm.player == null ? "" : pm.player.replace("|", "\\|");
-                String total = df.format(pm.total);
-                long dispSplit = pm.split;
-                if (config.flipSettlementSign()) dispSplit = -dispSplit;
-                String split = df.format(dispSplit);
-                rows.add(new String[]{player, total, split});
-                if (player.length() > maxPlayer) maxPlayer = player.length();
-                if (total.length() > maxTotal) maxTotal = total.length();
-                if (split.length() > maxSplit) maxSplit = split.length();
-            }
-
-            // Header
-            sb.append("| ")
-                    .append(padRight("Player", maxPlayer)).append(" | ")
-                    .append(padLeft("Total", maxTotal)).append(" | ")
-                    .append(padLeft("Split", maxSplit)).append(" |\n");
-
-            // Separator sized to widths (right aligned on numeric)
-            sb.append("| ")
-                    .append(repeat('-', maxPlayer)).append(" | ")
-                    .append(repeat('-', maxTotal - 1)).append(":").append(" | ")
-                    .append(repeat('-', maxSplit - 1)).append(":").append(" |\n");
-
-            // Rows
-            for (String[] r : rows) {
-                sb.append("| ")
-                        .append(padRight(r[0], maxPlayer)).append(" | ")
-                        .append(padLeft(r[1], maxTotal)).append(" | ")
-                        .append(padLeft(r[2], maxSplit)).append(" |\n");
-            }
-        } else {
-            // Direct mode: only Player and Split
-            java.util.List<String[]> rows = new java.util.ArrayList<>();
-            int maxPlayer = "Player".length();
-            int maxSplit = "Split".length();
-            for (var pm : data) {
-                String player = pm.player == null ? "" : pm.player.replace("|", "\\|");
-                long dispSplit = pm.split; // no flipping in direct mode
-                String split = df.format(dispSplit);
-                rows.add(new String[]{player, split});
-                if (player.length() > maxPlayer) maxPlayer = player.length();
-                if (split.length() > maxSplit) maxSplit = split.length();
-            }
-
-            // Header
-            sb.append("| ")
-                    .append(padRight("Player", maxPlayer)).append(" | ")
-                    .append(padLeft("Split", maxSplit)).append(" |\n");
-
-            // Separator
-            sb.append("| ")
-                    .append(repeat('-', maxPlayer)).append(" | ")
-                    .append(repeat('-', maxSplit - 1)).append(":").append(" |\n");
-
-            // Rows
-            for (String[] r : rows) {
-                sb.append("| ")
-                        .append(padRight(r[0], maxPlayer)).append(" | ")
-                        .append(padLeft(r[1], maxSplit)).append(" |\n");
-            }
-        }
-
-        // If direct payments mode, append suggested transfers
-        if (config.directPayments()) {
-            java.util.List<String> transfers = computeDirectPayments(data);
-            if (!transfers.isEmpty()) {
-                sb.append('\n').append("Suggested direct payments:\n");
-                for (String line : transfers) sb.append("- ").append(line).append('\n');
-            }
-        }
-
-        if (forDiscord) sb.append("```\n");
-
-        StringSelection selection = new StringSelection(sb.toString());
+        String payload = controller.buildMetricsMarkdown();
+        StringSelection selection = new StringSelection(payload);
         java.awt.Toolkit.getDefaultToolkit().getSystemClipboard().setContents(selection, selection);
-    }
-
-    private static String padRight(String s, int width) {
-        if (s == null) s = "";
-        int pad = width - s.length();
-        if (pad <= 0) return s;
-        StringBuilder b = new StringBuilder(width);
-        b.append(s);
-        for (int i = 0; i < pad; i++) b.append(' ');
-        return b.toString();
-    }
-
-    private static String padLeft(String s, int width) {
-        if (s == null) s = "";
-        int pad = width - s.length();
-        if (pad <= 0) return s;
-        StringBuilder b = new StringBuilder(width);
-        for (int i = 0; i < pad; i++) b.append(' ');
-        b.append(s);
-        return b.toString();
-    }
-
-    private static String repeat(char ch, int count) {
-        if (count <= 0) return "";
-        char[] arr = new char[count];
-        java.util.Arrays.fill(arr, ch);
-        return new String(arr);
     }
 
     // Build a top-of-panel section with per-active-player buttons
@@ -919,13 +796,13 @@ public class PanelView extends PluginPanel {
 
         // Initial population
         refreshActivePlayerButtons();
-        return new CollapsiblePanel("Active player management", panel);
+        return new DropdownRip("Active player management", panel);
     }
 
     // Rebuild the list of per-player buttons from current session
     public void refreshActivePlayerButtons() {
         activePlayersButtonsPanel.removeAll();
-        com.example.pksession.model.Session current = manager.getCurrentSession().orElse(null);
+        com.example.pksession.models.Session current = manager.getCurrentSession().orElse(null);
         if (current != null && current.isActive()) {
             for (String p : new java.util.ArrayList<>(current.getPlayers())) {
                 JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 2));
@@ -946,14 +823,14 @@ public class PanelView extends PluginPanel {
                     }
                     if (manager.addKill(p, amt)) {
                         activeKillAmountField.setText("");
-                        com.example.pksession.Utils.requestUiRefresh().run();
+                        Utils.requestUiRefresh().run();
                     } else {
                         javax.swing.JOptionPane.showMessageDialog(null, "Failed to add split. Is player in session?", "Error", javax.swing.JOptionPane.ERROR_MESSAGE);
                     }
                 });
                 rmBtn.addActionListener(e -> {
                     if (manager.removePlayerFromSession(p)) {
-                        com.example.pksession.Utils.requestUiRefresh().run();
+                        Utils.requestUiRefresh().run();
                     } else {
                         javax.swing.JOptionPane.showMessageDialog(null, "Failed to remove player from session.", "Error", javax.swing.JOptionPane.ERROR_MESSAGE);
                     }
@@ -975,86 +852,6 @@ public class PanelView extends PluginPanel {
         activePlayersButtonsPanel.repaint();
     }
 
-
-    // Compute a minimal set of direct payments so negatives pay positives.
-    // Returns lines like "Alice -> Bob: 100,000" using the current decimal formatter.
-    private java.util.List<String> computeDirectPayments(java.util.List<com.example.pksession.SessionManager.PlayerMetrics> data) {
-        java.util.List<com.example.pksession.SessionManager.PlayerMetrics> receivers = new java.util.ArrayList<>();
-        java.util.List<com.example.pksession.SessionManager.PlayerMetrics> payers = new java.util.ArrayList<>();
-        for (var pm : data) {
-            if (pm.split > 0) receivers.add(pm);
-            else if (pm.split < 0) payers.add(pm);
-        }
-        // Sort to have deterministic output: largest receiver first, largest (absolute) payer first
-        receivers.sort((a, b) -> Long.compare(b.split, a.split));
-        payers.sort((a, b) -> Long.compare(Math.abs(b.split), Math.abs(a.split)));
-
-        java.util.List<String> lines = new java.util.ArrayList<>();
-        java.text.DecimalFormat df = com.example.pksession.Formats.getDecimalFormat();
-
-        int i = 0, j = 0;
-        long recvLeft = receivers.isEmpty() ? 0 : receivers.get(0).split;
-        long payLeft = payers.isEmpty() ? 0 : -payers.get(0).split; // make positive
-        while (i < receivers.size() && j < payers.size()) {
-            long amt = Math.min(recvLeft, payLeft);
-            if (amt > 0) {
-                String from = payers.get(j).player;
-                String to = receivers.get(i).player;
-                lines.add(from + " -> " + to + ": " + df.format(amt));
-                recvLeft -= amt;
-                payLeft -= amt;
-            }
-            if (recvLeft == 0) {
-                i++;
-                if (i < receivers.size()) recvLeft = receivers.get(i).split;
-            }
-            if (payLeft == 0) {
-                j++;
-                if (j < payers.size()) payLeft = -payers.get(j).split;
-            }
-        }
-        return lines;
-    }
-
-    // Compute a minimal set of direct payments so negatives pay positives.
-// Returns structured transfers instead of strings.
-    private java.util.List<Transfer> computeDirectPaymentsStructured(
-            java.util.List<com.example.pksession.SessionManager.PlayerMetrics> data) {
-
-        java.util.List<com.example.pksession.SessionManager.PlayerMetrics> receivers = new java.util.ArrayList<>();
-        java.util.List<com.example.pksession.SessionManager.PlayerMetrics> payers = new java.util.ArrayList<>();
-        for (com.example.pksession.SessionManager.PlayerMetrics pm : data) {
-            if (pm.split > 0) receivers.add(pm);
-            else if (pm.split < 0) payers.add(pm);
-        }
-        receivers.sort((a, b) -> Long.compare(b.split, a.split));                // biggest receiver first
-        payers.sort((a, b) -> Long.compare(Math.abs(b.split), Math.abs(a.split))); // biggest payer (abs) first
-
-        java.util.List<Transfer> out = new java.util.ArrayList<>();
-        int i = 0, j = 0;
-        long recvLeft = receivers.isEmpty() ? 0 : receivers.get(0).split;
-        long payLeft  = payers.isEmpty()    ? 0 : -payers.get(0).split; // make positive
-
-        while (i < receivers.size() && j < payers.size()) {
-            long amt = Math.min(recvLeft, payLeft);
-            if (amt > 0) {
-                String from = payers.get(j).player;
-                String to   = receivers.get(i).player;
-                out.add(new Transfer(from, to, amt));
-                recvLeft -= amt;
-                payLeft  -= amt;
-            }
-            if (recvLeft == 0) {
-                i++;
-                if (i < receivers.size()) recvLeft = receivers.get(i).split;
-            }
-            if (payLeft == 0) {
-                j++;
-                if (j < payers.size()) payLeft = -payers.get(j).split;
-            }
-        }
-        return out;
-    }
 
 }
 

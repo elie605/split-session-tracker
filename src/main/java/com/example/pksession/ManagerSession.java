@@ -1,7 +1,7 @@
 package com.example.pksession;
 
-import com.example.pksession.model.Kill;
-import com.example.pksession.model.Session;
+import com.example.pksession.models.Kill;
+import com.example.pksession.models.Session;
 import com.google.gson.*;
 import lombok.Getter;
 
@@ -23,8 +23,8 @@ import java.util.stream.Collectors;
  * Manages sessions, persistence, and all the logic for roster changes,
  * child sessions, and live split calculations.
  */
-public class SessionManager {
-    private final PkSessionConfig config;
+public class ManagerSession {
+    private final PluginConfig config;
     private final Gson gson;
 
     private final Map<String, Session> sessions = new LinkedHashMap<>();
@@ -34,12 +34,12 @@ public class SessionManager {
     private final Set<String> knownPlayers = new LinkedHashSet<>();
 
     // Transient waitlist of detected values from chat
-    private final java.util.List<com.example.pksession.model.PendingValue> pendingValues = new java.util.ArrayList<>();
+    private final java.util.List<com.example.pksession.models.PendingValue> pendingValues = new java.util.ArrayList<>();
 
     // Alt/main mapping (alt name -> main name)
     private final Map<String, String> altToMain = new LinkedHashMap<>();
 
-    public SessionManager(PkSessionConfig config) {
+    public ManagerSession(PluginConfig config) {
         this.config = config;
         // Create a custom type adapter for Instant
         this.gson = new GsonBuilder()
@@ -318,17 +318,17 @@ public class SessionManager {
         if (mainPlayer == null || mainPlayer.isBlank()) return false;
         if (curr.getPlayers().stream().noneMatch(p -> p.equalsIgnoreCase(mainPlayer))) return false;
 
-        curr.getKills().add(new com.example.pksession.model.Kill(curr.getId(), mainPlayer, amount, Instant.now()));
+        curr.getKills().add(new com.example.pksession.models.Kill(curr.getId(), mainPlayer, amount, Instant.now()));
         saveToConfig();
         return true;
     }
 
     // ===== Pending values (waitlist) =====
-    public java.util.List<com.example.pksession.model.PendingValue> getPendingValues() {
+    public java.util.List<com.example.pksession.models.PendingValue> getPendingValues() {
         return java.util.Collections.unmodifiableList(pendingValues);
     }
 
-    public void addPendingValue(com.example.pksession.model.PendingValue pv) {
+    public void addPendingValue(com.example.pksession.models.PendingValue pv) {
         if (pv == null) return;
         // Normalize suggested player to main for all downstream uses
         String suggested = pv.getSuggestedPlayer();
@@ -361,7 +361,7 @@ public class SessionManager {
     }
 
     public boolean applyPendingValueToPlayer(String id, String player) {
-        com.example.pksession.model.PendingValue pv = pendingValues.stream().filter(p -> p.getId().equals(id)).findFirst().orElse(null);
+        com.example.pksession.models.PendingValue pv = pendingValues.stream().filter(p -> p.getId().equals(id)).findFirst().orElse(null);
         if (pv == null) return false;
         String target = getMainName(player);
         boolean ok = addKill(target, pv.getValue());

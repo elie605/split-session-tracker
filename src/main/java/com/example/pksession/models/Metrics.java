@@ -1,7 +1,7 @@
-package com.example.pksession.model;
+package com.example.pksession.models;
 
-import com.example.pksession.Formats;
-import com.example.pksession.SessionManager;
+import com.example.pksession.utils.Formats;
+import com.example.pksession.ManagerSession;
 
 import javax.swing.table.AbstractTableModel;
 import java.util.List;
@@ -9,7 +9,7 @@ import java.util.Comparator;
 import java.util.stream.Collectors;
 
 public final class Metrics extends AbstractTableModel {
-    private List<SessionManager.PlayerMetrics> rows = List.of();
+    private List<ManagerSession.PlayerMetrics> rows = List.of();
     private boolean hideTotalColumn = false;
 
     public void setHideTotalColumn(boolean hide) {
@@ -21,7 +21,7 @@ public final class Metrics extends AbstractTableModel {
 
     public boolean isHidingTotalColumn() { return hideTotalColumn; }
 
-    public void setData(List<SessionManager.PlayerMetrics> rows) {
+    public void setData(List<ManagerSession.PlayerMetrics> rows) {
         // Sort: active first, inactive at bottom; stable within groups
         this.rows = rows.stream()
                 .sorted(Comparator.comparingInt(pm -> pm.activePlayer ? 0 : 1)) // active=true → 0, inactive=false → 1

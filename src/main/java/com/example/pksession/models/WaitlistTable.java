@@ -1,10 +1,10 @@
-package com.example.pksession.model;
+package com.example.pksession.models;
 
 import javax.swing.table.AbstractTableModel;
 import java.util.ArrayList;
 import java.util.List;
 
-public class WaitlistTableModel extends AbstractTableModel {
+public class WaitlistTable extends AbstractTableModel {
     private final String[] cols = {"Type", "Value", "Player"};
     private final List<PendingValue> rows = new ArrayList<>();
 

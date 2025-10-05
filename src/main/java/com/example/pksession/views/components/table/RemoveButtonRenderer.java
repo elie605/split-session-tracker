@@ -1,10 +1,10 @@
-package com.example.pksession.panel;
+package com.example.pksession.views.components.table;
 
 import javax.swing.*;
 import javax.swing.table.TableCellRenderer;
 
-public class TableRemoveButtonRenderer extends JButton implements TableCellRenderer {
-    TableRemoveButtonRenderer() {
+public class RemoveButtonRenderer extends JButton implements TableCellRenderer {
+    RemoveButtonRenderer() {
         setOpaque(true);
     }
     @Override

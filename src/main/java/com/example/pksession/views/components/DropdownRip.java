@@ -1,4 +1,4 @@
-package com.example.pksession.panel;
+package com.example.pksession.views.components;
 
 import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.DynamicGridLayout;
@@ -11,14 +11,7 @@ import javax.swing.border.CompoundBorder;
 import javax.swing.border.EmptyBorder;
 import javax.swing.border.MatteBorder;
 import java.awt.BorderLayout;
-import java.awt.Color;
-import java.awt.Cursor;
 import java.awt.Dimension;
-import java.awt.Font;
-import java.awt.Graphics;
-import java.awt.Graphics2D;
-import java.awt.Insets;
-import java.awt.RenderingHints;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
@@ -27,22 +20,22 @@ import static net.runelite.client.ui.PluginPanel.BORDER_OFFSET;
 import static net.runelite.client.ui.PluginPanel.PANEL_WIDTH;
 
 /**
- * Drop-in replacement for the old CollapsiblePanel used across RuneLite plugins.
- * Constructor signature matches the legacy usage: new CollapsiblePanel(title, content).
+ * Drop-in replacement for the old DropdownRip used across RuneLite plugins.
+ * Constructor signature matches the legacy usage: new DropdownRip(title, content).
  * The header is clickable and toggles the visibility of the content area.
  */
-public class CollapsiblePanel extends JPanel
+public class DropdownRip extends JPanel
 {
     private final Header header;
     private final JPanel contentHolder;
     private boolean expanded = true;
 
-    public CollapsiblePanel(String title, JComponent content)
+    public DropdownRip(String title, JComponent content)
     {
         this(title, content, true);
     }
 
-    public CollapsiblePanel(String title, JComponent content, boolean expanded)
+    public DropdownRip(String title, JComponent content, boolean expanded)
     {
         super(new BorderLayout());
         this.expanded = expanded;

@@ -1,4 +1,4 @@
-package com.example.pksession.model;
+package com.example.pksession.models;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;

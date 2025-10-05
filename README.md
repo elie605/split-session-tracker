@@ -1,6 +1,6 @@
-# PK Session Tracker (Automatic loot splitter)
+# Auto Split Manager
 
-PK Session Tracker is an Automatic loot splitter for RuneLite that helps small groups run fair and transparent PK sessions.
+Auto Split Manager is an automatic split manager for RuneLite that helps small groups run fair and transparent group sessions.
 It tracks your session roster, captures loot values from chat, and computes how to settle up at the end.
 
 What does the Automatic loot splitter do?

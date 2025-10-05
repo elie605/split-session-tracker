@@ -1,24 +1,26 @@
 package com.example.pksession;
 
-import com.example.pksession.model.Metrics;
-import com.example.pksession.model.Session;
+import com.example.pksession.models.Metrics;
+import com.example.pksession.models.Session;
 
 import javax.swing.*;
 
-import com.example.pksession.panel.PanelView;
+import com.example.pksession.models.WaitlistTable;
+import com.example.pksession.views.PanelView;
+import com.example.pksession.utils.Utils;
 import net.runelite.client.ui.PluginPanel;
 
 import java.awt.event.ActionEvent;
 import java.util.Optional;
 
-import static com.example.pksession.Utils.toast;
+import static com.example.pksession.utils.Utils.toast;
 
-public class PkSessionPanel extends PluginPanel {
+public class ManagerPanel extends PluginPanel {
 
-    private final com.example.pksession.SessionManager manager;
+    private final ManagerSession manager;
     private final PanelView trackerPanelUI;
 
-    public PkSessionPanel(SessionManager manager, PkSessionConfig config) {
+    public ManagerPanel(ManagerSession manager, PluginConfig config) {
         this.manager = manager;
 
         this.trackerPanelUI = new PanelView(manager, config);
@@ -282,8 +284,8 @@ public class PkSessionPanel extends PluginPanel {
             toast(this, "Start a session first.");
             return;
         }
-        com.example.pksession.model.WaitlistTableModel m = trackerPanelUI.getWaitlistTableModel();
-        com.example.pksession.model.PendingValue pv = m.getRow(idx);
+        WaitlistTable m = trackerPanelUI.getWaitlistTableModel();
+        com.example.pksession.models.PendingValue pv = m.getRow(idx);
         if (pv == null) return;
         String target = pv.getSuggestedPlayer();
         if (target == null || target.isBlank()) {
@@ -303,8 +305,8 @@ public class PkSessionPanel extends PluginPanel {
             toast(this, "Select a detected value first.");
             return;
         }
-        com.example.pksession.model.WaitlistTableModel m = trackerPanelUI.getWaitlistTableModel();
-        com.example.pksession.model.PendingValue pv = m.getRow(idx);
+        WaitlistTable m = trackerPanelUI.getWaitlistTableModel();
+        com.example.pksession.models.PendingValue pv = m.getRow(idx);
         if (pv == null) return;
         if (manager.removePendingValueById(pv.getId())) {
             Utils.requestUiRefresh().run();
@@ -370,7 +372,7 @@ public class PkSessionPanel extends PluginPanel {
     }
 
 
-    void refreshAllView() {
+    public void refreshAllView() {
         // Update the general dropdown from the Peeps list
         String[] peeps = manager.getKnownPlayers().toArray(new String[0]);
 
@@ -411,9 +413,9 @@ public class PkSessionPanel extends PluginPanel {
         }
 
         // Update waitlist table
-        com.example.pksession.model.WaitlistTableModel wtm = trackerPanelUI.getWaitlistTableModel();
+        WaitlistTable wtm = trackerPanelUI.getWaitlistTableModel();
         java.util.Set<String> mainsOnly = manager.getKnownMains();
-        java.util.List<com.example.pksession.model.PendingValue> pvals = manager.getPendingValues();
+        java.util.List<com.example.pksession.models.PendingValue> pvals = manager.getPendingValues();
         wtm.setData(pvals);
         // Update Suggested Player editor (column 2) to show mains only
         javax.swing.JComboBox<String> cb = new javax.swing.JComboBox<>(mainsOnly.toArray(new String[0]));

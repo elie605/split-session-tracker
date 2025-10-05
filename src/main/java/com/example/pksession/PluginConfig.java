@@ -8,8 +8,8 @@ import net.runelite.client.config.ConfigSection;
 /**
  * Stores persistent data and JSON blobs via ConfigManager.
  */
-@ConfigGroup(PkSessionConfig.GROUP)
-public interface PkSessionConfig extends Config
+@ConfigGroup(PluginConfig.GROUP)
+public interface PluginConfig extends Config
 {
     String GROUP = "pksession";
 

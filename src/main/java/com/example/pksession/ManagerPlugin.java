@@ -1,9 +1,12 @@
 package com.example.pksession;
 
+import com.example.pksession.utils.Formats;
 import com.google.inject.Provides;
 
 import javax.inject.Inject;
 import javax.swing.SwingUtilities;
+
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
 import net.runelite.client.config.ConfigManager;
@@ -20,33 +23,29 @@ import java.text.ParseException;
 
 @Slf4j
 @PluginDescriptor(
-	name = "PK Session",
-	description = "Automatic loot splitter for PK sessions. Tracks sessions, roster changes, chat-detected values, editable recent splits, and settlement metrics (copy JSON). Collapsible sections and configurable panel order.",
+	name = "Auto Split Manager",
+	description = "Automatic split manager for group sessions. Tracks sessions, roster changes, chat-detected values, editable recent splits, and settlement metrics (copy JSON). Collapsible sections and configurable panel order.",
 	enabledByDefault = true
 )
-public class PkSessionPlugin extends Plugin
+public class ManagerPlugin extends Plugin
 {
 	@Inject private Client client;
 	@Inject private ClientToolbar clientToolbar;
-	@Inject private PkSessionConfig config;
+	@Inject private PluginConfig config;
 
-	private static com.example.pksession.PkSessionPanel panel;
+    // Return nullable panel; callers must handle null (e.g., during startup/shutdown)
+    @Getter
+    private static ManagerPanel panel;
 	private NavigationButton navButton;
-	private com.example.pksession.SessionManager sessionManager;
-
-    public static PkSessionPanel getPanel(){
-        if ( panel == null)
-            throw new IllegalStateException("Panel not initialized");
-        return panel;
-    }
+	private ManagerSession sessionManager;
 
     @Override
     protected void startUp()
     {
-        sessionManager = new com.example.pksession.SessionManager(config);
+        sessionManager = new ManagerSession(config);
         sessionManager.loadFromConfig(); // load sessions and players (peeps)
 
-        panel = new com.example.pksession.PkSessionPanel(sessionManager, config);
+        panel = new ManagerPanel(sessionManager, config);
         panel.refreshAllView();
 
         // TODO create an icon
@@ -54,7 +53,7 @@ public class PkSessionPlugin extends Plugin
         BufferedImage placeholderIcon = new BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB);
 
         navButton = NavigationButton.builder()
-                .tooltip("PK Session")
+                .tooltip("Auto Split Manager")
                 .icon(placeholderIcon)
                 .priority(5)
                 .panel(panel)
@@ -79,20 +78,11 @@ public class PkSessionPlugin extends Plugin
 	}
 
 	@Provides
-	PkSessionConfig provideConfig(ConfigManager configManager)
+    PluginConfig provideConfig(ConfigManager configManager)
 	{
-		return configManager.getConfig(PkSessionConfig.class);
+		return configManager.getConfig(PluginConfig.class);
 	}
 
-	private void requestUiRefresh()
-	{
-		SwingUtilities.invokeLater(() -> {
-			if (panel != null)
-			{
-				panel.refreshAllView();
-			}
-		});
-	}
 
 	@Subscribe
 	public void onChatMessage(ChatMessage event) throws ParseException {
@@ -122,7 +112,7 @@ public class PkSessionPlugin extends Plugin
 			{
 				String player = m.group(1);
                 Long value = (Long) f.stringToValue(m.group(2));
-				queuePending(com.example.pksession.model.PendingValue.Type.PVM, isClan ? "Clan" : "Friends", msg, value, player);
+				queuePending(com.example.pksession.models.PendingValue.Type.PVM, isClan ? "Clan" : "Friends", msg, value, player);
 				return;
 			}
 		}
@@ -135,7 +125,7 @@ public class PkSessionPlugin extends Plugin
 			{
 				String player = m.group(1);
                 Long value = (Long) f.stringToValue(m.group(3));
-				queuePending(com.example.pksession.model.PendingValue.Type.PVP, isClan ? "Clan" : "Friends", msg, value, player);
+				queuePending(com.example.pksession.models.PendingValue.Type.PVP, isClan ? "Clan" : "Friends", msg, value, player);
 				return;
 			}
 		}
@@ -152,23 +142,18 @@ public class PkSessionPlugin extends Plugin
 				String who = sender != null ? sender : "";
 				String amtText = m.group(1);
 				Long valueK = (Long) f.stringToValue(amtText);
-				queuePending(com.example.pksession.model.PendingValue.Type.ADD, isClan ? "Clan" : "Friends", msg, valueK, who);
+				queuePending(com.example.pksession.models.PendingValue.Type.ADD, isClan ? "Clan" : "Friends", msg, valueK, who);
 			}
 		}
 	}
 
-	private Long parseNumber(String s)
-	{
-		if (s == null) return 0L;
-		try { return Long.parseLong(s.replace(",", "")); } catch (Exception e) { return 0L; }
-	}
 
-	private void queuePending(com.example.pksession.model.PendingValue.Type type, String source, String msg, Long value, String suggestedPlayer)
+	private void queuePending(com.example.pksession.models.PendingValue.Type type, String source, String msg, Long value, String suggestedPlayer)
 	{
 		if (sessionManager == null) return;
-		com.example.pksession.model.PendingValue pv = com.example.pksession.model.PendingValue.of(type, source, msg, value, suggestedPlayer);
+		com.example.pksession.models.PendingValue pv = com.example.pksession.models.PendingValue.of(type, source, msg, value, suggestedPlayer);
 		sessionManager.addPendingValue(pv);
 		// Ask UI to refresh
-		requestUiRefresh();
+		com.example.pksession.utils.Utils.requestUiRefresh().run();
 	}
 }

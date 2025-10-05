@@ -1,19 +1,19 @@
-package com.example.pksession.panel;
+package com.example.pksession.views.components.table;
 
-import com.example.pksession.SessionManager;
+import com.example.pksession.ManagerSession;
 
 import javax.swing.*;
 import java.awt.*;
 
-import static com.example.pksession.Utils.requestUiRefresh;
-import static com.example.pksession.Utils.toast;
+import static com.example.pksession.utils.Utils.requestUiRefresh;
+import static com.example.pksession.utils.Utils.toast;
 
-public class TableRemoveButtonEditor extends DefaultCellEditor {
+public class RemoveButtonEditor extends DefaultCellEditor {
     private final JButton button = new JButton("X");
     private int row = -1;
 
 
-    public TableRemoveButtonEditor(Component parent, SessionManager manager, JTable metricsTable) {
+    public RemoveButtonEditor(Component parent, ManagerSession manager, JTable metricsTable) {
         super(new JCheckBox());
 
         button.setOpaque(true);
@@ -21,7 +21,7 @@ public class TableRemoveButtonEditor extends DefaultCellEditor {
             if (row >= 0 && !manager.isHistoryLoaded()) {
                 String player = (String) metricsTable.getModel().getValueAt(row, 0);
                 if (manager.removePlayerFromSession(player)) {
-                    requestUiRefresh();
+                    requestUiRefresh().run();
                 } else {
                     toast(parent, "Failed to remove player.");
                 }

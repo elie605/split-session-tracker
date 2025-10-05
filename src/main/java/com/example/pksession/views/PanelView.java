@@ -1,5 +1,6 @@
 package com.example.pksession.views;
 
+import com.example.pksession.controllers.PanelActions;
 import com.example.pksession.controllers.PanelController;
 import com.example.pksession.models.*;
 import com.example.pksession.views.components.table.RemoveButtonEditor;
@@ -22,35 +23,31 @@ import static com.example.pksession.utils.Formats.OsrsAmountFormatter.toSuffixSt
 
 @Getter
 public class PanelView extends PluginPanel {
-    // New dynamic panel for active player management buttons (stack one player per row)
     private final JPanel activePlayersButtonsPanel = new JPanel(new GridLayout(0, 1, 0, 2));
     private final ManagerSession manager;
     private final PluginConfig config;
-    private final PanelController controller;
+
+    // actions (Controller port). Set with bindActions(...)
+    private PanelActions actions;
 
     private final JComboBox<String> knownPlayersDropdown = new JComboBox<>();
     private final JTextField newPeepField = new JTextField();
     private final JLabel historyLabel = new JLabel("History: OFF");
     private final JFormattedTextField killAmountField = makeOsrsField();
-    // Separate amount field for the Active Player Management section to avoid component reparenting
     private final JFormattedTextField activeKillAmountField = makeOsrsField();
     private final JTable metricsTable = new JTable(new Metrics());
     private final RecentSplitsTable recentSplitsModel = new RecentSplitsTable();
     private JTable recentSplitsTable;
 
-    // Waitlist UI (table)
     private final WaitlistTable waitlistTableModel = new WaitlistTable();
     private final JTable waitlistTable = new JTable(waitlistTableModel);
     private final JButton btnWaitlistAdd = new JButton("Add");
     private final JButton btnWaitlistDelete = new JButton("Del");
 
     private final JButton btnAddPeep = new JButton("Add peep");
-    // Labels for dynamic text
     private final JLabel knownListLabel = new JLabel("Known:");
     private final JLabel altsLabel = new JLabel("Known alts:");
-    // Shows when the selected player is an alt of someone
     private final JLabel altOfLabel = new JLabel("");
-    // Alt/Main UI (new): list of alts for selected player, and controls to add an alt
     private final JList<String> altsList = new JList<>(new DefaultListModel<>());
     private final JComboBox<String> addAltDropdown = new JComboBox<>();
     private final JButton btnAddAlt = new JButton("Add alt");
@@ -67,64 +64,21 @@ public class PanelView extends PluginPanel {
     private final DefaultListModel<Session> historyModel = new DefaultListModel<>();
     private final JList<Session> historyList = new JList<>(historyModel);
 
-
-    private JFormattedTextField makeOsrsField() {
-        JFormattedTextField f = new JFormattedTextField(
-                new DefaultFormatterFactory(new Formats.OsrsAmountFormatter()));
-        f.setColumns(14);
-        f.setFocusLostBehavior(JFormattedTextField.COMMIT_OR_REVERT);
-        f.setToolTipText("Enter amount like 10k, 1.1m, or 1b (K = thousands)");
-        return f;
-    }
-
-    private JTable makeRecentSplitsTable(RecentSplitsTable model) {
-        JTable t = new JTable(model);
-        t.setFillsViewportHeight(true);
-        t.setRowHeight(22);
-        t.setShowGrid(false);
-        t.setFocusable(true);
-        t.setEnabled(true); // editable via model
-
-        // Right-align amount col
-        javax.swing.table.DefaultTableCellRenderer right = new javax.swing.table.DefaultTableCellRenderer();
-        right.setHorizontalAlignment(SwingConstants.RIGHT);
-        t.getColumnModel().getColumn(2).setCellRenderer(right);
-
-        // Player editor: combo of current session players (fallback to known mains)
-        JComboBox<String> playerEditorCombo = new JComboBox<>();
-        {
-            java.util.Set<String> choices;
-            Session curr = manager.getCurrentSession().orElse(null);
-            if (curr != null && !curr.getPlayers().isEmpty())
-                choices = new java.util.LinkedHashSet<>(curr.getPlayers());
-            else choices = new java.util.LinkedHashSet<>(manager.getKnownMains());
-            playerEditorCombo.setModel(new DefaultComboBoxModel<>(choices.toArray(new String[0])));
-        }
-        t.getColumnModel().getColumn(1).setCellEditor(new DefaultCellEditor(playerEditorCombo));
-
-        // Amount editor: formatted text field accepting K/M/B
-        JFormattedTextField amtField = new JFormattedTextField(new DefaultFormatterFactory(new Formats.OsrsAmountFormatter()));
-        amtField.setBorder(null);
-        DefaultCellEditor amtEditor = new DefaultCellEditor(amtField);
-        t.getColumnModel().getColumn(2).setCellEditor(amtEditor);
-
-        return t;
-    }
+    // lightweight helper (kept for markdown/json building)
+    private final PanelController controllerHelper;
 
     public PanelView(ManagerSession manager, PluginConfig config) {
         this.manager = manager;
         this.config = config;
-        this.controller = new PanelController(manager, config);
-        // React to edits in recent splits to update metrics
-        recentSplitsModel.setListener(this::refreshMetrics);
+        this.controllerHelper = new PanelController(manager, config, this); // used only for clipboard helpers
 
+        recentSplitsModel.setListener(this::refreshMetrics);
         recentSplitsTable = makeRecentSplitsTable(recentSplitsModel);
 
         JPanel top = new JPanel();
         top.setLayout(new javax.swing.BoxLayout(top, javax.swing.BoxLayout.Y_AXIS));
 
         java.util.Map<String, java.util.function.Supplier<java.awt.Component>> sections = new java.util.LinkedHashMap<>();
-        // New active player management section at the very top by default (toggle via settings)
         if (config.useActivePlayerManagement()) {
             sections.put("activeplayermgmt", this::generateActivePlayerManagement);
         }
@@ -155,19 +109,103 @@ public class PanelView extends PluginPanel {
                 top.add(Box.createVerticalStrut(3));
             }
         }
-
         add(top, BorderLayout.NORTH);
+    }
+
+    public void bindActions(PanelActions actions) {
+        this.actions = actions;
+
+        // Session start/stop
+        btnStart.addActionListener(e -> actions.startSession());
+        btnStop.addActionListener(e -> actions.stopSession());
+
+        // Session player mgmt
+        btnAddToSession.addActionListener(e ->
+                actions.addPlayerToSession((String) notInCurrentSessionPlayerDropdown.getSelectedItem()));
+
+        // Known players
+        btnAddPeep.addActionListener(e ->
+                actions.addKnownPlayer(newPeepField.getText()));
+        btnRemovePlayer.addActionListener(e ->
+                actions.removeKnownPlayer((String) knownPlayersDropdown.getSelectedItem()));
+        knownPlayersDropdown.addItemListener(e -> {
+            if (e.getStateChange() == java.awt.event.ItemEvent.SELECTED) {
+                actions.onKnownPlayerSelectionChanged((String) e.getItem());
+            }
+        });
+
+        // Alts
+        btnAddAlt.addActionListener(e ->
+                actions.addAltToMain((String) knownPlayersDropdown.getSelectedItem(),
+                        (String) addAltDropdown.getSelectedItem()));
+        btnRemoveAlt.addActionListener(e ->
+                actions.removeSelectedAlt((String) knownPlayersDropdown.getSelectedItem(),
+                        altsList.getSelectedValue()));
+
+        // Splits
+        btnAddKill.addActionListener(e -> {
+            String player = (String) currentSessionPlayerDropdown.getSelectedItem();
+            long amt;
+            Object val = killAmountField.getValue();
+            try {
+                amt = val == null ? Long.parseLong(killAmountField.getText()) : ((Number) val).longValue();
+            } catch (Exception ex) {
+                com.example.pksession.utils.Utils.toast(this, "Invalid amount.");
+                return;
+            }
+            actions.addKill(player, amt);
+        });
+
+        // Waitlist
+        btnWaitlistAdd.addActionListener(e -> actions.applySelectedPendingValue(waitlistTable.getSelectedRow()));
+        btnWaitlistDelete.addActionListener(e -> actions.deleteSelectedPendingValue(waitlistTable.getSelectedRow()));
+    }
+
+    private JFormattedTextField makeOsrsField() {
+        JFormattedTextField f = new JFormattedTextField(
+                new DefaultFormatterFactory(new Formats.OsrsAmountFormatter()));
+        f.setColumns(14);
+        f.setFocusLostBehavior(JFormattedTextField.COMMIT_OR_REVERT);
+        f.setToolTipText("Enter amount like 10k, 1.1m, or 1b (K = thousands)");
+        return f;
+    }
+
+    private JTable makeRecentSplitsTable(RecentSplitsTable model) {
+        JTable t = new JTable(model);
+        t.setFillsViewportHeight(true);
+        t.setRowHeight(22);
+        t.setShowGrid(false);
+        t.setFocusable(true);
+        t.setEnabled(true);
+
+        javax.swing.table.DefaultTableCellRenderer right = new javax.swing.table.DefaultTableCellRenderer();
+        right.setHorizontalAlignment(SwingConstants.RIGHT);
+        t.getColumnModel().getColumn(2).setCellRenderer(right);
+
+        JComboBox<String> playerEditorCombo = new JComboBox<>();
+        {
+            java.util.Set<String> choices;
+            Session curr = manager.getCurrentSession().orElse(null);
+            if (curr != null && !curr.getPlayers().isEmpty())
+                choices = new java.util.LinkedHashSet<>(curr.getPlayers());
+            else choices = new java.util.LinkedHashSet<>(manager.getKnownMains());
+            playerEditorCombo.setModel(new DefaultComboBoxModel<>(choices.toArray(new String[0])));
+        }
+        t.getColumnModel().getColumn(1).setCellEditor(new DefaultCellEditor(playerEditorCombo));
+
+        JFormattedTextField amtField = new JFormattedTextField(new DefaultFormatterFactory(new Formats.OsrsAmountFormatter()));
+        amtField.setBorder(null);
+        DefaultCellEditor amtEditor = new DefaultCellEditor(amtField);
+        t.getColumnModel().getColumn(2).setCellEditor(amtEditor);
+
+        return t;
     }
 
     private JPanel generateAddSplit() {
         JPanel killPanel = new JPanel();
-        killPanel.setBorder(
-                BorderFactory.createCompoundBorder(
-                        BorderFactory.createTitledBorder("Add split to session:"),
-                        BorderFactory.createEmptyBorder(3, 3, 3, 3)
-                )
-        );
-
+        killPanel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createTitledBorder("Add split to session:"),
+                BorderFactory.createEmptyBorder(3, 3, 3, 3)));
         killPanel.setLayout(new GridBagLayout());
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(3, 3, 3, 3);
@@ -176,137 +214,87 @@ public class PanelView extends PluginPanel {
 
         Dimension dV = new Dimension(96, 24);
         Dimension dl = new Dimension(48, 24);
-
         killAmountField.setColumns(14);
         currentSessionPlayerDropdown.setPreferredSize(dV);
         killAmountField.setPreferredSize(dV);
 
-        // Row 0: Player label + dropdown
         JLabel apLabel = new JLabel("Player:");
         apLabel.setPreferredSize(dl);
         apLabel.setHorizontalAlignment(SwingConstants.RIGHT);
 
-        gbc.gridx = 0;
-        gbc.gridy = 0;
-        gbc.weightx = 0;
-        gbc.fill = GridBagConstraints.NONE;
-        gbc.anchor = GridBagConstraints.EAST;
+        gbc.gridx = 0; gbc.gridy = 0; gbc.weightx = 0;
+        gbc.fill = GridBagConstraints.NONE; gbc.anchor = GridBagConstraints.EAST;
         killPanel.add(apLabel, gbc);
 
-        gbc.gridx = 1;
-        gbc.gridy = 0;
-        gbc.weightx = 1.0;
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.anchor = GridBagConstraints.WEST;
+        gbc.gridx = 1; gbc.gridy = 0; gbc.weightx = 1.0;
+        gbc.fill = GridBagConstraints.HORIZONTAL; gbc.anchor = GridBagConstraints.WEST;
         killPanel.add(currentSessionPlayerDropdown, gbc);
 
-        // Row 1: Amount label + field
         JLabel amountLabel = new JLabel("Amount:");
         amountLabel.setPreferredSize(dl);
         amountLabel.setHorizontalAlignment(SwingConstants.RIGHT);
 
-        gbc.gridx = 0;
-        gbc.gridy = 1;
-        gbc.weightx = 0;
-        gbc.fill = GridBagConstraints.NONE;
-        gbc.anchor = GridBagConstraints.EAST;
+        gbc.gridx = 0; gbc.gridy = 1; gbc.weightx = 0;
+        gbc.fill = GridBagConstraints.NONE; gbc.anchor = GridBagConstraints.EAST;
         killPanel.add(amountLabel, gbc);
 
-        gbc.gridx = 1;
-        gbc.gridy = 1;
-        gbc.weightx = 1.0;
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.anchor = GridBagConstraints.WEST;
+        gbc.gridx = 1; gbc.gridy = 1; gbc.weightx = 1.0;
+        gbc.fill = GridBagConstraints.HORIZONTAL; gbc.anchor = GridBagConstraints.WEST;
         killPanel.add(killAmountField, gbc);
 
-        // Row 2: Add button
-        gbc.gridx = 0;
-        gbc.gridy = 2;
-        gbc.gridwidth = 2;
-        gbc.weightx = 1.0;
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.anchor = GridBagConstraints.EAST;
+        gbc.gridx = 0; gbc.gridy = 2; gbc.gridwidth = 2; gbc.weightx = 1.0;
+        gbc.fill = GridBagConstraints.HORIZONTAL; gbc.anchor = GridBagConstraints.EAST;
         killPanel.add(btnAddKill, gbc);
-
-        // (Recent splits moved to its own section)
-
-        // Wire the button (avoid duplicate listeners if called multiple times)
-        for (java.awt.event.ActionListener al : btnAddKill.getActionListeners()) {
-            if (al.getClass().getName().endsWith("AddKillHandler")) {
-                // already wired by us
-                return killPanel;
-            }
-        }
 
         return killPanel;
     }
 
     private JPanel generateSessionPlayerManagement() {
         JPanel rosterPanel = new JPanel();
-        rosterPanel.setBorder(
-                BorderFactory.createCompoundBorder(
-                        BorderFactory.createTitledBorder("Add players to session:"),
-                        BorderFactory.createEmptyBorder(3, 3, 3, 3)
-                )
-        );
-
-        // Layout
+        rosterPanel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createTitledBorder("Add players to session:"),
+                BorderFactory.createEmptyBorder(3, 3, 3, 3)));
         rosterPanel.setLayout(new GridBagLayout());
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(3, 3, 3, 3);
         gbc.anchor = GridBagConstraints.WEST;
         gbc.fill = GridBagConstraints.HORIZONTAL;
 
-        // Build the dropdown containing only non-active players
         notInCurrentSessionPlayerDropdown.setPreferredSize(new Dimension(94, 24));
         btnAddToSession.setPreferredSize(new Dimension(64, 24));
 
         String[] peeps = manager.getNonActivePlayers().toArray(new String[0]);
         notInCurrentSessionPlayerDropdown.setModel(new DefaultComboBoxModel<>(peeps));
 
-        // Row 0: dropdown (expand) + button (fixed)
-        gbc.gridx = 1;
-        gbc.gridy = 0;
-        gbc.weightx = 1.0;
+        gbc.gridx = 1; gbc.gridy = 0; gbc.weightx = 1.0;
         gbc.fill = GridBagConstraints.HORIZONTAL;
         rosterPanel.add(notInCurrentSessionPlayerDropdown, gbc);
 
-        gbc.gridx = 0;
-        gbc.gridy = 0;
-        gbc.weightx = 0;
+        gbc.gridx = 0; gbc.gridy = 0; gbc.weightx = 0;
         gbc.fill = GridBagConstraints.NONE;
         rosterPanel.add(btnAddToSession, gbc);
 
-        // Row 1: concise help label (centered, spans 2 cols)
         JLabel help = new JLabel("Remove via the 'X' in the table.");
         help.setHorizontalAlignment(SwingConstants.CENTER);
 
-        gbc.gridx = 0;
-        gbc.gridy = 1;
-        gbc.gridwidth = 2;
-        gbc.weightx = 1.0;
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.anchor = GridBagConstraints.CENTER;
+        gbc.gridx = 0; gbc.gridy = 1; gbc.gridwidth = 2; gbc.weightx = 1.0;
+        gbc.fill = GridBagConstraints.HORIZONTAL; gbc.anchor = GridBagConstraints.CENTER;
         rosterPanel.add(help, gbc);
 
         return rosterPanel;
     }
 
-
     private JPanel generateKnownPlayersManagement() {
         JPanel peepsPanel = new JPanel();
-
         peepsPanel.setLayout(new GridBagLayout());
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(3, 3, 3, 3);
         gbc.anchor = GridBagConstraints.WEST;
         gbc.fill = GridBagConstraints.HORIZONTAL;
 
-        // Your sizing pattern
-        Dimension dV = new Dimension(96, 24);  // input/dropdown width
-        Dimension dl = new Dimension(48, 24);  // label width
+        Dimension dV = new Dimension(96, 24);
+        Dimension dl = new Dimension(48, 24);
 
-        // Prepare components
         JLabel title = new JLabel("Edit the known players list:");
         title.setFont(title.getFont().deriveFont(Font.BOLD));
 
@@ -317,203 +305,107 @@ public class PanelView extends PluginPanel {
 
         int row = 0;
 
-        // Row 0: Title (100%)
-        gbc.gridx = 0;
-        gbc.gridy = row;
-        gbc.gridwidth = 2;
-        gbc.weightx = 1.0;
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.anchor = GridBagConstraints.WEST;
-        peepsPanel.add(title, gbc);
-        row++;
+        gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 2; gbc.weightx = 1.0;
+        gbc.fill = GridBagConstraints.HORIZONTAL; gbc.anchor = GridBagConstraints.WEST;
+        peepsPanel.add(title, gbc); row++;
 
-        // Row 1: Name lbl + field
         JLabel nameLabel = new JLabel("Name:");
         nameLabel.setPreferredSize(dl);
         nameLabel.setHorizontalAlignment(SwingConstants.RIGHT);
 
         gbc.gridwidth = 1;
-
-        gbc.gridx = 0;
-        gbc.gridy = row;
-        gbc.weightx = 0;
-        gbc.fill = GridBagConstraints.NONE;
-        gbc.anchor = GridBagConstraints.EAST;
+        gbc.gridx = 0; gbc.gridy = row; gbc.weightx = 0;
+        gbc.fill = GridBagConstraints.NONE; gbc.anchor = GridBagConstraints.EAST;
         peepsPanel.add(nameLabel, gbc);
 
-        gbc.gridx = 1;
-        gbc.gridy = row;
-        gbc.weightx = 1.0;
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.anchor = GridBagConstraints.WEST;
-        peepsPanel.add(newPeepField, gbc);
-        row++;
+        gbc.gridx = 1; gbc.gridy = row; gbc.weightx = 1.0;
+        gbc.fill = GridBagConstraints.HORIZONTAL; gbc.anchor = GridBagConstraints.WEST;
+        peepsPanel.add(newPeepField, gbc); row++;
 
-        // Row 2: Add player (100%)
-        gbc.gridx = 0;
-        gbc.gridy = row;
-        gbc.gridwidth = 2;
-        gbc.weightx = 1.0;
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.anchor = GridBagConstraints.CENTER;
-        peepsPanel.add(btnAddPeep, gbc);
-        row++;
+        gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 2; gbc.weightx = 1.0;
+        gbc.fill = GridBagConstraints.HORIZONTAL; gbc.anchor = GridBagConstraints.CENTER;
+        peepsPanel.add(btnAddPeep, gbc); row++;
 
-        // Row 3: <hr> (100%)
-        gbc.gridx = 0;
-        gbc.gridy = row;
-        gbc.gridwidth = 2;
-        gbc.weightx = 1.0;
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.anchor = GridBagConstraints.CENTER;
-        peepsPanel.add(new JSeparator(SwingConstants.HORIZONTAL), gbc);
-        row++;
+        gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 2; gbc.weightx = 1.0;
+        gbc.fill = GridBagConstraints.HORIZONTAL; gbc.anchor = GridBagConstraints.CENTER;
+        peepsPanel.add(new JSeparator(SwingConstants.HORIZONTAL), gbc); row++;
 
-        // Row 4: "Alter player info" label ON ITS OWN ROW (100%)
         JLabel alterLbl = new JLabel("Alter player info:");
         alterLbl.setHorizontalAlignment(SwingConstants.LEFT);
-        gbc.gridx = 0;
-        gbc.gridy = row;
-        gbc.gridwidth = 2;
-        gbc.weightx = 1.0;
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.anchor = GridBagConstraints.WEST;
-        peepsPanel.add(alterLbl, gbc);
-        row++;
+        gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 2; gbc.weightx = 1.0;
+        gbc.fill = GridBagConstraints.HORIZONTAL; gbc.anchor = GridBagConstraints.WEST;
+        peepsPanel.add(alterLbl, gbc); row++;
 
-        // Row 5: Player select dropdown (single item, 100%)
-        gbc.gridx = 0;
-        gbc.gridy = row;
-        gbc.gridwidth = 2;
-        gbc.weightx = 1.0;
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.anchor = GridBagConstraints.WEST;
-        peepsPanel.add(knownPlayersDropdown, gbc);
-        row++;
+        gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 2; gbc.weightx = 1.0;
+        gbc.fill = GridBagConstraints.HORIZONTAL; gbc.anchor = GridBagConstraints.WEST;
+        peepsPanel.add(knownPlayersDropdown, gbc); row++;
 
-        // Row 6: Remove player (100%) — directly under the dropdown
-        gbc.gridx = 0;
-        gbc.gridy = row;
-        gbc.gridwidth = 2;
-        gbc.weightx = 1.0;
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.anchor = GridBagConstraints.CENTER;
-        peepsPanel.add(btnRemovePlayer, gbc);
-        row++;
+        gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 2; gbc.weightx = 1.0;
+        gbc.fill = GridBagConstraints.HORIZONTAL; gbc.anchor = GridBagConstraints.CENTER;
+        peepsPanel.add(btnRemovePlayer, gbc); row++;
 
-        // Row 7: "Player known alts" label (own row, 100%)
         altsLabel.setHorizontalAlignment(SwingConstants.LEFT);
-        gbc.gridx = 0;
-        gbc.gridy = row;
-        gbc.gridwidth = 2;
-        gbc.weightx = 1.0;
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.anchor = GridBagConstraints.WEST;
-        peepsPanel.add(altsLabel, gbc);
-        row++;
+        gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 2; gbc.weightx = 1.0;
+        gbc.fill = GridBagConstraints.HORIZONTAL; gbc.anchor = GridBagConstraints.WEST;
+        peepsPanel.add(altsLabel, gbc); row++;
 
-        // Row 8: The list (100%, grows vertically)
         JScrollPane altsScroll = new JScrollPane(altsList);
         altsScroll.setPreferredSize(new Dimension(240, 140));
-        gbc.gridx = 0;
-        gbc.gridy = row;
-        gbc.gridwidth = 2;
-        gbc.weightx = 1.0;
-        gbc.weighty = 1.0;
-        gbc.fill = GridBagConstraints.BOTH;
-        gbc.anchor = GridBagConstraints.CENTER;
-        peepsPanel.add(altsScroll, gbc);
-        row++;
+        gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 2; gbc.weightx = 1.0; gbc.weighty = 1.0;
+        gbc.fill = GridBagConstraints.BOTH; gbc.anchor = GridBagConstraints.CENTER;
+        peepsPanel.add(altsScroll, gbc); row++;
 
-        // Row 9: Add alt lbl + dropdown
         JLabel addAltLbl = new JLabel("Add alt:");
         addAltLbl.setPreferredSize(dl);
         addAltLbl.setHorizontalAlignment(SwingConstants.RIGHT);
 
-        gbc.gridwidth = 1;
-        gbc.weighty = 0;
-
-        gbc.gridx = 0;
-        gbc.gridy = row;
-        gbc.weightx = 0;
-        gbc.fill = GridBagConstraints.NONE;
-        gbc.anchor = GridBagConstraints.EAST;
+        gbc.gridwidth = 1; gbc.weighty = 0;
+        gbc.gridx = 0; gbc.gridy = row; gbc.weightx = 0;
+        gbc.fill = GridBagConstraints.NONE; gbc.anchor = GridBagConstraints.EAST;
         peepsPanel.add(addAltLbl, gbc);
 
-        gbc.gridx = 1;
-        gbc.gridy = row;
-        gbc.weightx = 1.0;
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.anchor = GridBagConstraints.WEST;
-        peepsPanel.add(addAltDropdown, gbc);
-        row++;
+        gbc.gridx = 1; gbc.gridy = row; gbc.weightx = 1.0;
+        gbc.fill = GridBagConstraints.HORIZONTAL; gbc.anchor = GridBagConstraints.WEST;
+        peepsPanel.add(addAltDropdown, gbc); row++;
 
-        // Row 10: Add/Remove alt buttons on the same row (full-width container)
         JPanel altButtonsRow = new JPanel(new GridLayout(1, 2, 6, 0));
         altButtonsRow.add(btnAddAlt);
         altButtonsRow.add(btnRemoveAlt);
 
-        gbc.gridx = 0;
-        gbc.gridy = row;
-        gbc.gridwidth = 2;
-        gbc.weightx = 1.0;
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.anchor = GridBagConstraints.CENTER;
-        peepsPanel.add(altButtonsRow, gbc);
-        row++;
+        gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 2; gbc.weightx = 1.0;
+        gbc.fill = GridBagConstraints.HORIZONTAL; gbc.anchor = GridBagConstraints.CENTER;
+        peepsPanel.add(altButtonsRow, gbc); row++;
 
         return new DropdownRip("Known player info", peepsPanel);
     }
 
-
     private JPanel generateSessionPanel() {
         JPanel sessionPanel = new JPanel();
-        sessionPanel.setBorder(
-                BorderFactory.createCompoundBorder(
-                        BorderFactory.createTitledBorder("Session"),
-                        BorderFactory.createEmptyBorder(3, 3, 3, 3)
-                )
-        );
-
+        sessionPanel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createTitledBorder("Session"),
+                BorderFactory.createEmptyBorder(3, 3, 3, 3)));
         sessionPanel.setLayout(new GridBagLayout());
         GridBagConstraints g2 = new GridBagConstraints();
-        g2.gridx = 0;
-        g2.insets = new Insets(3, 3, 3, 3);
-        g2.weightx = 1.0;
-        g2.fill = GridBagConstraints.HORIZONTAL;
-        g2.anchor = GridBagConstraints.CENTER;
+        g2.gridx = 0; g2.insets = new Insets(3, 3, 3, 3); g2.weightx = 1.0;
+        g2.fill = GridBagConstraints.HORIZONTAL; g2.anchor = GridBagConstraints.CENTER;
 
-        // Row 0: buttons in a 1x2 GridLayout so each takes 50% width
         JPanel buttonsHalfHalf = new JPanel(new GridLayout(1, 2, 6, 0));
         buttonsHalfHalf.add(btnStart);
         buttonsHalfHalf.add(btnStop);
 
-        g2.gridy = 0;
-        sessionPanel.add(buttonsHalfHalf, g2);
+        g2.gridy = 0; sessionPanel.add(buttonsHalfHalf, g2);
 
-        // Row 1: centered label spanning full width
         historyLabel.setHorizontalAlignment(SwingConstants.CENTER);
-
-        g2.gridy = 1;
-        sessionPanel.add(historyLabel, g2);
+        g2.gridy = 1; sessionPanel.add(historyLabel, g2);
 
         return sessionPanel;
-    }
-
-
-    private JPanel generateHistory() {
-        // TODO
-        return null;
     }
 
     private JPanel generateWaitlistPanel() {
         JPanel p = new JPanel();
         p.setLayout(new GridBagLayout());
         GridBagConstraints gbc = new GridBagConstraints();
-        gbc.gridx = 0;
-        gbc.gridy = 0;
-        gbc.gridwidth = 1;
-        gbc.weightx = 1.0;
+        gbc.gridx = 0; gbc.gridy = 0; gbc.gridwidth = 1; gbc.weightx = 1.0;
         gbc.fill = GridBagConstraints.BOTH;
         waitlistTable.setFillsViewportHeight(true);
         waitlistTable.setRowHeight(22);
@@ -525,18 +417,12 @@ public class PanelView extends PluginPanel {
         JPanel btns = new JPanel(new GridLayout(1, 2, 6, 0));
         btns.add(btnWaitlistAdd);
         btns.add(btnWaitlistDelete);
-        gbc.gridx = 0;
-        gbc.gridy = 1;
-        gbc.gridwidth = 2;
-        gbc.weightx = 1.0;
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.insets = new Insets(3, 0, 0, 0);
+        gbc.gridx = 0; gbc.gridy = 1; gbc.gridwidth = 2; gbc.weightx = 1.0;
+        gbc.fill = GridBagConstraints.HORIZONTAL; gbc.insets = new Insets(3, 0, 0, 0);
         p.add(btns, gbc);
 
-        // Always keep first row selected
         waitlistTableModel.addTableModelListener(new TableModelListener() {
-            @Override
-            public void tableChanged(TableModelEvent e) {
+            @Override public void tableChanged(javax.swing.event.TableModelEvent e) {
                 if (waitlistTable.getRowCount() > 0) {
                     waitlistTable.getSelectionModel().setSelectionInterval(0, 0);
                 } else {
@@ -547,17 +433,14 @@ public class PanelView extends PluginPanel {
         if (waitlistTable.getRowCount() > 0) {
             waitlistTable.getSelectionModel().setSelectionInterval(0, 0);
         }
-
         return p;
     }
 
     private JComponent generateWaitlistPanelCollapsible() {
         JPanel content = new JPanel(new BorderLayout());
         content.add(generateWaitlistPanel(), BorderLayout.CENTER);
-
         return new DropdownRip("Detected values", content);
     }
-
 
     private JComponent generateRecentSplitsPanel() {
         JScrollPane scroller = new JScrollPane(recentSplitsTable);
@@ -566,7 +449,6 @@ public class PanelView extends PluginPanel {
     }
 
     private JComponent generateMetrics() {
-        // ---------- Wrapper + header ----------
         JPanel wrapper = new JPanel(new BorderLayout(0, 6));
         JLabel title = new JLabel("Settlement");
         title.setFont(title.getFont().deriveFont(Font.BOLD));
@@ -590,7 +472,6 @@ public class PanelView extends PluginPanel {
 
         wrapper.add(header, BorderLayout.NORTH);
 
-        // ---------- Configure the main metricsTable (used in non-direct mode) ----------
         metricsTable.setFillsViewportHeight(true);
         metricsTable.setAutoResizeMode(JTable.AUTO_RESIZE_ALL_COLUMNS);
 
@@ -627,13 +508,11 @@ public class PanelView extends PluginPanel {
         try {
             int playerIdx = metricsTable.getColumnModel().getColumnIndex("Player");
             metricsTable.getColumnModel().getColumn(playerIdx).setCellRenderer(greyingRenderer);
-        } catch (IllegalArgumentException ignored) {
-        }
+        } catch (IllegalArgumentException ignored) { }
         try {
             int totalIdx = metricsTable.getColumnModel().getColumnIndex("Total");
             metricsTable.getColumnModel().getColumn(totalIdx).setCellRenderer(greyingRenderer);
-        } catch (IllegalArgumentException ignored) {
-        }
+        } catch (IllegalArgumentException ignored) { }
 
         javax.swing.table.DefaultTableCellRenderer splitRenderer = new javax.swing.table.DefaultTableCellRenderer() {
             @Override
@@ -655,44 +534,31 @@ public class PanelView extends PluginPanel {
         try {
             int splitIdx = metricsTable.getColumnModel().getColumnIndex("Split");
             metricsTable.getColumnModel().getColumn(splitIdx).setCellRenderer(splitRenderer);
-        } catch (IllegalArgumentException ignored) {
-        }
+        } catch (IllegalArgumentException ignored) { }
 
-        // Keep your existing 'X' editor in NON-direct mode only
         try {
             int actionIdx = metricsTable.getColumnModel().getColumnIndex("X");
             metricsTable.getColumnModel().getColumn(actionIdx)
                     .setCellEditor(new RemoveButtonEditor(this, manager, metricsTable));
-        } catch (IllegalArgumentException ignored) {
-        }
+        } catch (IllegalArgumentException ignored) { }
 
-        // ---------- CENTER CONTENT ----------
         JComponent centerContent;
-
         if (direct) {
             Session currentSession = manager.getCurrentSession().orElse(null);
-            java.util.List<ManagerSession.PlayerMetrics> data =
-                    manager.computeMetricsFor(currentSession, true);
-
-            java.util.List<Transfer> transfers = controller.computeDirectPaymentsStructured(data);
+            java.util.List<ManagerSession.PlayerMetrics> data = manager.computeMetricsFor(currentSession, true);
+            java.util.List<Transfer> transfers = controllerHelper.computeDirectPaymentsStructured(data);
 
             if (transfers != null && !transfers.isEmpty()) {
                 javax.swing.table.DefaultTableModel txModel =
                         new javax.swing.table.DefaultTableModel(new Object[]{"Suggested direct payments"}, 0) {
-                            @Override
-                            public boolean isCellEditable(int r, int c) {
-                                return false;
-                            }
+                            @Override public boolean isCellEditable(int r, int c) { return false; }
                         };
 
                 for (Transfer t : transfers) {
                     String payerShort = shortenName(t.getFrom(), 7);
                     String payeeShort = shortenName(t.getTo(), 7);
-
-                    // exactly: "<payer7> -> <payee7>: <#,##0>" using toSuffixString(..., 'k')
                     String amountStr = toSuffixString(Math.abs(t.getAmount()), 'k');
                     String display = payerShort + " -> " + payeeShort + ": " + amountStr;
-
                     txModel.addRow(new Object[]{display});
                 }
 
@@ -704,7 +570,6 @@ public class PanelView extends PluginPanel {
 
                 JScrollPane txScroll = new JScrollPane(txTable);
                 txScroll.setPreferredSize(new Dimension(320, 360));
-
                 centerContent = txScroll;
             } else {
                 JScrollPane tableScroll = new JScrollPane(metricsTable);
@@ -712,7 +577,6 @@ public class PanelView extends PluginPanel {
                 centerContent = tableScroll;
             }
         } else {
-            // Middleman mode: normal metrics table (with X)
             JScrollPane tableScroll = new JScrollPane(metricsTable);
             tableScroll.setPreferredSize(new Dimension(320, 360));
             centerContent = tableScroll;
@@ -720,7 +584,6 @@ public class PanelView extends PluginPanel {
 
         wrapper.add(centerContent, BorderLayout.CENTER);
 
-        // ---------- Footer ----------
         JPanel southPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 0));
         southPanel.add(copyBtn);
         southPanel.add(copyMdBtn);
@@ -729,9 +592,6 @@ public class PanelView extends PluginPanel {
         return new DropdownRip("Settlement information", wrapper);
     }
 
-    /**
-     * hard-cap name to maxLen chars (no ellipsis)
-     */
     private static String shortenName(String name, int maxLen) {
         if (name == null) return "";
         String n = name.trim();
@@ -744,18 +604,17 @@ public class PanelView extends PluginPanel {
     }
 
     private void copyMetricsJsonToClipboard() {
-        String payload = controller.buildMetricsJson();
+        String payload = controllerHelper.buildMetricsJson();
         StringSelection selection = new StringSelection(payload);
         java.awt.Toolkit.getDefaultToolkit().getSystemClipboard().setContents(selection, selection);
     }
 
     private void copyMetricsMarkdownToClipboard() {
-        String payload = controller.buildMetricsMarkdown();
+        String payload = controllerHelper.buildMetricsMarkdown();
         StringSelection selection = new StringSelection(payload);
         java.awt.Toolkit.getDefaultToolkit().getSystemClipboard().setContents(selection, selection);
     }
 
-    // Build a top-of-panel section with per-active-player buttons
     private JPanel generateActivePlayerManagement() {
         JPanel panel = new JPanel();
         panel.setLayout(new GridBagLayout());
@@ -764,42 +623,28 @@ public class PanelView extends PluginPanel {
         gbc.anchor = GridBagConstraints.WEST;
         gbc.fill = GridBagConstraints.HORIZONTAL;
 
-        // Row 0: Amount label + shared amount field (use a dedicated field for this section)
         JLabel amountLabel = new JLabel("Amount:");
         amountLabel.setPreferredSize(new Dimension(48, 24));
 
-        gbc.gridx = 0;
-        gbc.gridy = 0;
-        gbc.weightx = 0;
-        gbc.fill = GridBagConstraints.NONE;
-        gbc.anchor = GridBagConstraints.EAST;
+        gbc.gridx = 0; gbc.gridy = 0; gbc.weightx = 0;
+        gbc.fill = GridBagConstraints.NONE; gbc.anchor = GridBagConstraints.EAST;
         panel.add(amountLabel, gbc);
 
-        gbc.gridx = 1;
-        gbc.gridy = 0;
-        gbc.weightx = 1.0;
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.anchor = GridBagConstraints.WEST;
+        gbc.gridx = 1; gbc.gridy = 0; gbc.weightx = 1.0;
+        gbc.fill = GridBagConstraints.HORIZONTAL; gbc.anchor = GridBagConstraints.WEST;
         panel.add(activeKillAmountField, gbc);
 
-        // Row 1: Scrollable area with one row per active player (buttons)
         JScrollPane scroller = new JScrollPane(activePlayersButtonsPanel);
         scroller.setBorder(null);
         scroller.setPreferredSize(new Dimension(0, 360));
-        gbc.gridx = 0;
-        gbc.gridy = 1;
-        gbc.gridwidth = 2;
-        gbc.weightx = 1.0;
-        gbc.weighty = 1.0;
+        gbc.gridx = 0; gbc.gridy = 1; gbc.gridwidth = 2; gbc.weightx = 1.0; gbc.weighty = 1.0;
         gbc.fill = GridBagConstraints.BOTH;
         panel.add(scroller, gbc);
 
-        // Initial population
         refreshActivePlayerButtons();
         return new DropdownRip("Active player management", panel);
     }
 
-    // Rebuild the list of per-player buttons from current session
     public void refreshActivePlayerButtons() {
         activePlayersButtonsPanel.removeAll();
         com.example.pksession.models.Session current = manager.getCurrentSession().orElse(null);
@@ -839,11 +684,9 @@ public class PanelView extends PluginPanel {
                 row.add(addBtn);
                 row.add(rmBtn);
                 row.add(name);
-                // Insert at top so newest rows are always on top
                 activePlayersButtonsPanel.add(row, 0);
             }
         } else {
-            // Optionally show hint when no active session
             JLabel hint = new JLabel("Start a session to manage players.");
             hint.setForeground(Color.GRAY);
             activePlayersButtonsPanel.add(hint);
@@ -851,7 +694,4 @@ public class PanelView extends PluginPanel {
         activePlayersButtonsPanel.revalidate();
         activePlayersButtonsPanel.repaint();
     }
-
-
 }
-

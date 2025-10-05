@@ -6,6 +6,7 @@ import com.example.pksession.SessionManager;
 import com.example.pksession.model.Metrics;
 import com.example.pksession.model.RecentSplitsTable;
 import com.example.pksession.model.Session;
+import com.example.pksession.model.Transfer;
 import lombok.Getter;
 import net.runelite.client.ui.PluginPanel;
 
@@ -15,6 +16,8 @@ import javax.swing.event.TableModelListener;
 import javax.swing.text.DefaultFormatterFactory;
 import java.awt.*;
 import java.awt.datatransfer.StringSelection;
+
+import static com.example.pksession.Formats.OsrsAmountFormatter.toSuffixString;
 
 @Getter
 public class PanelView extends PluginPanel {
@@ -560,11 +563,18 @@ public class PanelView extends PluginPanel {
     }
 
     private JComponent generateMetrics() {
-        // Wrapper panel with title and description
+        // ---------- Wrapper + header ----------
         JPanel wrapper = new JPanel(new BorderLayout(0, 6));
         JLabel title = new JLabel("Settlement");
         title.setFont(title.getFont().deriveFont(Font.BOLD));
-        JLabel desc = new JLabel("-100k means you owe that amount to the player; 100k means the player owes you that money.");
+
+        boolean direct = config.directPayments();
+        String explanation = direct
+                ? "Direct payments mode: negatives pay positives directly. We'll suggest who pays whom below."
+                : (config.flipSettlementSign()
+                ? "Middleman mode (flipped): positive Split means you pay the bank; negative means the bank pays you."
+                : "Middleman mode: negative Split means you pay the bank; positive means the bank pays you.");
+        JLabel desc = new JLabel(explanation);
 
         JPanel header = new JPanel(new BorderLayout());
         header.add(title, BorderLayout.NORTH);
@@ -574,31 +584,31 @@ public class PanelView extends PluginPanel {
         copyBtn.addActionListener(e -> copyMetricsJsonToClipboard());
         JButton copyMdBtn = new JButton("Copy MD");
         copyMdBtn.addActionListener(e -> copyMetricsMarkdownToClipboard());
+
         wrapper.add(header, BorderLayout.NORTH);
 
-        // Set up the metricsTable with custom column configuration
+        // ---------- Configure the main metricsTable (used in non-direct mode) ----------
         metricsTable.setFillsViewportHeight(true);
         metricsTable.setAutoResizeMode(JTable.AUTO_RESIZE_ALL_COLUMNS);
 
-        JScrollPane tableScroll = new JScrollPane(metricsTable);
-        tableScroll.setPreferredSize(new Dimension(320, 360));
-
+        ((Metrics) metricsTable.getModel()).setHideTotalColumn(true);
         refreshMetrics();
 
-        int tableWidth = Math.max(metricsTable.getWidth(), 1);
-        int equalWidth = (int) (tableWidth * 0.33); // Equal width for first 3 columns (33% each)
-
-        // Set widths for first 3 columns
-        for (int i = 0; i < 3; i++) {
-            metricsTable.getColumnModel().getColumn(i).setPreferredWidth(equalWidth);
+        int colCount = metricsTable.getColumnModel().getColumnCount();
+        if (colCount > 0) {
+            int actionColViewIndex = colCount - 1;
+            int nonActionCols = Math.max(1, colCount - 1);
+            int tableWidth = Math.max(metricsTable.getWidth(), 1);
+            int equalWidth = (int) (tableWidth * (1.0 / nonActionCols));
+            for (int i = 0; i < colCount; i++) {
+                if (i == actionColViewIndex) continue;
+                metricsTable.getColumnModel().getColumn(i).setPreferredWidth(equalWidth);
+            }
+            metricsTable.getColumnModel().getColumn(actionColViewIndex).setMaxWidth(40);
+            metricsTable.getColumnModel().getColumn(actionColViewIndex).setMinWidth(40);
+            metricsTable.getColumnModel().getColumn(actionColViewIndex).setPreferredWidth(40);
         }
 
-        // Set X column to minimum width
-        metricsTable.getColumnModel().getColumn(3).setMaxWidth(40);
-        metricsTable.getColumnModel().getColumn(3).setMinWidth(40);
-        metricsTable.getColumnModel().getColumn(3).setPreferredWidth(40);
-
-        // Grey-out renderer for columns 0-2 when player is non-active
         javax.swing.table.DefaultTableCellRenderer greyingRenderer = new javax.swing.table.DefaultTableCellRenderer() {
             @Override
             public java.awt.Component getTableCellRendererComponent(JTable table, Object value,
@@ -607,61 +617,119 @@ public class PanelView extends PluginPanel {
                 java.awt.Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
                 Metrics model = (Metrics) table.getModel();
                 boolean active = model.isRowActive(row);
-                if (!isSelected) {
-                    c.setForeground(active ? table.getForeground() : java.awt.Color.GRAY);
-                }
+                if (!isSelected) c.setForeground(active ? table.getForeground() : java.awt.Color.GRAY);
                 return c;
             }
         };
-        metricsTable.getColumnModel().getColumn(0).setCellRenderer(greyingRenderer);
-        metricsTable.getColumnModel().getColumn(1).setCellRenderer(greyingRenderer);
-        metricsTable.getColumnModel().getColumn(2).setCellRenderer(greyingRenderer);
+        try {
+            int playerIdx = metricsTable.getColumnModel().getColumnIndex("Player");
+            metricsTable.getColumnModel().getColumn(playerIdx).setCellRenderer(greyingRenderer);
+        } catch (IllegalArgumentException ignored) {
+        }
+        try {
+            int totalIdx = metricsTable.getColumnModel().getColumnIndex("Total");
+            metricsTable.getColumnModel().getColumn(totalIdx).setCellRenderer(greyingRenderer);
+        } catch (IllegalArgumentException ignored) {
+        }
 
-        // Renderer for column 3: show a button "X" for active, and a greyed label "💤" for non-active
-        javax.swing.table.TableCellRenderer actionRenderer = new javax.swing.table.TableCellRenderer() {
-            private final JButton btn = new JButton("X");
-            private final JLabel sleeping = new JLabel("💤", SwingConstants.CENTER);
-
+        javax.swing.table.DefaultTableCellRenderer splitRenderer = new javax.swing.table.DefaultTableCellRenderer() {
             @Override
             public java.awt.Component getTableCellRendererComponent(JTable table, Object value,
                                                                     boolean isSelected, boolean hasFocus,
                                                                     int row, int column) {
                 Metrics model = (Metrics) table.getModel();
                 boolean active = model.isRowActive(row);
-                if (active) {
-                    btn.setText("X");
-                    if (isSelected) {
-                        btn.setBackground(table.getSelectionBackground());
-                        btn.setForeground(table.getSelectionForeground());
-                    } else {
-                        btn.setBackground(UIManager.getColor("Button.background"));
-                        btn.setForeground(UIManager.getColor("Button.foreground"));
-                    }
-                    return btn;
-                } else {
-                    sleeping.setText("💤");
-                    sleeping.setOpaque(false);
-                    if (!isSelected) {
-                        sleeping.setForeground(java.awt.Color.GRAY);
-                    } else {
-                        sleeping.setForeground(table.getSelectionForeground());
-                        sleeping.setBackground(table.getSelectionBackground());
-                        sleeping.setOpaque(true);
-                    }
-                    return sleeping;
-                }
+                long raw = model.getRawSplitAt(row);
+                long disp = raw;
+                if (!config.directPayments() && config.flipSettlementSign()) disp = -raw;
+                java.text.DecimalFormat df = com.example.pksession.Formats.getDecimalFormat();
+                java.awt.Component c = super.getTableCellRendererComponent(table, df.format(disp), isSelected, hasFocus, row, column);
+                if (!isSelected) c.setForeground(active ? table.getForeground() : java.awt.Color.GRAY);
+                setHorizontalAlignment(SwingConstants.RIGHT);
+                return c;
             }
         };
-        metricsTable.getColumnModel().getColumn(3).setCellRenderer(actionRenderer);
-        // Keep the remove editor; it will only activate for active rows (see Metrics.isCellEditable)
-        metricsTable.getColumnModel().getColumn(3).setCellEditor(new TableRemoveButtonEditor(this, manager, metricsTable));
+        try {
+            int splitIdx = metricsTable.getColumnModel().getColumnIndex("Split");
+            metricsTable.getColumnModel().getColumn(splitIdx).setCellRenderer(splitRenderer);
+        } catch (IllegalArgumentException ignored) {
+        }
 
-        wrapper.add(tableScroll, BorderLayout.CENTER);
+        // Keep your existing 'X' editor in NON-direct mode only
+        try {
+            int actionIdx = metricsTable.getColumnModel().getColumnIndex("X");
+            metricsTable.getColumnModel().getColumn(actionIdx)
+                    .setCellEditor(new TableRemoveButtonEditor(this, manager, metricsTable));
+        } catch (IllegalArgumentException ignored) {
+        }
+
+        // ---------- CENTER CONTENT ----------
+        JComponent centerContent;
+
+        if (direct) {
+            Session currentSession = manager.getCurrentSession().orElse(null);
+            java.util.List<com.example.pksession.SessionManager.PlayerMetrics> data =
+                    manager.computeMetricsFor(currentSession, true);
+
+            java.util.List<Transfer> transfers = computeDirectPaymentsStructured(data);
+
+            if (transfers != null && !transfers.isEmpty()) {
+                javax.swing.table.DefaultTableModel txModel =
+                        new javax.swing.table.DefaultTableModel(new Object[]{"Suggested direct payments"}, 0) {
+                            @Override public boolean isCellEditable(int r, int c) { return false; }
+                        };
+
+                for (Transfer t : transfers) {
+                    String payerShort = shortenName(t.getFrom(), 7);
+                    String payeeShort = shortenName(t.getTo(), 7);
+
+                    // exactly: "<payer7> -> <payee7>: <#,##0>" using toSuffixString(..., 'k')
+                    String amountStr = toSuffixString(Math.abs(t.getAmount()), 'k');
+                    String display = payerShort + " -> " + payeeShort + ": " + amountStr;
+
+                    txModel.addRow(new Object[]{display});
+                }
+
+                JTable txTable = new JTable(txModel);
+                txTable.setFillsViewportHeight(true);
+                txTable.setAutoResizeMode(JTable.AUTO_RESIZE_ALL_COLUMNS);
+                txTable.setRowSelectionAllowed(false);
+                txTable.setShowGrid(false);
+
+                JScrollPane txScroll = new JScrollPane(txTable);
+                txScroll.setPreferredSize(new Dimension(320, 360));
+
+                centerContent = txScroll;
+            } else {
+                JScrollPane tableScroll = new JScrollPane(metricsTable);
+                tableScroll.setPreferredSize(new Dimension(320, 360));
+                centerContent = tableScroll;
+            }
+        } else {
+            // Middleman mode: normal metrics table (with X)
+            JScrollPane tableScroll = new JScrollPane(metricsTable);
+            tableScroll.setPreferredSize(new Dimension(320, 360));
+            centerContent = tableScroll;
+        }
+
+        wrapper.add(centerContent, BorderLayout.CENTER);
+
+        // ---------- Footer ----------
         JPanel southPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 0));
         southPanel.add(copyBtn);
         southPanel.add(copyMdBtn);
         wrapper.add(southPanel, BorderLayout.SOUTH);
+
         return new CollapsiblePanel("Settlement information", wrapper);
+    }
+
+    /**
+     * hard-cap name to maxLen chars (no ellipsis)
+     */
+    private static String shortenName(String name, int maxLen) {
+        if (name == null) return "";
+        String n = name.trim();
+        return n.length() <= maxLen ? n : n.substring(0, maxLen);
     }
 
     private void refreshMetrics() {
@@ -692,43 +760,89 @@ public class PanelView extends PluginPanel {
         java.util.List<com.example.pksession.SessionManager.PlayerMetrics> data = manager.computeMetricsFor(currentSession, true);
         java.text.DecimalFormat df = com.example.pksession.Formats.getDecimalFormat();
 
-        // Prepare rows and compute max widths for padding
-        java.util.List<String[]> rows = new java.util.ArrayList<>();
-        int maxPlayer = "Player".length();
-        int maxTotal = "Total".length();
-        int maxSplit = "Split".length();
-        for (var pm : data) {
-            String player = pm.player == null ? "" : pm.player.replace("|", "\\|");
-            String total = df.format(pm.total);
-            String split = df.format(pm.split);
-            rows.add(new String[]{player, total, split});
-            if (player.length() > maxPlayer) maxPlayer = player.length();
-            if (total.length() > maxTotal) maxTotal = total.length();
-            if (split.length() > maxSplit) maxSplit = split.length();
-        }
+        // Build table: in direct mode, omit the Total column to save space
+        boolean directMode = config.directPayments();
 
         StringBuilder sb = new StringBuilder();
         boolean forDiscord = config.copyForDiscord();
         if (forDiscord) sb.append("```\n");
 
-        // Header
-        sb.append("| ")
-          .append(padRight("Player", maxPlayer)).append(" | ")
-          .append(padLeft("Total", maxTotal)).append(" | ")
-          .append(padLeft("Split", maxSplit)).append(" |\n");
+        if (!directMode) {
+            // Prepare rows and compute max widths for padding (Player, Total, Split)
+            java.util.List<String[]> rows = new java.util.ArrayList<>();
+            int maxPlayer = "Player".length();
+            int maxTotal = "Total".length();
+            int maxSplit = "Split".length();
+            for (var pm : data) {
+                String player = pm.player == null ? "" : pm.player.replace("|", "\\|");
+                String total = df.format(pm.total);
+                long dispSplit = pm.split;
+                if (config.flipSettlementSign()) dispSplit = -dispSplit;
+                String split = df.format(dispSplit);
+                rows.add(new String[]{player, total, split});
+                if (player.length() > maxPlayer) maxPlayer = player.length();
+                if (total.length() > maxTotal) maxTotal = total.length();
+                if (split.length() > maxSplit) maxSplit = split.length();
+            }
 
-        // Separator sized to widths (right aligned on numeric)
-        sb.append("| ")
-          .append(repeat('-', maxPlayer)).append(" | ")
-          .append(repeat('-', maxTotal - 1)).append(":").append(" | ")
-          .append(repeat('-', maxSplit - 1)).append(":").append(" |\n");
-
-        // Rows
-        for (String[] r : rows) {
+            // Header
             sb.append("| ")
-              .append(padRight(r[0], maxPlayer)).append(" | ")
-              .append(padLeft(r[1], maxTotal)).append(" | ")
-              .append(padLeft(r[2], maxSplit)).append(" |\n");
+                    .append(padRight("Player", maxPlayer)).append(" | ")
+                    .append(padLeft("Total", maxTotal)).append(" | ")
+                    .append(padLeft("Split", maxSplit)).append(" |\n");
+
+            // Separator sized to widths (right aligned on numeric)
+            sb.append("| ")
+                    .append(repeat('-', maxPlayer)).append(" | ")
+                    .append(repeat('-', maxTotal - 1)).append(":").append(" | ")
+                    .append(repeat('-', maxSplit - 1)).append(":").append(" |\n");
+
+            // Rows
+            for (String[] r : rows) {
+                sb.append("| ")
+                        .append(padRight(r[0], maxPlayer)).append(" | ")
+                        .append(padLeft(r[1], maxTotal)).append(" | ")
+                        .append(padLeft(r[2], maxSplit)).append(" |\n");
+            }
+        } else {
+            // Direct mode: only Player and Split
+            java.util.List<String[]> rows = new java.util.ArrayList<>();
+            int maxPlayer = "Player".length();
+            int maxSplit = "Split".length();
+            for (var pm : data) {
+                String player = pm.player == null ? "" : pm.player.replace("|", "\\|");
+                long dispSplit = pm.split; // no flipping in direct mode
+                String split = df.format(dispSplit);
+                rows.add(new String[]{player, split});
+                if (player.length() > maxPlayer) maxPlayer = player.length();
+                if (split.length() > maxSplit) maxSplit = split.length();
+            }
+
+            // Header
+            sb.append("| ")
+                    .append(padRight("Player", maxPlayer)).append(" | ")
+                    .append(padLeft("Split", maxSplit)).append(" |\n");
+
+            // Separator
+            sb.append("| ")
+                    .append(repeat('-', maxPlayer)).append(" | ")
+                    .append(repeat('-', maxSplit - 1)).append(":").append(" |\n");
+
+            // Rows
+            for (String[] r : rows) {
+                sb.append("| ")
+                        .append(padRight(r[0], maxPlayer)).append(" | ")
+                        .append(padLeft(r[1], maxSplit)).append(" |\n");
+            }
+        }
+
+        // If direct payments mode, append suggested transfers
+        if (config.directPayments()) {
+            java.util.List<String> transfers = computeDirectPayments(data);
+            if (!transfers.isEmpty()) {
+                sb.append('\n').append("Suggested direct payments:\n");
+                for (String line : transfers) sb.append("- ").append(line).append('\n');
+            }
         }
 
         if (forDiscord) sb.append("```\n");
@@ -861,4 +975,86 @@ public class PanelView extends PluginPanel {
         activePlayersButtonsPanel.repaint();
     }
 
+
+    // Compute a minimal set of direct payments so negatives pay positives.
+    // Returns lines like "Alice -> Bob: 100,000" using the current decimal formatter.
+    private java.util.List<String> computeDirectPayments(java.util.List<com.example.pksession.SessionManager.PlayerMetrics> data) {
+        java.util.List<com.example.pksession.SessionManager.PlayerMetrics> receivers = new java.util.ArrayList<>();
+        java.util.List<com.example.pksession.SessionManager.PlayerMetrics> payers = new java.util.ArrayList<>();
+        for (var pm : data) {
+            if (pm.split > 0) receivers.add(pm);
+            else if (pm.split < 0) payers.add(pm);
+        }
+        // Sort to have deterministic output: largest receiver first, largest (absolute) payer first
+        receivers.sort((a, b) -> Long.compare(b.split, a.split));
+        payers.sort((a, b) -> Long.compare(Math.abs(b.split), Math.abs(a.split)));
+
+        java.util.List<String> lines = new java.util.ArrayList<>();
+        java.text.DecimalFormat df = com.example.pksession.Formats.getDecimalFormat();
+
+        int i = 0, j = 0;
+        long recvLeft = receivers.isEmpty() ? 0 : receivers.get(0).split;
+        long payLeft = payers.isEmpty() ? 0 : -payers.get(0).split; // make positive
+        while (i < receivers.size() && j < payers.size()) {
+            long amt = Math.min(recvLeft, payLeft);
+            if (amt > 0) {
+                String from = payers.get(j).player;
+                String to = receivers.get(i).player;
+                lines.add(from + " -> " + to + ": " + df.format(amt));
+                recvLeft -= amt;
+                payLeft -= amt;
+            }
+            if (recvLeft == 0) {
+                i++;
+                if (i < receivers.size()) recvLeft = receivers.get(i).split;
+            }
+            if (payLeft == 0) {
+                j++;
+                if (j < payers.size()) payLeft = -payers.get(j).split;
+            }
+        }
+        return lines;
+    }
+
+    // Compute a minimal set of direct payments so negatives pay positives.
+// Returns structured transfers instead of strings.
+    private java.util.List<Transfer> computeDirectPaymentsStructured(
+            java.util.List<com.example.pksession.SessionManager.PlayerMetrics> data) {
+
+        java.util.List<com.example.pksession.SessionManager.PlayerMetrics> receivers = new java.util.ArrayList<>();
+        java.util.List<com.example.pksession.SessionManager.PlayerMetrics> payers = new java.util.ArrayList<>();
+        for (com.example.pksession.SessionManager.PlayerMetrics pm : data) {
+            if (pm.split > 0) receivers.add(pm);
+            else if (pm.split < 0) payers.add(pm);
+        }
+        receivers.sort((a, b) -> Long.compare(b.split, a.split));                // biggest receiver first
+        payers.sort((a, b) -> Long.compare(Math.abs(b.split), Math.abs(a.split))); // biggest payer (abs) first
+
+        java.util.List<Transfer> out = new java.util.ArrayList<>();
+        int i = 0, j = 0;
+        long recvLeft = receivers.isEmpty() ? 0 : receivers.get(0).split;
+        long payLeft  = payers.isEmpty()    ? 0 : -payers.get(0).split; // make positive
+
+        while (i < receivers.size() && j < payers.size()) {
+            long amt = Math.min(recvLeft, payLeft);
+            if (amt > 0) {
+                String from = payers.get(j).player;
+                String to   = receivers.get(i).player;
+                out.add(new Transfer(from, to, amt));
+                recvLeft -= amt;
+                payLeft  -= amt;
+            }
+            if (recvLeft == 0) {
+                i++;
+                if (i < receivers.size()) recvLeft = receivers.get(i).split;
+            }
+            if (payLeft == 0) {
+                j++;
+                if (j < payers.size()) payLeft = -payers.get(j).split;
+            }
+        }
+        return out;
+    }
+
 }
+

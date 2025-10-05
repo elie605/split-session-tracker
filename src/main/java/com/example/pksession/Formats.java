@@ -69,6 +69,50 @@ public class Formats {
             Long k = ((Number) value).longValue();
             return k + "K";
         }
+
+
+        private static final DecimalFormat DF_3DP = new DecimalFormat("#,##0.###");
+
+        /**
+         * Convert a K-based long amount to a human string with a target suffix.
+         * Examples:
+         *  amountK=1500, 'm' -> "1.5M"
+         *  amountK=250,  'k' -> "250K"
+         *  amountK=3,    'b' -> "0.003B"
+         *
+         * @param amountK value expressed in K-units (thousands)
+         * @param suffix  desired suffix: 'k', 'm', or 'b' (case-insensitive)
+         * @return formatted string with suffix
+         */
+        public static String toSuffixString(long amountK, char suffix) {
+            char s = Character.toLowerCase(suffix);
+            long divK; // how many K per target unit
+            switch (s) {
+                case 'k': divK = 1L; break;              // 1 K per K
+                case 'm': divK = 1_000L; break;          // 1,000 K per M
+                case 'b': divK = 1_000_000L; break;      // 1,000,000 K per B
+                default:  divK = 1L; s = 'k';            // fallback to K
+            }
+
+            // Use BigDecimal to avoid precision issues for large numbers
+            BigDecimal val = BigDecimal.valueOf(amountK)
+                    .divide(BigDecimal.valueOf(divK));
+
+            // Format with up to 3 decimals, trimming trailing zeros
+            String num = DF_3DP.format(val);
+
+            // Uppercase the suffix in output
+            return num + Character.toUpperCase(s);
+        }
+
+        /**
+         * Overload that accepts a String suffix ("k", "m", "b").
+         */
+        public static String toSuffixString(long amountK, String suffix) {
+            if (suffix == null || suffix.isEmpty()) return toSuffixString(amountK, 'k');
+            return toSuffixString(amountK, suffix.charAt(0));
+        }
+
     }
 
 }

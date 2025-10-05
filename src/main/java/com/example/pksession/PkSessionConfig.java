@@ -194,6 +194,20 @@ public interface PkSessionConfig extends Config
     )
     default boolean copyForDiscord() { return true; }
 
+    // Settlement mode
+    @ConfigItem(
+            keyName = "directPayments",
+            name = "Direct payments (no middleman)",
+            description = "If enabled, settlement guidance assumes players pay each other directly instead of settling via a bank/middleman. Off = middleman mode.")
+    default boolean directPayments() { return false; }
+
+    @ConfigItem(
+            keyName = "flipSettlementSign",
+            name = "Flip settlement sign (perspective)",
+            description = "Display-only: flips the sign of Split values. Off = + means bank pays the player; On = + means player pays the bank (middleman mode only)."
+    )
+    default boolean flipSettlementSign() { return false; }
+
     // Alt/main mapping persistence (hidden JSON)
     String KEY_ALTS_JSON = "altsJson";
 

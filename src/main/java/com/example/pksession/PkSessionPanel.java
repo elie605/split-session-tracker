@@ -419,6 +419,9 @@ public class PkSessionPanel extends PluginPanel {
         javax.swing.JComboBox<String> cb = new javax.swing.JComboBox<>(mainsOnly.toArray(new String[0]));
         trackerPanelUI.getWaitlistTable().getColumnModel().getColumn(2).setCellEditor(new javax.swing.DefaultCellEditor(cb));
 
+        // Refresh dynamic active player buttons
+        trackerPanelUI.refreshActivePlayerButtons();
+
         // Enable/disable based on history
         boolean ro = manager.isHistoryLoaded();
         trackerPanelUI.getBtnStart().setEnabled(!ro && !manager.hasActiveSession());

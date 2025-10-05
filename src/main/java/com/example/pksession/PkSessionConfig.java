@@ -84,6 +84,13 @@ public interface PkSessionConfig extends Config
 
     // Visible, user-facing config
 
+    @ConfigItem(
+            keyName = "useActivePlayerManagement",
+            name = "Use active player buttons",
+            description = "Show top section with per-player buttons for adding splits/removing players"
+    )
+    default boolean useActivePlayerManagement() { return true; }
+
     //TODO implement this
     @ConfigItem(
             keyName = "showToasts",

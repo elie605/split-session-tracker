@@ -22,6 +22,15 @@ public interface PluginConfig extends Config
     String KEY_HISTORY_LOADED = "historyLoaded";
     String KEY_PEOPLE_CSV = "peepsCsv";
 
+    //TODO implement this
+    @ConfigItem(
+            keyName = "WarnNotInFC",
+            name = "Warning not in FC",
+            description = "Give a warning on OSRS canvas that you are not in a FC, usefull if you have !add on",
+            hidden = true
+    )
+    default Boolean warnNotFC() { return false; }
+
     @ConfigItem(
             keyName = KEY_SESSIONS_JSON,
             name = "Sessions JSON",

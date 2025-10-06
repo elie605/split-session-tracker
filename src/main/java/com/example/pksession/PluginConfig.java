@@ -1,9 +1,13 @@
 package com.example.pksession;
 
+import com.example.pksession.utils.Utils;
+import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.config.Config;
 import net.runelite.client.config.ConfigGroup;
 import net.runelite.client.config.ConfigItem;
 import net.runelite.client.config.ConfigSection;
+
+import javax.swing.*;
 
 /**
  * Stores persistent data and JSON blobs via ConfigManager.
@@ -11,12 +15,12 @@ import net.runelite.client.config.ConfigSection;
 @ConfigGroup(PluginConfig.GROUP)
 public interface PluginConfig extends Config
 {
-    String GROUP = "pksession";
+    String GROUP = "Split Manager";
 
     String KEY_SESSIONS_JSON = "sessionsJson";
     String KEY_CURRENT_SESSION_ID = "currentSessionId";
     String KEY_HISTORY_LOADED = "historyLoaded";
-    String KEY_PEEPS_CSV = "peepsCsv";
+    String KEY_PEOPLE_CSV = "peepsCsv";
 
     @ConfigItem(
             keyName = KEY_SESSIONS_JSON,
@@ -67,7 +71,7 @@ public interface PluginConfig extends Config
     void historyLoaded(boolean value);
 
     @ConfigItem(
-            keyName = KEY_PEEPS_CSV,
+            keyName = KEY_PEOPLE_CSV,
             name = "Peeps",
             description = "Comma-separated known players",
             hidden = true
@@ -75,7 +79,7 @@ public interface PluginConfig extends Config
     default String knownPlayersCsv() { return ""; }
 
     @ConfigItem(
-            keyName = KEY_PEEPS_CSV,
+            keyName = KEY_PEOPLE_CSV,
             name = "Peeps",
             description = "Comma-separated known players",
             hidden = true
@@ -84,12 +88,41 @@ public interface PluginConfig extends Config
 
     // Visible, user-facing config
 
+    //todo fix
     @ConfigItem(
             keyName = "useActivePlayerManagement",
             name = "Use active player buttons",
             description = "Show top section with per-player buttons for adding splits/removing players"
     )
     default boolean useActivePlayerManagement() { return true; }
+
+    @ConfigSection(
+            name = "Settlement",
+            description = "Settlement config",
+            position = 2
+    )
+    String settlementSection = "Settlement";
+
+    // Markdown / copy settings
+    @ConfigItem(
+            keyName = "copyForDiscord",
+            name = "Copy for Discord",
+            description = "Wrap copied Markdown table in ``` and pad columns for monospaced display",
+            section = settlementSection
+    )
+    default boolean copyForDiscord() { return true; }
+
+    // Settlement mode
+
+    @ConfigItem(
+            keyName = "directPayments",
+            name = "Direct payments (no middleman)",
+            description = "If enabled, settlement guidance assumes players pay each other directly instead of settling via a bank/middleman. Off = middleman mode.",
+            section = settlementSection
+    )
+    default boolean directPayments() {
+        return false;
+    }
 
     //TODO implement this
     @ConfigItem(
@@ -186,20 +219,7 @@ public interface PluginConfig extends Config
     )
     void sectionOrderCsv(String value);
 
-    // Markdown / copy settings
-    @ConfigItem(
-            keyName = "copyForDiscord",
-            name = "Copy for Discord",
-            description = "Wrap copied Markdown table in ``` and pad columns for monospaced display"
-    )
-    default boolean copyForDiscord() { return true; }
 
-    // Settlement mode
-    @ConfigItem(
-            keyName = "directPayments",
-            name = "Direct payments (no middleman)",
-            description = "If enabled, settlement guidance assumes players pay each other directly instead of settling via a bank/middleman. Off = middleman mode.")
-    default boolean directPayments() { return false; }
 
     @ConfigItem(
             keyName = "flipSettlementSign",

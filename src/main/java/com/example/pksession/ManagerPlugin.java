@@ -1,6 +1,7 @@
 package com.example.pksession;
 
 import com.example.pksession.utils.Formats;
+import com.example.pksession.utils.Utils;
 import com.google.inject.Provides;
 
 import javax.inject.Inject;
@@ -10,6 +11,7 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
 import net.runelite.client.config.ConfigManager;
+import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.ui.ClientToolbar;
@@ -83,6 +85,13 @@ public class ManagerPlugin extends Plugin
 		return configManager.getConfig(PluginConfig.class);
 	}
 
+    @Subscribe
+    public void onConfigChanged(ConfigChanged e) {
+        if ("Split Manager".equals(e.getGroup()) && "directPayments".equals(e.getKey())) {
+            log.info("Direct payments changed, refreshing panel");
+            Utils.requestRestart().run();
+        }
+    }
 
 	@Subscribe
 	public void onChatMessage(ChatMessage event) throws ParseException {

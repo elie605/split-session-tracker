@@ -1,12 +1,12 @@
-package com.example.pksession;
+package com.splitmanager;
 
-import com.example.pksession.utils.Formats;
-import com.example.pksession.utils.Utils;
+import com.splitmanager.utils.Formats;
+import com.splitmanager.utils.Utils;
 import com.google.inject.Provides;
 
 import javax.inject.Inject;
-import javax.swing.SwingUtilities;
 
+import com.splitmanager.models.PendingValue;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
@@ -121,7 +121,7 @@ public class ManagerPlugin extends Plugin
 			{
 				String player = m.group(1);
                 Long value = (Long) f.stringToValue(m.group(2));
-				queuePending(com.example.pksession.models.PendingValue.Type.PVM, isClan ? "Clan" : "Friends", msg, value, player);
+				queuePending(PendingValue.Type.PVM, isClan ? "Clan" : "Friends", msg, value, player);
 				return;
 			}
 		}
@@ -134,7 +134,7 @@ public class ManagerPlugin extends Plugin
 			{
 				String player = m.group(1);
                 Long value = (Long) f.stringToValue(m.group(3));
-				queuePending(com.example.pksession.models.PendingValue.Type.PVP, isClan ? "Clan" : "Friends", msg, value, player);
+				queuePending(PendingValue.Type.PVP, isClan ? "Clan" : "Friends", msg, value, player);
 				return;
 			}
 		}
@@ -151,18 +151,18 @@ public class ManagerPlugin extends Plugin
 				String who = sender != null ? sender : "";
 				String amtText = m.group(1);
 				Long valueK = (Long) f.stringToValue(amtText);
-				queuePending(com.example.pksession.models.PendingValue.Type.ADD, isClan ? "Clan" : "Friends", msg, valueK, who);
+				queuePending(PendingValue.Type.ADD, isClan ? "Clan" : "Friends", msg, valueK, who);
 			}
 		}
 	}
 
 
-	private void queuePending(com.example.pksession.models.PendingValue.Type type, String source, String msg, Long value, String suggestedPlayer)
+	private void queuePending(PendingValue.Type type, String source, String msg, Long value, String suggestedPlayer)
 	{
 		if (sessionManager == null) return;
-		com.example.pksession.models.PendingValue pv = com.example.pksession.models.PendingValue.of(type, source, msg, value, suggestedPlayer);
+		PendingValue pv = PendingValue.of(type, source, msg, value, suggestedPlayer);
 		sessionManager.addPendingValue(pv);
 		// Ask UI to refresh
-		com.example.pksession.utils.Utils.requestUiRefresh().run();
+		Utils.requestUiRefresh().run();
 	}
 }

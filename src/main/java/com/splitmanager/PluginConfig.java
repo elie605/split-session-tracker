@@ -1,13 +1,9 @@
-package com.example.pksession;
+package com.splitmanager;
 
-import com.example.pksession.utils.Utils;
-import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.config.Config;
 import net.runelite.client.config.ConfigGroup;
 import net.runelite.client.config.ConfigItem;
 import net.runelite.client.config.ConfigSection;
-
-import javax.swing.*;
 
 /**
  * Stores persistent data and JSON blobs via ConfigManager.

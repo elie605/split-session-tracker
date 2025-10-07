@@ -1,4 +1,4 @@
-package com.example.pksession.models;
+package com.splitmanager.models;
 
 import lombok.Getter;
 import lombok.Setter;

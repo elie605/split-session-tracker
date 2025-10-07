@@ -1,8 +1,7 @@
-package com.example.pksession.utils;
+package com.splitmanager.utils;
 
-import ch.qos.logback.classic.Logger;
-import com.example.pksession.ManagerPanel;
-import com.example.pksession.ManagerPlugin;
+import com.splitmanager.ManagerPanel;
+import com.splitmanager.ManagerPlugin;
 import lombok.extern.slf4j.Slf4j;
 
 import javax.swing.*;

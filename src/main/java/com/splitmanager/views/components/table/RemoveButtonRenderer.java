@@ -1,4 +1,4 @@
-package com.example.pksession.views.components.table;
+package com.splitmanager.views.components.table;
 
 import javax.swing.*;
 import javax.swing.table.TableCellRenderer;

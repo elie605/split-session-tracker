@@ -1,4 +1,4 @@
-package com.example.pksession.controllers;
+package com.splitmanager.controllers;
 
 public interface PanelActions {
     void startSession();

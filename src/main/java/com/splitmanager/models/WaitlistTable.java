@@ -1,4 +1,4 @@
-package com.example.pksession.models;
+package com.splitmanager.models;
 
 import javax.swing.table.AbstractTableModel;
 import java.util.ArrayList;

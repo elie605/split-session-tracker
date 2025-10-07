@@ -1,4 +1,4 @@
-package com.example.pksession.views.components;
+package com.splitmanager.views.components;
 
 import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.DynamicGridLayout;

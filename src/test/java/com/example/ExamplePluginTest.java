@@ -1,6 +1,6 @@
 package com.example;
 
-import com.example.pksession.ManagerPlugin;
+import com.splitmanager.ManagerPlugin;
 import net.runelite.client.RuneLite;
 import net.runelite.client.externalplugins.ExternalPluginManager;
 

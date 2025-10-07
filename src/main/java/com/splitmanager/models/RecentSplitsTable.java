@@ -1,4 +1,4 @@
-package com.example.pksession.models;
+package com.splitmanager.models;
 
 
 import lombok.Setter;
@@ -80,7 +80,7 @@ public final class RecentSplitsTable extends javax.swing.table.AbstractTableMode
         fireTableDataChanged();
     }
 
-    public void setFromKills(java.util.List<com.example.pksession.models.Kill> kills) {
+    public void setFromKills(java.util.List<Kill> kills) {
         clear();
         if (kills == null || kills.isEmpty()) {
             fireTableDataChanged();
@@ -89,7 +89,7 @@ public final class RecentSplitsTable extends javax.swing.table.AbstractTableMode
         int n = kills.size();
         // Iterate from newest to oldest
         for (int i = n - 1; i >= 0; i--) {
-            com.example.pksession.models.Kill k = kills.get(i);
+            Kill k = kills.get(i);
             addEntry(k);
         }
         fireTableDataChanged();

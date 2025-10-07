@@ -1,20 +1,22 @@
-package com.example.pksession.controllers;
+package com.splitmanager.controllers;
 
-import com.example.pksession.utils.Formats;
-import com.example.pksession.PluginConfig;
-import com.example.pksession.ManagerSession;
-import com.example.pksession.models.Transfer;
-import com.example.pksession.models.Session;
-import com.example.pksession.models.WaitlistTable;
-import com.example.pksession.views.PanelView;
-import com.example.pksession.utils.Utils;
+import com.splitmanager.utils.Formats;
+import com.splitmanager.PluginConfig;
+import com.splitmanager.ManagerSession;
+import com.splitmanager.models.Metrics;
+import com.splitmanager.models.PendingValue;
+import com.splitmanager.models.Transfer;
+import com.splitmanager.models.Session;
+import com.splitmanager.models.WaitlistTable;
+import com.splitmanager.views.PanelView;
+import com.splitmanager.utils.Utils;
 
 import javax.swing.*;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.List;
 
-import static com.example.pksession.utils.Utils.toast;
+import static com.splitmanager.utils.Utils.toast;
 
 /**
  * MVC Controller: non-UI logic + event handling. The View calls into this via PanelActions.
@@ -225,7 +227,7 @@ public class PanelController implements PanelActions {
             return;
         }
         WaitlistTable m = view.getWaitlistTableModel();
-        com.example.pksession.models.PendingValue pv = m.getRow(idx);
+        PendingValue pv = m.getRow(idx);
         if (pv == null) return;
         String target = pv.getSuggestedPlayer();
         if (target == null || target.isBlank()) {
@@ -247,7 +249,7 @@ public class PanelController implements PanelActions {
             return;
         }
         WaitlistTable m = view.getWaitlistTableModel();
-        com.example.pksession.models.PendingValue pv = m.getRow(idx);
+        PendingValue pv = m.getRow(idx);
         if (pv == null) return;
         if (manager.removePendingValueById(pv.getId())) {
             Utils.requestUiRefresh().run();
@@ -284,7 +286,7 @@ public class PanelController implements PanelActions {
 
         Session current = manager.getCurrentSession().orElse(null);
         if (current != null) {
-            ((com.example.pksession.models.Metrics) view.getMetricsTable().getModel())
+            ((Metrics) view.getMetricsTable().getModel())
                     .setData(manager.computeMetricsFor(current, true));
             view.getRecentSplitsModel().setFromKills(current.getKills());
         } else {
@@ -294,7 +296,7 @@ public class PanelController implements PanelActions {
         // Waitlist
         var wtm = view.getWaitlistTableModel();
         java.util.Set<String> mainsOnly = manager.getKnownMains();
-        java.util.List<com.example.pksession.models.PendingValue> pvals = manager.getPendingValues();
+        java.util.List<PendingValue> pvals = manager.getPendingValues();
         wtm.setData(pvals);
         javax.swing.JComboBox<String> cb = new javax.swing.JComboBox<>(mainsOnly.toArray(new String[0]));
         view.getWaitlistTable().getColumnModel().getColumn(2).setCellEditor(new javax.swing.DefaultCellEditor(cb));

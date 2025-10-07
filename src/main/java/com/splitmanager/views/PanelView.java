@@ -1,25 +1,25 @@
-package com.example.pksession.views;
+package com.splitmanager.views;
 
-import com.example.pksession.controllers.PanelActions;
-import com.example.pksession.controllers.PanelController;
-import com.example.pksession.models.*;
-import com.example.pksession.views.components.table.RemoveButtonEditor;
-import com.example.pksession.utils.Formats;
-import com.example.pksession.PluginConfig;
-import com.example.pksession.ManagerSession;
-import com.example.pksession.utils.Utils;
-import com.example.pksession.views.components.DropdownRip;
+import com.splitmanager.controllers.PanelActions;
+import com.splitmanager.controllers.PanelController;
+import com.example.splitmanager.models.*;
+import com.splitmanager.models.*;
+import com.splitmanager.views.components.table.RemoveButtonEditor;
+import com.splitmanager.utils.Formats;
+import com.splitmanager.PluginConfig;
+import com.splitmanager.ManagerSession;
+import com.splitmanager.utils.Utils;
+import com.splitmanager.views.components.DropdownRip;
 import lombok.Getter;
 import net.runelite.client.ui.PluginPanel;
 
 import javax.swing.*;
-import javax.swing.event.TableModelEvent;
 import javax.swing.event.TableModelListener;
 import javax.swing.text.DefaultFormatterFactory;
 import java.awt.*;
 import java.awt.datatransfer.StringSelection;
 
-import static com.example.pksession.utils.Formats.OsrsAmountFormatter.toSuffixString;
+import static com.splitmanager.utils.Formats.OsrsAmountFormatter.toSuffixString;
 
 @Getter
 public class PanelView extends PluginPanel {
@@ -150,7 +150,7 @@ public class PanelView extends PluginPanel {
             try {
                 amt = val == null ? Long.parseLong(killAmountField.getText()) : ((Number) val).longValue();
             } catch (Exception ex) {
-                com.example.pksession.utils.Utils.toast(this, "Invalid amount.");
+                Utils.toast(this, "Invalid amount.");
                 return;
             }
             actions.addKill(player, amt);
@@ -647,7 +647,7 @@ public class PanelView extends PluginPanel {
 
     public void refreshActivePlayerButtons() {
         activePlayersButtonsPanel.removeAll();
-        com.example.pksession.models.Session current = manager.getCurrentSession().orElse(null);
+        Session current = manager.getCurrentSession().orElse(null);
         if (current != null && current.isActive()) {
             for (String p : new java.util.ArrayList<>(current.getPlayers())) {
                 JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 2));

@@ -1,8 +1,9 @@
-package com.example.pksession;
+package com.splitmanager;
 
-import com.example.pksession.models.Kill;
-import com.example.pksession.models.Session;
+import com.splitmanager.models.Kill;
+import com.splitmanager.models.Session;
 import com.google.gson.*;
+import com.splitmanager.models.PendingValue;
 import lombok.Getter;
 
 import java.lang.reflect.Type;
@@ -34,7 +35,7 @@ public class ManagerSession {
     private final Set<String> knownPlayers = new LinkedHashSet<>();
 
     // Transient waitlist of detected values from chat
-    private final java.util.List<com.example.pksession.models.PendingValue> pendingValues = new java.util.ArrayList<>();
+    private final java.util.List<PendingValue> pendingValues = new java.util.ArrayList<>();
 
     // Alt/main mapping (alt name -> main name)
     private final Map<String, String> altToMain = new LinkedHashMap<>();
@@ -318,17 +319,17 @@ public class ManagerSession {
         if (mainPlayer == null || mainPlayer.isBlank()) return false;
         if (curr.getPlayers().stream().noneMatch(p -> p.equalsIgnoreCase(mainPlayer))) return false;
 
-        curr.getKills().add(new com.example.pksession.models.Kill(curr.getId(), mainPlayer, amount, Instant.now()));
+        curr.getKills().add(new Kill(curr.getId(), mainPlayer, amount, Instant.now()));
         saveToConfig();
         return true;
     }
 
     // ===== Pending values (waitlist) =====
-    public java.util.List<com.example.pksession.models.PendingValue> getPendingValues() {
+    public java.util.List<PendingValue> getPendingValues() {
         return java.util.Collections.unmodifiableList(pendingValues);
     }
 
-    public void addPendingValue(com.example.pksession.models.PendingValue pv) {
+    public void addPendingValue(PendingValue pv) {
         if (pv == null) return;
         // Normalize suggested player to main for all downstream uses
         String suggested = pv.getSuggestedPlayer();
@@ -361,7 +362,7 @@ public class ManagerSession {
     }
 
     public boolean applyPendingValueToPlayer(String id, String player) {
-        com.example.pksession.models.PendingValue pv = pendingValues.stream().filter(p -> p.getId().equals(id)).findFirst().orElse(null);
+        PendingValue pv = pendingValues.stream().filter(p -> p.getId().equals(id)).findFirst().orElse(null);
         if (pv == null) return false;
         String target = getMainName(player);
         boolean ok = addKill(target, pv.getValue());

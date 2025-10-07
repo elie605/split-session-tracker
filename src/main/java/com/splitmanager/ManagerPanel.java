@@ -1,8 +1,7 @@
-package com.example.pksession;
+package com.splitmanager;
 
-import com.example.pksession.views.PanelView;
-import com.example.pksession.controllers.PanelController;
-import com.sun.tools.jconsole.JConsoleContext;
+import com.splitmanager.views.PanelView;
+import com.splitmanager.controllers.PanelController;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.ui.PluginPanel;
 

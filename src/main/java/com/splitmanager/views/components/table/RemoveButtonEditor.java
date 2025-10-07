@@ -1,12 +1,12 @@
-package com.example.pksession.views.components.table;
+package com.splitmanager.views.components.table;
 
-import com.example.pksession.ManagerSession;
+import com.splitmanager.ManagerSession;
 
 import javax.swing.*;
 import java.awt.*;
 
-import static com.example.pksession.utils.Utils.requestUiRefresh;
-import static com.example.pksession.utils.Utils.toast;
+import static com.splitmanager.utils.Utils.requestUiRefresh;
+import static com.splitmanager.utils.Utils.toast;
 
 public class RemoveButtonEditor extends DefaultCellEditor {
     private final JButton button = new JButton("X");

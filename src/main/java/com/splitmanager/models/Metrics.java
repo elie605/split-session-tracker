@@ -1,7 +1,7 @@
-package com.example.pksession.models;
+package com.splitmanager.models;
 
-import com.example.pksession.utils.Formats;
-import com.example.pksession.ManagerSession;
+import com.splitmanager.utils.Formats;
+import com.splitmanager.ManagerSession;
 
 import javax.swing.table.AbstractTableModel;
 import java.util.List;

@@ -1,4 +1,4 @@
-package com.example.pksession.utils;
+package com.splitmanager.utils;
 
 import javax.swing.*;
 import java.math.BigDecimal;

@@ -13,6 +13,7 @@ public class Formats {
     private static final DateTimeFormatter TS = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
             .withZone(ZoneId.systemDefault());
     private static final DecimalFormat DF = new DecimalFormat("#,##0");
+    private static final DecimalFormat DF_3DP = new DecimalFormat("#,##0.###");
 
     public static DateTimeFormatter getDateTime(){
         return TS;
@@ -71,7 +72,6 @@ public class Formats {
         }
 
 
-        private static final DecimalFormat DF_3DP = new DecimalFormat("#,##0.###");
 
         /**
          * Convert a K-based long amount to a human string with a target suffix.

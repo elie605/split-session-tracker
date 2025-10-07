@@ -40,7 +40,8 @@ public class WaitlistTable extends AbstractTableModel {
             case 0:
             case 2:
                 return String.class;
-            case 1: return String.class; // formatted K string
+            case 1:
+                return String.class; // formatted K string
         }
         return Object.class;
     }

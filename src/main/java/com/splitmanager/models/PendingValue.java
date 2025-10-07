@@ -11,7 +11,7 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 public class PendingValue {
-    public enum Type { PVM, PVP, ADD}
+    public enum Type {PVM, PVP, ADD}
 
     private String id;
     private Type type;
@@ -23,5 +23,5 @@ public class PendingValue {
 
     public static PendingValue of(Type type, String source, String message, Long value, String suggestedPlayer) {
         return new PendingValue(UUID.randomUUID().toString(), type, source, message, value, suggestedPlayer, Instant.now());
-        }
+    }
 }

@@ -9,8 +9,7 @@ import net.runelite.client.config.ConfigSection;
  * Stores persistent data and JSON blobs via ConfigManager.
  */
 @ConfigGroup(PluginConfig.GROUP)
-public interface PluginConfig extends Config
-{
+public interface PluginConfig extends Config {
     String GROUP = "Split Manager";
 
     String KEY_SESSIONS_JSON = "sessionsJson";
@@ -25,7 +24,9 @@ public interface PluginConfig extends Config
             description = "Give a warning on OSRS canvas that you are not in a FC, usefull if you have !add on",
             hidden = true
     )
-    default Boolean warnNotFC() { return false; }
+    default Boolean warnNotFC() {
+        return false;
+    }
 
     @ConfigItem(
             keyName = KEY_SESSIONS_JSON,
@@ -33,7 +34,9 @@ public interface PluginConfig extends Config
             description = "Serialized sessions",
             hidden = true
     )
-    default String sessionsJson() { return ""; }
+    default String sessionsJson() {
+        return "";
+    }
 
     @ConfigItem(
             keyName = KEY_SESSIONS_JSON,
@@ -49,7 +52,9 @@ public interface PluginConfig extends Config
             description = "Active session id",
             hidden = true
     )
-    default String currentSessionId() { return ""; }
+    default String currentSessionId() {
+        return "";
+    }
 
     @ConfigItem(
             keyName = KEY_CURRENT_SESSION_ID,
@@ -65,7 +70,9 @@ public interface PluginConfig extends Config
             description = "If true, UI is read-only; selected historical session is loaded",
             hidden = true
     )
-    default boolean historyLoaded() { return false; }
+    default boolean historyLoaded() {
+        return false;
+    }
 
     @ConfigItem(
             keyName = KEY_HISTORY_LOADED,
@@ -81,7 +88,9 @@ public interface PluginConfig extends Config
             description = "Comma-separated known players",
             hidden = true
     )
-    default String knownPlayersCsv() { return ""; }
+    default String knownPlayersCsv() {
+        return "";
+    }
 
     @ConfigItem(
             keyName = KEY_PEOPLE_CSV,
@@ -99,7 +108,9 @@ public interface PluginConfig extends Config
             name = "Use active player buttons",
             description = "Show top section with per-player buttons for adding splits/removing players"
     )
-    default boolean useActivePlayerManagement() { return true; }
+    default boolean useActivePlayerManagement() {
+        return true;
+    }
 
     @ConfigSection(
             name = "Settlement",
@@ -115,7 +126,9 @@ public interface PluginConfig extends Config
             description = "Wrap copied Markdown table in ``` and pad columns for monospaced display",
             section = settlementSection
     )
-    default boolean copyForDiscord() { return true; }
+    default boolean copyForDiscord() {
+        return true;
+    }
 
     // Settlement mode
 
@@ -135,7 +148,9 @@ public interface PluginConfig extends Config
             name = "Show toasts",
             description = "Show confirmation/info popups in the panel"
     )
-    default boolean showToasts() { return true; }
+    default boolean showToasts() {
+        return true;
+    }
 
     //TODO implement this
     @ConfigItem(
@@ -143,8 +158,10 @@ public interface PluginConfig extends Config
             name = "Allow negative kill values",
             description = "Permit entering negative kill values (e.g., adjustments)"
     )
-    default boolean allowNegativeKills() { return true; }
-    
+    default boolean allowNegativeKills() {
+        return true;
+    }
+
     // Chat detection settings
     @ConfigSection(
             name = "Chat detection",
@@ -159,7 +176,9 @@ public interface PluginConfig extends Config
             description = "Detect values from clan/friends chat and queue them in a waitlist",
             section = chatDetectionSection
     )
-    default boolean enableChatDetection() { return false; }
+    default boolean enableChatDetection() {
+        return false;
+    }
 
     @ConfigItem(
             keyName = "detectInClanChat",
@@ -167,7 +186,9 @@ public interface PluginConfig extends Config
             description = "Listen for values in clan chat",
             section = chatDetectionSection
     )
-    default boolean detectInClanChat() { return true; }
+    default boolean detectInClanChat() {
+        return true;
+    }
 
     @ConfigItem(
             keyName = "detectInFriendsChat",
@@ -175,7 +196,9 @@ public interface PluginConfig extends Config
             description = "Listen for values in friends chat",
             section = chatDetectionSection
     )
-    default boolean detectInFriendsChat() { return true; }
+    default boolean detectInFriendsChat() {
+        return true;
+    }
 
     @ConfigItem(
             keyName = "detectPvmValues",
@@ -183,7 +206,9 @@ public interface PluginConfig extends Config
             description = "Queue values detected from PvM drop messages",
             section = chatDetectionSection
     )
-    default boolean detectPvmValues() { return true; }
+    default boolean detectPvmValues() {
+        return true;
+    }
 
     @ConfigItem(
             keyName = "detectPvpValues",
@@ -191,7 +216,9 @@ public interface PluginConfig extends Config
             description = "Queue values detected from PvP loot messages",
             section = chatDetectionSection
     )
-    default boolean detectPvpValues() { return true; }
+    default boolean detectPvpValues() {
+        return true;
+    }
 
     @ConfigItem(
             keyName = "detectPlayerValues",
@@ -199,7 +226,9 @@ public interface PluginConfig extends Config
             description = "Allow players to queue values by sending !add {value}",
             section = chatDetectionSection
     )
-    default boolean detectPlayerValues() { return true; }
+    default boolean detectPlayerValues() {
+        return true;
+    }
 
     @ConfigItem(
             keyName = "autoApplyWhenInSession",
@@ -207,7 +236,9 @@ public interface PluginConfig extends Config
             description = "Skip waitlist if suggested player (or its main) is already in the active session",
             section = chatDetectionSection
     )
-    default boolean autoApplyWhenInSession() { return false; }
+    default boolean autoApplyWhenInSession() {
+        return false;
+    }
 
     // Panel order (optional, CSV of section keys)
     @ConfigItem(
@@ -215,7 +246,9 @@ public interface PluginConfig extends Config
             name = "Panel section order",
             description = "Comma-separated order of sections: session,sessionPlayers,addSplit,recentSplits,detectedValues,settlement,knownPlayers"
     )
-    default String sectionOrderCsv() { return "session,sessionPlayers,addSplit,recentSplits,detectedValues,settlement,knownPlayers"; }
+    default String sectionOrderCsv() {
+        return "session,sessionPlayers,addSplit,recentSplits,detectedValues,settlement,knownPlayers";
+    }
 
     @ConfigItem(
             keyName = "sectionOrderCsv",
@@ -225,13 +258,14 @@ public interface PluginConfig extends Config
     void sectionOrderCsv(String value);
 
 
-
     @ConfigItem(
             keyName = "flipSettlementSign",
             name = "Flip settlement sign (perspective)",
             description = "Display-only: flips the sign of Split values. Off = + means bank pays the player; On = + means player pays the bank (middleman mode only)."
     )
-    default boolean flipSettlementSign() { return false; }
+    default boolean flipSettlementSign() {
+        return false;
+    }
 
     // Alt/main mapping persistence (hidden JSON)
     String KEY_ALTS_JSON = "altsJson";
@@ -242,7 +276,9 @@ public interface PluginConfig extends Config
             description = "alt->main name mapping",
             hidden = true
     )
-    default String altsJson() { return ""; }
+    default String altsJson() {
+        return "";
+    }
 
     @ConfigItem(
             keyName = KEY_ALTS_JSON,

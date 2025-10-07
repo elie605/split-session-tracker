@@ -11,18 +11,16 @@ import java.time.Instant;
  */
 @Getter
 @Setter
-public class Kill implements Serializable
-{
-	private final String sessionId;
+public class Kill implements Serializable {
+    private final String sessionId;
     private String player;
     private Long amount;
-	private final Instant at;
+    private final Instant at;
 
-	public Kill(String sessionId, String player, Long amount, Instant at)
-	{
-		this.sessionId = sessionId;
-		this.player = player;
-		this.amount = amount;
-		this.at = at;
-	}
+    public Kill(String sessionId, String player, Long amount, Instant at) {
+        this.sessionId = sessionId;
+        this.player = player;
+        this.amount = amount;
+        this.at = at;
+    }
 }

@@ -24,24 +24,21 @@ import static net.runelite.client.ui.PluginPanel.PANEL_WIDTH;
  * Constructor signature matches the legacy usage: new DropdownRip(title, content).
  * The header is clickable and toggles the visibility of the content area.
  */
-public class DropdownRip extends JPanel
-{
+public class DropdownRip extends JPanel {
     private final Header header;
     private final JPanel contentHolder;
-    private boolean expanded = true;
+    private boolean expanded;
 
-    public DropdownRip(String title, JComponent content)
-    {
+    public DropdownRip(String title, JComponent content) {
         this(title, content, true);
     }
 
-    public DropdownRip(String title, JComponent content, boolean expanded)
-    {
+    public DropdownRip(String title, JComponent content, boolean expanded) {
         super(new BorderLayout());
         this.expanded = expanded;
 
         String description = "";
-        header = new Header(title,description);
+        header = new Header(title, description);
         header.setBorder(new EmptyBorder(3, 0, 0, 0));
         contentHolder = new JPanel(new BorderLayout());
         contentHolder.setOpaque(false);
@@ -54,39 +51,33 @@ public class DropdownRip extends JPanel
         updateExpanded();
     }
 
-    public void setExpanded(boolean expanded)
-    {
-        if (this.expanded != expanded)
-        {
+    public void setExpanded(boolean expanded) {
+        if (this.expanded != expanded) {
             this.expanded = expanded;
             updateExpanded();
         }
     }
 
 
-    public void toggle()
-    {
+    public void toggle() {
         setExpanded(!expanded);
     }
 
 
-    private void updateExpanded()
-    {
+    private void updateExpanded() {
         contentHolder.setVisible(expanded);
         header.setExpanded(expanded);
         revalidate();
         repaint();
     }
 
-    private final class Header extends JPanel
-    {
+    private final class Header extends JPanel {
         private final ImageIcon SECTION_EXPAND_ICON;
         private final ImageIcon SECTION_RETRACT_ICON;
 
         private final JButton sectionToggle;
 
-        private Header(String title, String description)
-        {
+        private Header(String title, String description) {
             super(new BorderLayout());
 
             BufferedImage sectionRetractIcon = ImageUtil.loadImageResource(Header.class, "/util/arrow_right.png");
@@ -139,23 +130,19 @@ public class DropdownRip extends JPanel
 
             add(section);
 
-            MouseAdapter click = new MouseAdapter()
-            {
+            MouseAdapter click = new MouseAdapter() {
                 @Override
-                public void mouseClicked(MouseEvent e)
-                {
+                public void mouseClicked(MouseEvent e) {
                     toggle();
                 }
 
                 @Override
-                public void mouseEntered(MouseEvent e)
-                {
+                public void mouseEntered(MouseEvent e) {
                     sectionName.setForeground(ColorScheme.BRAND_ORANGE_TRANSPARENT);
                 }
 
                 @Override
-                public void mouseExited(MouseEvent e)
-                {
+                public void mouseExited(MouseEvent e) {
                     sectionName.setForeground(ColorScheme.BRAND_ORANGE);
                 }
             };
@@ -167,8 +154,7 @@ public class DropdownRip extends JPanel
         }
 
 
-        private void setExpanded(boolean ex)
-        {
+        private void setExpanded(boolean ex) {
             sectionToggle.setIcon(ex ? SECTION_RETRACT_ICON : SECTION_EXPAND_ICON);
             sectionToggle.setToolTipText(ex ? "Retract" : "Expand");
             sectionToggle.repaint();

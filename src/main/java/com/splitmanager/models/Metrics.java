@@ -19,7 +19,9 @@ public final class Metrics extends AbstractTableModel {
         }
     }
 
-    public boolean isHidingTotalColumn() { return hideTotalColumn; }
+    public boolean isHidingTotalColumn() {
+        return hideTotalColumn;
+    }
 
     public void setData(List<ManagerSession.PlayerMetrics> rows) {
         // Sort: active first, inactive at bottom; stable within groups

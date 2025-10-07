@@ -2,7 +2,6 @@ package com.splitmanager.views;
 
 import com.splitmanager.controllers.PanelActions;
 import com.splitmanager.controllers.PanelController;
-import com.example.splitmanager.models.*;
 import com.splitmanager.models.*;
 import com.splitmanager.views.components.table.RemoveButtonEditor;
 import com.splitmanager.utils.Formats;
@@ -222,28 +221,44 @@ public class PanelView extends PluginPanel {
         apLabel.setPreferredSize(dl);
         apLabel.setHorizontalAlignment(SwingConstants.RIGHT);
 
-        gbc.gridx = 0; gbc.gridy = 0; gbc.weightx = 0;
-        gbc.fill = GridBagConstraints.NONE; gbc.anchor = GridBagConstraints.EAST;
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        gbc.weightx = 0;
+        gbc.fill = GridBagConstraints.NONE;
+        gbc.anchor = GridBagConstraints.EAST;
         killPanel.add(apLabel, gbc);
 
-        gbc.gridx = 1; gbc.gridy = 0; gbc.weightx = 1.0;
-        gbc.fill = GridBagConstraints.HORIZONTAL; gbc.anchor = GridBagConstraints.WEST;
+        gbc.gridx = 1;
+        gbc.gridy = 0;
+        gbc.weightx = 1.0;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.anchor = GridBagConstraints.WEST;
         killPanel.add(currentSessionPlayerDropdown, gbc);
 
         JLabel amountLabel = new JLabel("Amount:");
         amountLabel.setPreferredSize(dl);
         amountLabel.setHorizontalAlignment(SwingConstants.RIGHT);
 
-        gbc.gridx = 0; gbc.gridy = 1; gbc.weightx = 0;
-        gbc.fill = GridBagConstraints.NONE; gbc.anchor = GridBagConstraints.EAST;
+        gbc.gridx = 0;
+        gbc.gridy = 1;
+        gbc.weightx = 0;
+        gbc.fill = GridBagConstraints.NONE;
+        gbc.anchor = GridBagConstraints.EAST;
         killPanel.add(amountLabel, gbc);
 
-        gbc.gridx = 1; gbc.gridy = 1; gbc.weightx = 1.0;
-        gbc.fill = GridBagConstraints.HORIZONTAL; gbc.anchor = GridBagConstraints.WEST;
+        gbc.gridx = 1;
+        gbc.gridy = 1;
+        gbc.weightx = 1.0;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.anchor = GridBagConstraints.WEST;
         killPanel.add(killAmountField, gbc);
 
-        gbc.gridx = 0; gbc.gridy = 2; gbc.gridwidth = 2; gbc.weightx = 1.0;
-        gbc.fill = GridBagConstraints.HORIZONTAL; gbc.anchor = GridBagConstraints.EAST;
+        gbc.gridx = 0;
+        gbc.gridy = 2;
+        gbc.gridwidth = 2;
+        gbc.weightx = 1.0;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.anchor = GridBagConstraints.EAST;
         killPanel.add(btnAddKill, gbc);
 
         return killPanel;
@@ -266,19 +281,26 @@ public class PanelView extends PluginPanel {
         String[] peeps = manager.getNonActivePlayers().toArray(new String[0]);
         notInCurrentSessionPlayerDropdown.setModel(new DefaultComboBoxModel<>(peeps));
 
-        gbc.gridx = 1; gbc.gridy = 0; gbc.weightx = 1.0;
-        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.gridx = 1;
+        gbc.gridy = 0;
+        gbc.weightx = 1.0;
         rosterPanel.add(notInCurrentSessionPlayerDropdown, gbc);
 
-        gbc.gridx = 0; gbc.gridy = 0; gbc.weightx = 0;
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        gbc.weightx = 0;
         gbc.fill = GridBagConstraints.NONE;
         rosterPanel.add(btnAddToSession, gbc);
 
         JLabel help = new JLabel("Remove via the 'X' in the table.");
         help.setHorizontalAlignment(SwingConstants.CENTER);
 
-        gbc.gridx = 0; gbc.gridy = 1; gbc.gridwidth = 2; gbc.weightx = 1.0;
-        gbc.fill = GridBagConstraints.HORIZONTAL; gbc.anchor = GridBagConstraints.CENTER;
+        gbc.gridx = 0;
+        gbc.gridy = 1;
+        gbc.gridwidth = 2;
+        gbc.weightx = 1.0;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.anchor = GridBagConstraints.CENTER;
         rosterPanel.add(help, gbc);
 
         return rosterPanel;
@@ -305,76 +327,134 @@ public class PanelView extends PluginPanel {
 
         int row = 0;
 
-        gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 2; gbc.weightx = 1.0;
-        gbc.fill = GridBagConstraints.HORIZONTAL; gbc.anchor = GridBagConstraints.WEST;
-        peepsPanel.add(title, gbc); row++;
+        gbc.gridx = 0;
+        gbc.gridy = row;
+        gbc.gridwidth = 2;
+        gbc.weightx = 1.0;
+        peepsPanel.add(title, gbc);
+        row++;
 
         JLabel nameLabel = new JLabel("Name:");
         nameLabel.setPreferredSize(dl);
         nameLabel.setHorizontalAlignment(SwingConstants.RIGHT);
 
         gbc.gridwidth = 1;
-        gbc.gridx = 0; gbc.gridy = row; gbc.weightx = 0;
-        gbc.fill = GridBagConstraints.NONE; gbc.anchor = GridBagConstraints.EAST;
+        gbc.gridx = 0;
+        gbc.gridy = row;
+        gbc.weightx = 0;
+        gbc.fill = GridBagConstraints.NONE;
+        gbc.anchor = GridBagConstraints.EAST;
         peepsPanel.add(nameLabel, gbc);
 
-        gbc.gridx = 1; gbc.gridy = row; gbc.weightx = 1.0;
-        gbc.fill = GridBagConstraints.HORIZONTAL; gbc.anchor = GridBagConstraints.WEST;
-        peepsPanel.add(newPeepField, gbc); row++;
+        gbc.gridx = 1;
+        gbc.gridy = row;
+        gbc.weightx = 1.0;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.anchor = GridBagConstraints.WEST;
+        peepsPanel.add(newPeepField, gbc);
+        row++;
 
-        gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 2; gbc.weightx = 1.0;
-        gbc.fill = GridBagConstraints.HORIZONTAL; gbc.anchor = GridBagConstraints.CENTER;
-        peepsPanel.add(btnAddPeep, gbc); row++;
+        gbc.gridx = 0;
+        gbc.gridy = row;
+        gbc.gridwidth = 2;
+        gbc.weightx = 1.0;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.anchor = GridBagConstraints.CENTER;
+        peepsPanel.add(btnAddPeep, gbc);
+        row++;
 
-        gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 2; gbc.weightx = 1.0;
-        gbc.fill = GridBagConstraints.HORIZONTAL; gbc.anchor = GridBagConstraints.CENTER;
-        peepsPanel.add(new JSeparator(SwingConstants.HORIZONTAL), gbc); row++;
+        gbc.gridx = 0;
+        gbc.gridy = row;
+        gbc.gridwidth = 2;
+        gbc.weightx = 1.0;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.anchor = GridBagConstraints.CENTER;
+        peepsPanel.add(new JSeparator(SwingConstants.HORIZONTAL), gbc);
+        row++;
 
         JLabel alterLbl = new JLabel("Alter player info:");
         alterLbl.setHorizontalAlignment(SwingConstants.LEFT);
-        gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 2; gbc.weightx = 1.0;
-        gbc.fill = GridBagConstraints.HORIZONTAL; gbc.anchor = GridBagConstraints.WEST;
-        peepsPanel.add(alterLbl, gbc); row++;
+        gbc.gridx = 0;
+        gbc.gridy = row;
+        gbc.gridwidth = 2;
+        gbc.weightx = 1.0;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.anchor = GridBagConstraints.WEST;
+        peepsPanel.add(alterLbl, gbc);
+        row++;
 
-        gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 2; gbc.weightx = 1.0;
-        gbc.fill = GridBagConstraints.HORIZONTAL; gbc.anchor = GridBagConstraints.WEST;
-        peepsPanel.add(knownPlayersDropdown, gbc); row++;
+        gbc.gridx = 0;
+        gbc.gridy = row;
+        gbc.gridwidth = 2;
+        gbc.weightx = 1.0;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.anchor = GridBagConstraints.WEST;
+        peepsPanel.add(knownPlayersDropdown, gbc);
+        row++;
 
-        gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 2; gbc.weightx = 1.0;
-        gbc.fill = GridBagConstraints.HORIZONTAL; gbc.anchor = GridBagConstraints.CENTER;
-        peepsPanel.add(btnRemovePlayer, gbc); row++;
+        gbc.gridx = 0;
+        gbc.gridy = row;
+        gbc.gridwidth = 2;
+        gbc.weightx = 1.0;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.anchor = GridBagConstraints.CENTER;
+        peepsPanel.add(btnRemovePlayer, gbc);
+        row++;
 
         altsLabel.setHorizontalAlignment(SwingConstants.LEFT);
-        gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 2; gbc.weightx = 1.0;
-        gbc.fill = GridBagConstraints.HORIZONTAL; gbc.anchor = GridBagConstraints.WEST;
-        peepsPanel.add(altsLabel, gbc); row++;
+        gbc.gridx = 0;
+        gbc.gridy = row;
+        gbc.gridwidth = 2;
+        gbc.weightx = 1.0;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.anchor = GridBagConstraints.WEST;
+        peepsPanel.add(altsLabel, gbc);
+        row++;
 
         JScrollPane altsScroll = new JScrollPane(altsList);
         altsScroll.setPreferredSize(new Dimension(240, 140));
-        gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 2; gbc.weightx = 1.0; gbc.weighty = 1.0;
-        gbc.fill = GridBagConstraints.BOTH; gbc.anchor = GridBagConstraints.CENTER;
-        peepsPanel.add(altsScroll, gbc); row++;
+        gbc.gridx = 0;
+        gbc.gridy = row;
+        gbc.gridwidth = 2;
+        gbc.weightx = 1.0;
+        gbc.weighty = 1.0;
+        gbc.fill = GridBagConstraints.BOTH;
+        gbc.anchor = GridBagConstraints.CENTER;
+        peepsPanel.add(altsScroll, gbc);
+        row++;
 
         JLabel addAltLbl = new JLabel("Add alt:");
         addAltLbl.setPreferredSize(dl);
         addAltLbl.setHorizontalAlignment(SwingConstants.RIGHT);
 
-        gbc.gridwidth = 1; gbc.weighty = 0;
-        gbc.gridx = 0; gbc.gridy = row; gbc.weightx = 0;
-        gbc.fill = GridBagConstraints.NONE; gbc.anchor = GridBagConstraints.EAST;
+        gbc.gridwidth = 1;
+        gbc.weighty = 0;
+        gbc.gridx = 0;
+        gbc.gridy = row;
+        gbc.weightx = 0;
+        gbc.fill = GridBagConstraints.NONE;
+        gbc.anchor = GridBagConstraints.EAST;
         peepsPanel.add(addAltLbl, gbc);
 
-        gbc.gridx = 1; gbc.gridy = row; gbc.weightx = 1.0;
-        gbc.fill = GridBagConstraints.HORIZONTAL; gbc.anchor = GridBagConstraints.WEST;
-        peepsPanel.add(addAltDropdown, gbc); row++;
+        gbc.gridx = 1;
+        gbc.gridy = row;
+        gbc.weightx = 1.0;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.anchor = GridBagConstraints.WEST;
+        peepsPanel.add(addAltDropdown, gbc);
+        row++;
 
         JPanel altButtonsRow = new JPanel(new GridLayout(1, 2, 6, 0));
         altButtonsRow.add(btnAddAlt);
         altButtonsRow.add(btnRemoveAlt);
 
-        gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 2; gbc.weightx = 1.0;
-        gbc.fill = GridBagConstraints.HORIZONTAL; gbc.anchor = GridBagConstraints.CENTER;
-        peepsPanel.add(altButtonsRow, gbc); row++;
+        gbc.gridx = 0;
+        gbc.gridy = row;
+        gbc.gridwidth = 2;
+        gbc.weightx = 1.0;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.anchor = GridBagConstraints.CENTER;
+        peepsPanel.add(altButtonsRow, gbc);
 
         return new DropdownRip("Known player info", peepsPanel);
     }
@@ -386,17 +466,22 @@ public class PanelView extends PluginPanel {
                 BorderFactory.createEmptyBorder(3, 3, 3, 3)));
         sessionPanel.setLayout(new GridBagLayout());
         GridBagConstraints g2 = new GridBagConstraints();
-        g2.gridx = 0; g2.insets = new Insets(3, 3, 3, 3); g2.weightx = 1.0;
-        g2.fill = GridBagConstraints.HORIZONTAL; g2.anchor = GridBagConstraints.CENTER;
+        g2.gridx = 0;
+        g2.insets = new Insets(3, 3, 3, 3);
+        g2.weightx = 1.0;
+        g2.fill = GridBagConstraints.HORIZONTAL;
+        g2.anchor = GridBagConstraints.CENTER;
 
         JPanel buttonsHalfHalf = new JPanel(new GridLayout(1, 2, 6, 0));
         buttonsHalfHalf.add(btnStart);
         buttonsHalfHalf.add(btnStop);
 
-        g2.gridy = 0; sessionPanel.add(buttonsHalfHalf, g2);
+        g2.gridy = 0;
+        sessionPanel.add(buttonsHalfHalf, g2);
 
         historyLabel.setHorizontalAlignment(SwingConstants.CENTER);
-        g2.gridy = 1; sessionPanel.add(historyLabel, g2);
+        g2.gridy = 1;
+        sessionPanel.add(historyLabel, g2);
 
         return sessionPanel;
     }
@@ -405,7 +490,10 @@ public class PanelView extends PluginPanel {
         JPanel p = new JPanel();
         p.setLayout(new GridBagLayout());
         GridBagConstraints gbc = new GridBagConstraints();
-        gbc.gridx = 0; gbc.gridy = 0; gbc.gridwidth = 1; gbc.weightx = 1.0;
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        gbc.gridwidth = 1;
+        gbc.weightx = 1.0;
         gbc.fill = GridBagConstraints.BOTH;
         waitlistTable.setFillsViewportHeight(true);
         waitlistTable.setRowHeight(22);
@@ -417,12 +505,17 @@ public class PanelView extends PluginPanel {
         JPanel btns = new JPanel(new GridLayout(1, 2, 6, 0));
         btns.add(btnWaitlistAdd);
         btns.add(btnWaitlistDelete);
-        gbc.gridx = 0; gbc.gridy = 1; gbc.gridwidth = 2; gbc.weightx = 1.0;
-        gbc.fill = GridBagConstraints.HORIZONTAL; gbc.insets = new Insets(3, 0, 0, 0);
+        gbc.gridx = 0;
+        gbc.gridy = 1;
+        gbc.gridwidth = 2;
+        gbc.weightx = 1.0;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.insets = new Insets(3, 0, 0, 0);
         p.add(btns, gbc);
 
         waitlistTableModel.addTableModelListener(new TableModelListener() {
-            @Override public void tableChanged(javax.swing.event.TableModelEvent e) {
+            @Override
+            public void tableChanged(javax.swing.event.TableModelEvent e) {
                 if (waitlistTable.getRowCount() > 0) {
                     waitlistTable.getSelectionModel().setSelectionInterval(0, 0);
                 } else {
@@ -508,11 +601,13 @@ public class PanelView extends PluginPanel {
         try {
             int playerIdx = metricsTable.getColumnModel().getColumnIndex("Player");
             metricsTable.getColumnModel().getColumn(playerIdx).setCellRenderer(greyingRenderer);
-        } catch (IllegalArgumentException ignored) { }
+        } catch (IllegalArgumentException ignored) {
+        }
         try {
             int totalIdx = metricsTable.getColumnModel().getColumnIndex("Total");
             metricsTable.getColumnModel().getColumn(totalIdx).setCellRenderer(greyingRenderer);
-        } catch (IllegalArgumentException ignored) { }
+        } catch (IllegalArgumentException ignored) {
+        }
 
         javax.swing.table.DefaultTableCellRenderer splitRenderer = new javax.swing.table.DefaultTableCellRenderer() {
             @Override
@@ -534,13 +629,15 @@ public class PanelView extends PluginPanel {
         try {
             int splitIdx = metricsTable.getColumnModel().getColumnIndex("Split");
             metricsTable.getColumnModel().getColumn(splitIdx).setCellRenderer(splitRenderer);
-        } catch (IllegalArgumentException ignored) { }
+        } catch (IllegalArgumentException ignored) {
+        }
 
         try {
             int actionIdx = metricsTable.getColumnModel().getColumnIndex("X");
             metricsTable.getColumnModel().getColumn(actionIdx)
                     .setCellEditor(new RemoveButtonEditor(this, manager, metricsTable));
-        } catch (IllegalArgumentException ignored) { }
+        } catch (IllegalArgumentException ignored) {
+        }
 
         JComponent centerContent;
         if (direct) {
@@ -551,7 +648,10 @@ public class PanelView extends PluginPanel {
             if (transfers != null && !transfers.isEmpty()) {
                 javax.swing.table.DefaultTableModel txModel =
                         new javax.swing.table.DefaultTableModel(new Object[]{"Suggested direct payments"}, 0) {
-                            @Override public boolean isCellEditable(int r, int c) { return false; }
+                            @Override
+                            public boolean isCellEditable(int r, int c) {
+                                return false;
+                            }
                         };
 
                 for (Transfer t : transfers) {
@@ -626,18 +726,28 @@ public class PanelView extends PluginPanel {
         JLabel amountLabel = new JLabel("Amount:");
         amountLabel.setPreferredSize(new Dimension(48, 24));
 
-        gbc.gridx = 0; gbc.gridy = 0; gbc.weightx = 0;
-        gbc.fill = GridBagConstraints.NONE; gbc.anchor = GridBagConstraints.EAST;
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        gbc.weightx = 0;
+        gbc.fill = GridBagConstraints.NONE;
+        gbc.anchor = GridBagConstraints.EAST;
         panel.add(amountLabel, gbc);
 
-        gbc.gridx = 1; gbc.gridy = 0; gbc.weightx = 1.0;
-        gbc.fill = GridBagConstraints.HORIZONTAL; gbc.anchor = GridBagConstraints.WEST;
+        gbc.gridx = 1;
+        gbc.gridy = 0;
+        gbc.weightx = 1.0;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.anchor = GridBagConstraints.WEST;
         panel.add(activeKillAmountField, gbc);
 
         JScrollPane scroller = new JScrollPane(activePlayersButtonsPanel);
         scroller.setBorder(null);
         scroller.setPreferredSize(new Dimension(0, 360));
-        gbc.gridx = 0; gbc.gridy = 1; gbc.gridwidth = 2; gbc.weightx = 1.0; gbc.weighty = 1.0;
+        gbc.gridx = 0;
+        gbc.gridy = 1;
+        gbc.gridwidth = 2;
+        gbc.weightx = 1.0;
+        gbc.weighty = 1.0;
         gbc.fill = GridBagConstraints.BOTH;
         panel.add(scroller, gbc);
 

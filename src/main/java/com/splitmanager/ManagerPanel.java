@@ -26,7 +26,7 @@ public class ManagerPanel extends PluginPanel {
         controller.refreshAllView();
     }
 
-    private void startPanel(){
+    private void startPanel() {
         PanelView view = new PanelView(manager, config);
         controller = new PanelController(manager, config, view);
         view.bindActions(controller);
@@ -36,7 +36,7 @@ public class ManagerPanel extends PluginPanel {
         controller.refreshAllView();
     }
 
-    public void restart(){
+    public void restart() {
         removeAll();
         startPanel();
     }

@@ -38,14 +38,14 @@ public class PanelController implements PanelActions {
     @Override
     public void startSession() {
         if (manager.isHistoryLoaded()) {
-            toast(view,"Unload history first.");
+            toast(view, "Unload history first.");
             return;
         }
         if (manager.hasActiveSession()) {
-            toast(view,"Active session exists.");
+            toast(view, "Active session exists.");
             return;
         }
-        manager.startSession().ifPresent(s -> toast(view,"Session started."));
+        manager.startSession().ifPresent(s -> toast(view, "Session started."));
         Utils.requestUiRefresh().run();
         refreshAllView();
     }
@@ -53,14 +53,14 @@ public class PanelController implements PanelActions {
     @Override
     public void stopSession() {
         if (manager.isHistoryLoaded()) {
-            toast(view,"Cannot stop while history loaded.");
+            toast(view, "Cannot stop while history loaded.");
             return;
         }
         if (manager.stopSession()) {
             Utils.requestUiRefresh().run();
-            toast(view,"Session stopped.");
+            toast(view, "Session stopped.");
         } else {
-            toast(view,"Failed to stop session.");
+            toast(view, "Failed to stop session.");
         }
         refreshAllView();
     }
@@ -68,13 +68,13 @@ public class PanelController implements PanelActions {
     @Override
     public void addPlayerToSession(String player) {
         if (player == null) {
-            toast(view,"Select a player in dropdown.");
+            toast(view, "Select a player in dropdown.");
             return;
         }
         if (manager.addPlayerToActive(player)) {
             Utils.requestUiRefresh().run();
         } else {
-            toast(view,"Failed to add player, player might already be in session.");
+            toast(view, "Failed to add player, player might already be in session.");
         }
         refreshAllView();
     }
@@ -83,11 +83,11 @@ public class PanelController implements PanelActions {
     public void addKnownPlayer(String name) {
         String clean = name == null ? "" : name.trim();
         if (clean.isEmpty()) {
-            toast(view,"Enter a name.");
+            toast(view, "Enter a name.");
             return;
         }
         if (!manager.addKnownPlayer(clean)) {
-            toast(view,"Player already in list exists.");
+            toast(view, "Player already in list exists.");
             return;
         }
         manager.saveToConfig();
@@ -101,7 +101,7 @@ public class PanelController implements PanelActions {
     @Override
     public void removeKnownPlayer(String name) {
         if (name == null) {
-            toast(view,"Select a peep to remove.");
+            toast(view, "Select a peep to remove.");
             return;
         }
         int res = JOptionPane.showConfirmDialog(view,
@@ -112,7 +112,7 @@ public class PanelController implements PanelActions {
         if (res != JOptionPane.YES_OPTION) return;
 
         if (!manager.removeKnownPlayer(name)) {
-            toast(view,"Not found.");
+            toast(view, "Not found.");
             return;
         }
         manager.saveToConfig();
@@ -123,14 +123,14 @@ public class PanelController implements PanelActions {
     @Override
     public void addKill(String player, long amount) {
         if (player == null) {
-            toast(view,"Select a player.");
+            toast(view, "Select a player.");
             return;
         }
         if (manager.addKill(player, amount)) {
             view.getKillAmountField().setText("");
             Utils.requestUiRefresh().run();
         } else {
-            toast(view,"Failed to add kill (is player in session?).");
+            toast(view, "Failed to add kill (is player in session?).");
         }
         refreshAllView();
     }
@@ -319,9 +319,11 @@ public class PanelController implements PanelActions {
         view.getBtnWaitlistDelete().setEnabled(rows > 0);
     }
 
-    private void refreshAltList() { refreshAltList(manager.getKnownPlayers().toArray(new String[0])); }
+    private void refreshAltList() {
+        refreshAltList(manager.getKnownPlayers().toArray(new String[0]));
+    }
 
-    private void refreshAltList(String[] peeps){
+    private void refreshAltList(String[] peeps) {
         view.getKnownListLabel().setText("Known (" + peeps.length + "):");
         String selectedMain = (String) view.getKnownPlayersDropdown().getSelectedItem();
         if (selectedMain == null && peeps.length > 0) {

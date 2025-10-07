@@ -15,27 +15,26 @@ import java.util.Set;
  * when roster changes after kills happen.
  */
 @Getter
-public class Session implements Serializable
-{
-	private final String id;
-	private final Instant start;
-	@Setter
+public class Session implements Serializable {
+    private final String id;
+    private final Instant start;
+    @Setter
     private Instant end; // null when active
-	private final String motherId; // null for mother; otherwise id of mother
-	private final Set<String> players = new LinkedHashSet<>();
-	private final List<Kill> kills = new ArrayList<>();
+    private final String motherId; // null for mother; otherwise id of mother
+    private final Set<String> players = new LinkedHashSet<>();
+    private final List<Kill> kills = new ArrayList<>();
 
-	public Session(String id, Instant start, String motherId)
-	{
-		this.id = id;
-		this.start = start;
-		this.motherId = motherId;
-	}
+    public Session(String id, Instant start, String motherId) {
+        this.id = id;
+        this.start = start;
+        this.motherId = motherId;
+    }
 
-    public boolean isActive() { return end == null; }
+    public boolean isActive() {
+        return end == null;
+    }
 
-	public boolean hasKills()
-	{
-		return !kills.isEmpty();
-	}
+    public boolean hasKills() {
+        return !kills.isEmpty();
+    }
 }

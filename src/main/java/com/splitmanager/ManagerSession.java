@@ -77,10 +77,12 @@ public class ManagerSession {
         String altsJson = config.altsJson();
         if (altsJson != null && !altsJson.isEmpty()) {
             try {
-                java.lang.reflect.Type mapType = new com.google.gson.reflect.TypeToken<Map<String, String>>(){}.getType();
-                Map<String,String> m = gson.fromJson(altsJson, mapType);
+                java.lang.reflect.Type mapType = new com.google.gson.reflect.TypeToken<Map<String, String>>() {
+                }.getType();
+                Map<String, String> m = gson.fromJson(altsJson, mapType);
                 if (m != null) altToMain.putAll(m);
-            } catch (Exception ignored) { }
+            } catch (Exception ignored) {
+            }
         }
 
         // sessions
@@ -417,7 +419,7 @@ public class ManagerSession {
         // alt cannot already have a different main
         if (altToMain.containsKey(a) && !altToMain.get(a).equalsIgnoreCase(m)) return false;
         // alt cannot be a main of others (prevents main being alt through this change)
-        for (Map.Entry<String,String> e : altToMain.entrySet()) {
+        for (Map.Entry<String, String> e : altToMain.entrySet()) {
             if (e.getValue() != null && e.getValue().equalsIgnoreCase(a)) return false;
         }
         return true;
@@ -440,6 +442,7 @@ public class ManagerSession {
 
     /**
      * Unlink the given alt from its main.
+     *
      * @param alt the alt name to unlink
      * @return true if an existing mapping was removed
      */

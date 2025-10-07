@@ -25,25 +25,26 @@ import java.text.ParseException;
 
 @Slf4j
 @PluginDescriptor(
-	name = "Auto Split Manager",
-	description = "Automatic split manager for group sessions. Tracks sessions, roster changes, chat-detected values, editable recent splits, and settlement metrics (copy JSON). Collapsible sections and configurable panel order.",
-	enabledByDefault = true
+        name = "Auto Split Manager",
+        description = "Automatic split manager for group sessions. Tracks sessions, roster changes, chat-detected values, editable recent splits, and settlement metrics (copy JSON). Collapsible sections and configurable panel order.",
+        enabledByDefault = true
 )
-public class ManagerPlugin extends Plugin
-{
-	@Inject private Client client;
-	@Inject private ClientToolbar clientToolbar;
-	@Inject private PluginConfig config;
+public class ManagerPlugin extends Plugin {
+    @Inject
+    private Client client;
+    @Inject
+    private ClientToolbar clientToolbar;
+    @Inject
+    private PluginConfig config;
 
     // Return nullable panel; callers must handle null (e.g., during startup/shutdown)
     @Getter
     private static ManagerPanel panel;
-	private NavigationButton navButton;
-	private ManagerSession sessionManager;
+    private NavigationButton navButton;
+    private ManagerSession sessionManager;
 
     @Override
-    protected void startUp()
-    {
+    protected void startUp() {
         sessionManager = new ManagerSession(config);
         sessionManager.loadFromConfig(); // load sessions and players (peeps)
 
@@ -64,26 +65,22 @@ public class ManagerPlugin extends Plugin
     }
 
 
-	@Override
-	protected void shutDown()
-	{
-		if (navButton != null)
-		{
-			clientToolbar.removeNavigation(navButton);
-			navButton = null;
-		}
-		if (sessionManager != null)
-		{
-			sessionManager.saveToConfig();
-		}
-		panel = null;
-	}
+    @Override
+    protected void shutDown() {
+        if (navButton != null) {
+            clientToolbar.removeNavigation(navButton);
+            navButton = null;
+        }
+        if (sessionManager != null) {
+            sessionManager.saveToConfig();
+        }
+        panel = null;
+    }
 
-	@Provides
-    PluginConfig provideConfig(ConfigManager configManager)
-	{
-		return configManager.getConfig(PluginConfig.class);
-	}
+    @Provides
+    PluginConfig provideConfig(ConfigManager configManager) {
+        return configManager.getConfig(PluginConfig.class);
+    }
 
     @Subscribe
     public void onConfigChanged(ConfigChanged e) {
@@ -93,76 +90,68 @@ public class ManagerPlugin extends Plugin
         }
     }
 
-	@Subscribe
-	public void onChatMessage(ChatMessage event) throws ParseException {
+    @Subscribe
+    public void onChatMessage(ChatMessage event) throws ParseException {
         Formats.OsrsAmountFormatter f = new Formats.OsrsAmountFormatter();
 
-		if (!config.enableChatDetection())
-		{
-			return;
-		}
-		ChatMessageType type = event.getType();
-		String tname = type.name();
-		boolean isClan = tname.contains("CLAN");
-		boolean isFriends = tname.contains("FRIEND");
-		if (isClan && !config.detectInClanChat()) return;
-		if (isFriends && !config.detectInFriendsChat()) return;
-		if (!isClan && !isFriends) return; // only these channels
+        if (!config.enableChatDetection()) {
+            return;
+        }
+        ChatMessageType type = event.getType();
+        String tname = type.name();
+        boolean isClan = tname.contains("CLAN");
+        boolean isFriends = tname.contains("FRIEND");
+        if (isClan && !config.detectInClanChat()) return;
+        if (isFriends && !config.detectInFriendsChat()) return;
+        if (!isClan && !isFriends) return; // only these channels
 
-		String msg = event.getMessage();
-		String sender = event.getName(); // may include rank/icon tags
-		if (sender != null) sender = sender.replaceAll("<[^>]*>", "");
+        String msg = event.getMessage();
+        String sender = event.getName(); // may include rank/icon tags
+        if (sender != null) sender = sender.replaceAll("<[^>]*>", "");
 
-		// Try parse PvM drop
-		if (config.detectPvmValues())
-		{
-			java.util.regex.Matcher m = java.util.regex.Pattern.compile("^(.+?) has received a drop: .*?\\((\\d[\\d,]*) coins\\)").matcher(msg);
-			if (m.find())
-			{
-				String player = m.group(1);
+        // Try parse PvM drop
+        if (config.detectPvmValues()) {
+            java.util.regex.Matcher m = java.util.regex.Pattern.compile("^(.+?) has received a drop: .*?\\((\\d[\\d,]*) coins\\)").matcher(msg);
+            if (m.find()) {
+                String player = m.group(1);
                 Long value = (Long) f.stringToValue(m.group(2));
-				queuePending(PendingValue.Type.PVM, isClan ? "Clan" : "Friends", msg, value, player);
-				return;
-			}
-		}
+                queuePending(PendingValue.Type.PVM, isClan ? "Clan" : "Friends", msg, value, player);
+                return;
+            }
+        }
 
-		// Try parse PvP loot
-		if (config.detectPvpValues())
-		{
-			java.util.regex.Matcher m = java.util.regex.Pattern.compile("^(.+?) has defeated (.+?) and received \\((\\d[\\d,]*) coins\\) worth of loot!").matcher(msg);
-			if (m.find())
-			{
-				String player = m.group(1);
+        // Try parse PvP loot
+        if (config.detectPvpValues()) {
+            java.util.regex.Matcher m = java.util.regex.Pattern.compile("^(.+?) has defeated (.+?) and received \\((\\d[\\d,]*) coins\\) worth of loot!").matcher(msg);
+            if (m.find()) {
+                String player = m.group(1);
                 Long value = (Long) f.stringToValue(m.group(3));
-				queuePending(PendingValue.Type.PVP, isClan ? "Clan" : "Friends", msg, value, player);
-				return;
-			}
-		}
+                queuePending(PendingValue.Type.PVP, isClan ? "Clan" : "Friends", msg, value, player);
+                return;
+            }
+        }
 
-		// Try parse player !add value
-		if (config.detectPlayerValues())
-		{
-			// Accept forms like: !add 250k, !add 1.2m, !add 3b, or plain numbers (treated as K by formatter)
-			java.util.regex.Matcher m = java.util.regex.Pattern
-					.compile("(?i)!add\\s+([0-9][0-9,]*(?:\\.[0-9]+)?\\s*[kmb]?)")
-					.matcher(msg);
-			if (m.find())
-			{
-				String who = sender != null ? sender : "";
-				String amtText = m.group(1);
-				Long valueK = (Long) f.stringToValue(amtText);
-				queuePending(PendingValue.Type.ADD, isClan ? "Clan" : "Friends", msg, valueK, who);
-			}
-		}
-	}
+        // Try parse player !add value
+        if (config.detectPlayerValues()) {
+            // Accept forms like: !add 250k, !add 1.2m, !add 3b, or plain numbers (treated as K by formatter)
+            java.util.regex.Matcher m = java.util.regex.Pattern
+                    .compile("(?i)!add\\s+([0-9][0-9,]*(?:\\.[0-9]+)?\\s*[kmb]?)")
+                    .matcher(msg);
+            if (m.find()) {
+                String who = sender != null ? sender : "";
+                String amtText = m.group(1);
+                Long valueK = (Long) f.stringToValue(amtText);
+                queuePending(PendingValue.Type.ADD, isClan ? "Clan" : "Friends", msg, valueK, who);
+            }
+        }
+    }
 
 
-	private void queuePending(PendingValue.Type type, String source, String msg, Long value, String suggestedPlayer)
-	{
-		if (sessionManager == null) return;
-		PendingValue pv = PendingValue.of(type, source, msg, value, suggestedPlayer);
-		sessionManager.addPendingValue(pv);
-		// Ask UI to refresh
-		Utils.requestUiRefresh().run();
-	}
+    private void queuePending(PendingValue.Type type, String source, String msg, Long value, String suggestedPlayer) {
+        if (sessionManager == null) return;
+        PendingValue pv = PendingValue.of(type, source, msg, value, suggestedPlayer);
+        sessionManager.addPendingValue(pv);
+        // Ask UI to refresh
+        Utils.requestUiRefresh().run();
+    }
 }

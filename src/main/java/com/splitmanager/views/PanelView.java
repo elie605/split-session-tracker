@@ -51,7 +51,7 @@ public class PanelView extends PluginPanel {
     private final JComboBox<String> addAltDropdown = new JComboBox<>();
     private final JButton btnAddAlt = new JButton("Add alt");
     private final JButton btnRemoveAlt = new JButton("Remove alt");
-    private final JButton btnRemovePlayer = new JButton("Remove player");
+    private final JButton btnRemovePlayer = new JButton("Remove");
     private final JButton btnAddKill = new JButton("Add");
     private final JButton btnStart = new JButton("Start");
     private final JButton btnStop = new JButton("Stop");
@@ -65,6 +65,7 @@ public class PanelView extends PluginPanel {
 
     private final Dimension dl = new Dimension(48, 24);
     private final Dimension dm = new Dimension(64, 24);
+    private final Dimension bm = new Dimension(59, 24);
     private final Dimension dv = new Dimension(96, 24);
     private final Dimension d = new Dimension(128, 24);
     private final Insets inset = new Insets(3,3,3,3);
@@ -252,12 +253,13 @@ public class PanelView extends PluginPanel {
         gbc.fill = GridBagConstraints.HORIZONTAL;
         killPanel.add(killAmountField, gbc);
 
-        gbc.gridx = 0;
+        gbc.gridx = 1;
         gbc.gridy = 2;
-        gbc.gridwidth = 2;
         gbc.weightx = 1.0;
         gbc.anchor = GridBagConstraints.EAST;
-        btnAddKill.setSize(dl);
+        gbc.fill = GridBagConstraints.NONE;
+        btnAddKill.setPreferredSize(dv);
+        btnAddKill.setMinimumSize(dv);
         killPanel.add(btnAddKill, gbc);
 
         return killPanel;
@@ -269,6 +271,10 @@ public class PanelView extends PluginPanel {
                 BorderFactory.createTitledBorder("Add players to session:"),
                 BorderFactory.createEmptyBorder(3, 3, 3, 3)));
         rosterPanel.setLayout(new GridBagLayout());
+
+        GridBagLayout gbl1 = (GridBagLayout) rosterPanel.getLayout();
+        gbl1.columnWidths = new int[] { dm.width, 0 };     // col0 fixed, col1 auto
+        gbl1.columnWeights = new double[] { 0.0, 1.0 };
 
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = inset;
@@ -286,10 +292,12 @@ public class PanelView extends PluginPanel {
         gbc.gridy = 0;
         gbc.weightx = 0;
 
-        btnAddToSession.setSize(dm);
-        rosterPanel.add(btnAddToSession, gbc);
 
-        gbc.gridx = 0;
+        JLabel apLabel = new JLabel("Player:");
+        apLabel.setHorizontalAlignment(SwingConstants.RIGHT);
+        rosterPanel.add(apLabel, gbc);
+
+/*        gbc.gridx = 0;
         gbc.gridy = 1;
         gbc.gridwidth = 2;
         gbc.weightx = 1.0;
@@ -297,7 +305,16 @@ public class PanelView extends PluginPanel {
 
         JLabel help = new JLabel("Remove via the 'X' in the table.");
         help.setHorizontalAlignment(SwingConstants.CENTER);
-        rosterPanel.add(help, gbc);
+        rosterPanel.add(help, gbc);*/
+
+
+        gbc.gridx = 1;
+        gbc.gridy = 1;
+        gbc.weightx = 1.0;
+        gbc.anchor = GridBagConstraints.EAST;
+        gbc.fill = GridBagConstraints.NONE;
+        btnAddToSession.setPreferredSize(dv);
+        rosterPanel.add(btnAddToSession, gbc);
 
         return rosterPanel;
     }
@@ -351,8 +368,10 @@ public class PanelView extends PluginPanel {
         gbc.gridy = row;
         gbc.gridwidth = 2;
         gbc.weightx = 1.0;
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.anchor = GridBagConstraints.CENTER;
+        gbc.anchor = GridBagConstraints.EAST;
+        gbc.fill = GridBagConstraints.NONE;
+        btnAddPeep.setPreferredSize(dv);
+        btnAddPeep.setMinimumSize(dv);
         peepsPanel.add(btnAddPeep, gbc);
         row++;
 
@@ -389,9 +408,20 @@ public class PanelView extends PluginPanel {
         gbc.gridy = row;
         gbc.gridwidth = 2;
         gbc.weightx = 1.0;
+        gbc.anchor = GridBagConstraints.EAST;
+        gbc.fill = GridBagConstraints.NONE;
+        btnRemovePlayer.setPreferredSize(dv);
+        btnRemovePlayer.setMinimumSize(dv);
+        peepsPanel.add(btnRemovePlayer, gbc);
+        row++;
+
+        gbc.gridx = 0;
+        gbc.gridy = row;
+        gbc.gridwidth = 2;
+        gbc.weightx = 1.0;
         gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.anchor = GridBagConstraints.CENTER;
-        peepsPanel.add(btnRemovePlayer, gbc);
+        peepsPanel.add(new JSeparator(SwingConstants.HORIZONTAL), gbc);
         row++;
 
         altsLabel.setHorizontalAlignment(SwingConstants.LEFT);

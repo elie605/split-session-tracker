@@ -63,6 +63,15 @@ public class PanelView extends PluginPanel {
     private final DefaultListModel<Session> historyModel = new DefaultListModel<>();
     private final JList<Session> historyList = new JList<>(historyModel);
 
+    private final Dimension dl = new Dimension(48, 24);
+    private final Dimension dm = new Dimension(64, 24);
+    private final Dimension dv = new Dimension(96, 24);
+    private final Dimension d = new Dimension(128, 24);
+    private final Insets inset = new Insets(3,3,3,3);
+    private final Dimension lm = new Dimension(0, 140);
+    private final Dimension ll = new Dimension(0, 280);
+
+
     // lightweight helper (kept for markdown/json building)
     private final PanelController controllerHelper;
 
@@ -206,59 +215,49 @@ public class PanelView extends PluginPanel {
                 BorderFactory.createTitledBorder("Add split to session:"),
                 BorderFactory.createEmptyBorder(3, 3, 3, 3)));
         killPanel.setLayout(new GridBagLayout());
+
+        GridBagLayout gbl1 = (GridBagLayout) killPanel.getLayout();
+        gbl1.columnWidths = new int[] { dm.width, 0 };     // col0 fixed, col1 auto
+        gbl1.columnWeights = new double[] { 0.0, 1.0 };    // col0 no grow, col1 grows
+
         GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(3, 3, 3, 3);
-        gbc.anchor = GridBagConstraints.WEST;
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-
-        Dimension dV = new Dimension(96, 24);
-        Dimension dl = new Dimension(48, 24);
-        killAmountField.setColumns(14);
-        currentSessionPlayerDropdown.setPreferredSize(dV);
-        killAmountField.setPreferredSize(dV);
-
-        JLabel apLabel = new JLabel("Player:");
-        apLabel.setPreferredSize(dl);
-        apLabel.setHorizontalAlignment(SwingConstants.RIGHT);
+        gbc.insets = inset;
 
         gbc.gridx = 0;
         gbc.gridy = 0;
         gbc.weightx = 0;
-        gbc.fill = GridBagConstraints.NONE;
         gbc.anchor = GridBagConstraints.EAST;
+
+        JLabel apLabel = new JLabel("Player:");
+        apLabel.setHorizontalAlignment(SwingConstants.RIGHT);
         killPanel.add(apLabel, gbc);
 
         gbc.gridx = 1;
         gbc.gridy = 0;
         gbc.weightx = 1.0;
         gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.anchor = GridBagConstraints.WEST;
         killPanel.add(currentSessionPlayerDropdown, gbc);
-
-        JLabel amountLabel = new JLabel("Amount:");
-        amountLabel.setPreferredSize(dl);
-        amountLabel.setHorizontalAlignment(SwingConstants.RIGHT);
 
         gbc.gridx = 0;
         gbc.gridy = 1;
         gbc.weightx = 0;
-        gbc.fill = GridBagConstraints.NONE;
-        gbc.anchor = GridBagConstraints.EAST;
+
+        JLabel amountLabel = new JLabel("Amount:");
+        amountLabel.setHorizontalAlignment(SwingConstants.RIGHT);
         killPanel.add(amountLabel, gbc);
 
         gbc.gridx = 1;
         gbc.gridy = 1;
         gbc.weightx = 1.0;
         gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.anchor = GridBagConstraints.WEST;
         killPanel.add(killAmountField, gbc);
 
         gbc.gridx = 0;
         gbc.gridy = 2;
         gbc.gridwidth = 2;
         gbc.weightx = 1.0;
-        gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.anchor = GridBagConstraints.EAST;
+        btnAddKill.setSize(dl);
         killPanel.add(btnAddKill, gbc);
 
         return killPanel;
@@ -270,37 +269,34 @@ public class PanelView extends PluginPanel {
                 BorderFactory.createTitledBorder("Add players to session:"),
                 BorderFactory.createEmptyBorder(3, 3, 3, 3)));
         rosterPanel.setLayout(new GridBagLayout());
+
         GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(3, 3, 3, 3);
-        gbc.anchor = GridBagConstraints.WEST;
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-
-        notInCurrentSessionPlayerDropdown.setPreferredSize(new Dimension(94, 24));
-        btnAddToSession.setPreferredSize(new Dimension(64, 24));
-
-        String[] peeps = manager.getNonActivePlayers().toArray(new String[0]);
-        notInCurrentSessionPlayerDropdown.setModel(new DefaultComboBoxModel<>(peeps));
+        gbc.insets = inset;
 
         gbc.gridx = 1;
         gbc.gridy = 0;
         gbc.weightx = 1.0;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+
+        String[] peeps = manager.getNonActivePlayers().toArray(new String[0]);
+        notInCurrentSessionPlayerDropdown.setModel(new DefaultComboBoxModel<>(peeps));
         rosterPanel.add(notInCurrentSessionPlayerDropdown, gbc);
 
         gbc.gridx = 0;
         gbc.gridy = 0;
         gbc.weightx = 0;
-        gbc.fill = GridBagConstraints.NONE;
-        rosterPanel.add(btnAddToSession, gbc);
 
-        JLabel help = new JLabel("Remove via the 'X' in the table.");
-        help.setHorizontalAlignment(SwingConstants.CENTER);
+        btnAddToSession.setSize(dm);
+        rosterPanel.add(btnAddToSession, gbc);
 
         gbc.gridx = 0;
         gbc.gridy = 1;
         gbc.gridwidth = 2;
         gbc.weightx = 1.0;
-        gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.anchor = GridBagConstraints.CENTER;
+
+        JLabel help = new JLabel("Remove via the 'X' in the table.");
+        help.setHorizontalAlignment(SwingConstants.CENTER);
         rosterPanel.add(help, gbc);
 
         return rosterPanel;
@@ -310,20 +306,17 @@ public class PanelView extends PluginPanel {
         JPanel peepsPanel = new JPanel();
         peepsPanel.setLayout(new GridBagLayout());
         GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(3, 3, 3, 3);
+        gbc.insets = inset;
         gbc.anchor = GridBagConstraints.WEST;
         gbc.fill = GridBagConstraints.HORIZONTAL;
-
-        Dimension dV = new Dimension(96, 24);
-        Dimension dl = new Dimension(48, 24);
 
         JLabel title = new JLabel("Edit the known players list:");
         title.setFont(title.getFont().deriveFont(Font.BOLD));
 
         newPeepField.setColumns(14);
-        newPeepField.setPreferredSize(dV);
-        knownPlayersDropdown.setPreferredSize(dV);
-        addAltDropdown.setPreferredSize(dV);
+        newPeepField.setPreferredSize(dv);
+        knownPlayersDropdown.setPreferredSize(dv);
+        addAltDropdown.setPreferredSize(dv);
 
         int row = 0;
 
@@ -412,7 +405,7 @@ public class PanelView extends PluginPanel {
         row++;
 
         JScrollPane altsScroll = new JScrollPane(altsList);
-        altsScroll.setPreferredSize(new Dimension(240, 140));
+        altsScroll.setPreferredSize(lm);
         gbc.gridx = 0;
         gbc.gridy = row;
         gbc.gridwidth = 2;
@@ -499,7 +492,7 @@ public class PanelView extends PluginPanel {
         waitlistTable.setRowHeight(22);
         waitlistTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         JScrollPane sc = new JScrollPane(waitlistTable);
-        sc.setPreferredSize(new Dimension(0, 120));
+        sc.setPreferredSize(lm);
         p.add(sc, gbc);
 
         JPanel btns = new JPanel(new GridLayout(1, 2, 6, 0));
@@ -669,25 +662,25 @@ public class PanelView extends PluginPanel {
                 txTable.setShowGrid(false);
 
                 JScrollPane txScroll = new JScrollPane(txTable);
-                txScroll.setPreferredSize(new Dimension(320, 360));
+                txScroll.setPreferredSize(ll);
                 centerContent = txScroll;
             } else {
                 JScrollPane tableScroll = new JScrollPane(metricsTable);
-                tableScroll.setPreferredSize(new Dimension(320, 360));
+                tableScroll.setPreferredSize(ll);
                 centerContent = tableScroll;
             }
         } else {
             JScrollPane tableScroll = new JScrollPane(metricsTable);
-            tableScroll.setPreferredSize(new Dimension(320, 360));
+            tableScroll.setPreferredSize(ll);
             centerContent = tableScroll;
         }
 
         wrapper.add(centerContent, BorderLayout.CENTER);
 
-        JPanel southPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 0));
-        southPanel.add(copyBtn);
-        southPanel.add(copyMdBtn);
-        wrapper.add(southPanel, BorderLayout.SOUTH);
+        JPanel btns = new JPanel(new GridLayout(1, 2, 6, 0));
+        btns.add(copyBtn);
+        btns.add(copyMdBtn);
+        wrapper.add(btns, BorderLayout.SOUTH);
 
         return new DropdownRip("Settlement information", wrapper);
     }
@@ -724,7 +717,7 @@ public class PanelView extends PluginPanel {
         gbc.fill = GridBagConstraints.HORIZONTAL;
 
         JLabel amountLabel = new JLabel("Amount:");
-        amountLabel.setPreferredSize(new Dimension(48, 24));
+        amountLabel.setPreferredSize(dl);
 
         gbc.gridx = 0;
         gbc.gridy = 0;
@@ -742,7 +735,7 @@ public class PanelView extends PluginPanel {
 
         JScrollPane scroller = new JScrollPane(activePlayersButtonsPanel);
         scroller.setBorder(null);
-        scroller.setPreferredSize(new Dimension(0, 360));
+        scroller.setPreferredSize(ll);
         gbc.gridx = 0;
         gbc.gridy = 1;
         gbc.gridwidth = 2;

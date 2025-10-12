@@ -1,5 +1,6 @@
 package com.splitmanager;
 
+import com.splitmanager.models.Session;
 import com.splitmanager.utils.Formats;
 import com.splitmanager.utils.Utils;
 import com.google.inject.Provides;
@@ -9,19 +10,30 @@ import javax.inject.Inject;
 import com.splitmanager.models.PendingValue;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import net.runelite.api.Client;
+import net.runelite.api.*;
+import net.runelite.api.clan.ClanChannel;
+import net.runelite.api.clan.ClanChannelMember;
+import net.runelite.api.events.MenuEntryAdded;
+import net.runelite.api.events.MenuOpened;
+import net.runelite.api.gameval.InterfaceID;
+import net.runelite.api.widgets.WidgetUtil;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.events.ConfigChanged;
+import net.runelite.client.menus.MenuManager;
+import net.runelite.client.menus.WidgetMenuOption;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.ui.ClientToolbar;
 import net.runelite.client.ui.NavigationButton;
 import net.runelite.api.events.ChatMessage;
-import net.runelite.api.ChatMessageType;
 import net.runelite.client.eventbus.Subscribe;
+import net.runelite.client.util.Text;
 
 import java.awt.image.BufferedImage;
 import java.text.ParseException;
+import java.util.Arrays;
+import java.util.Objects;
+import java.util.function.Consumer;
 
 @Slf4j
 @PluginDescriptor(
@@ -153,5 +165,97 @@ public class ManagerPlugin extends Plugin {
         sessionManager.addPendingValue(pv);
         // Ask UI to refresh
         Utils.requestUiRefresh().run();
+    }
+
+    @Subscribe
+    public void onMenuEntryAdded(MenuEntryAdded event) {
+        int componentId = event.getActionParam1();
+        int groupId = WidgetUtil.componentToInterface(componentId);
+
+        Session currentSession = null;
+        if (sessionManager == null) return;
+        else currentSession = sessionManager.getCurrentSession().orElse(null);
+        if (currentSession == null) return;
+
+        if (!(groupId == InterfaceID.FRIENDS || groupId == InterfaceID.CHATCHANNEL_CURRENT
+                || componentId == InterfaceID.ClansSidepanel.PLAYERLIST || componentId == InterfaceID.ClansGuestSidepanel.PLAYERLIST))
+            return;
+
+        String playername = Text.removeTags(event.getTarget());
+
+        if (sessionManager.currentSessionHasPlayer(playername)) {
+            String removeFromSession = "Remove from session";
+
+            // This might be a janky mess but idc
+            if (Arrays.stream(client.getMenu().getMenuEntries()).anyMatch(e -> e.getOption().equals(removeFromSession)))
+                return;
+
+            client.getMenu().createMenuEntry(-1)
+                    .setOption(removeFromSession)
+                    .setTarget(event.getTarget())
+                    .setType(MenuAction.RUNELITE)
+                    .onClick(e ->
+                    {
+                        sessionManager.removePlayerFromSession(playername);
+                        Utils.requestUiRefresh().run();
+                    });
+            return;
+        }
+
+        String removeFromSession = "Add to session";
+
+        // This might be a janky mess but idc
+        if (Arrays.stream(client.getMenu().getMenuEntries()).anyMatch(e -> e.getOption().equals(removeFromSession)))
+            return;
+
+        client.getMenu().createMenuEntry(-1)
+                .setOption(removeFromSession)
+                .setTarget(event.getTarget())
+                .setType(MenuAction.RUNELITE)
+                .onClick(e ->
+                {
+                    if (sessionManager.addKnownPlayer(playername))
+                        sessionManager.addPlayerToActive(playername);
+                    Utils.requestUiRefresh().run();
+                });
+    }
+
+
+    //Yoinked
+    private ChatPlayer getChatPlayerFromName(String name) {
+        String cleanName = Text.removeTags(name);
+
+        // Search friends chat members first, because we can always get their world;
+        // friends worlds may be hidden if they have private off. (#5679)
+        FriendsChatManager friendsChatManager = client.getFriendsChatManager();
+        if (friendsChatManager != null) {
+            FriendsChatMember member = friendsChatManager.findByName(cleanName);
+            if (member != null) {
+                return member;
+            }
+        }
+
+        ClanChannel clanChannel = client.getClanChannel();
+        if (clanChannel != null) {
+            ClanChannelMember member = clanChannel.findMember(cleanName);
+            if (member != null) {
+                return member;
+            }
+        }
+
+        clanChannel = client.getGuestClanChannel();
+        if (clanChannel != null) {
+            ClanChannelMember member = clanChannel.findMember(cleanName);
+            if (member != null) {
+                return member;
+            }
+        }
+
+        NameableContainer<Friend> friendContainer = client.getFriendContainer();
+        if (friendContainer != null) {
+            return friendContainer.findByName(cleanName);
+        }
+
+        return null;
     }
 }

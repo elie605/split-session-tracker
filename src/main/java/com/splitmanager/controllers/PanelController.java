@@ -23,12 +23,12 @@ import static com.splitmanager.utils.Utils.toast;
  * Keeps string/markdown/transfer computations here and pushes UI refreshes through the View.
  */
 public class PanelController implements PanelActions {
-    private final ManagerSession manager;
+    private final ManagerSession sessionmanager;
     private final PluginConfig config;
     private final PanelView view;
 
-    public PanelController(ManagerSession manager, PluginConfig config, PanelView view) {
-        this.manager = manager;
+    public PanelController(ManagerSession sessionmanager, PluginConfig config, PanelView view) {
+        this.sessionmanager = sessionmanager;
         this.config = config;
         this.view = view;
     }
@@ -37,26 +37,26 @@ public class PanelController implements PanelActions {
 
     @Override
     public void startSession() {
-        if (manager.isHistoryLoaded()) {
+        if (sessionmanager.isHistoryLoaded()) {
             toast(view, "Unload history first.");
             return;
         }
-        if (manager.hasActiveSession()) {
+        if (sessionmanager.hasActiveSession()) {
             toast(view, "Active session exists.");
             return;
         }
-        manager.startSession().ifPresent(s -> toast(view, "Session started."));
+        sessionmanager.startSession().ifPresent(s -> toast(view, "Session started."));
         Utils.requestUiRefresh().run();
         refreshAllView();
     }
 
     @Override
     public void stopSession() {
-        if (manager.isHistoryLoaded()) {
+        if (sessionmanager.isHistoryLoaded()) {
             toast(view, "Cannot stop while history loaded.");
             return;
         }
-        if (manager.stopSession()) {
+        if (sessionmanager.stopSession()) {
             Utils.requestUiRefresh().run();
             toast(view, "Session stopped.");
         } else {
@@ -71,7 +71,7 @@ public class PanelController implements PanelActions {
             toast(view, "Select a player in dropdown.");
             return;
         }
-        if (manager.addPlayerToActive(player)) {
+        if (sessionmanager.addPlayerToActive(player)) {
             Utils.requestUiRefresh().run();
         } else {
             toast(view, "Failed to add player, player might already be in session.");
@@ -86,11 +86,11 @@ public class PanelController implements PanelActions {
             toast(view, "Enter a name.");
             return;
         }
-        if (!manager.addKnownPlayer(clean)) {
+        if (!sessionmanager.addKnownPlayer(clean)) {
             toast(view, "Player already in list exists.");
             return;
         }
-        manager.saveToConfig();
+        sessionmanager.saveToConfig();
         Utils.requestUiRefresh().run();
         view.getKnownPlayersDropdown().setSelectedItem(clean);
         view.getNewPeepField().setText("");
@@ -111,11 +111,11 @@ public class PanelController implements PanelActions {
                 JOptionPane.WARNING_MESSAGE);
         if (res != JOptionPane.YES_OPTION) return;
 
-        if (!manager.removeKnownPlayer(name)) {
+        if (!sessionmanager.removeKnownPlayer(name)) {
             toast(view, "Not found.");
             return;
         }
-        manager.saveToConfig();
+        sessionmanager.saveToConfig();
         Utils.requestUiRefresh().run();
         refreshAllView();
     }
@@ -126,7 +126,7 @@ public class PanelController implements PanelActions {
             toast(view, "Select a player.");
             return;
         }
-        if (manager.addKill(player, amount)) {
+        if (sessionmanager.addKill(player, amount)) {
             view.getKillAmountField().setText("");
             Utils.requestUiRefresh().run();
         } else {
@@ -141,11 +141,11 @@ public class PanelController implements PanelActions {
             toast(view, "Select a player and an alt to add.");
             return;
         }
-        if (!manager.canLinkAltToMain(alt, main)) {
+        if (!sessionmanager.canLinkAltToMain(alt, main)) {
             toast(view, "Cannot link: either main is an alt, alt already linked, or alt is a main.");
             return;
         }
-        if (manager.trySetAltMain(alt, main)) {
+        if (sessionmanager.trySetAltMain(alt, main)) {
             toast(view, String.format("Linked %s → %s", alt, main));
             Utils.requestUiRefresh().run();
         } else {
@@ -170,7 +170,7 @@ public class PanelController implements PanelActions {
             if (parts.length == 2) {
                 String alt = parts[0].trim();
                 String main = parts[1].trim();
-                if (!manager.isAlt(alt)) {
+                if (!sessionmanager.isAlt(alt)) {
                     toast(view, alt + " is not linked as an alt.");
                     return;
                 }
@@ -180,7 +180,7 @@ public class PanelController implements PanelActions {
                         JOptionPane.YES_NO_OPTION,
                         JOptionPane.WARNING_MESSAGE);
                 if (res != JOptionPane.YES_OPTION) return;
-                if (manager.unlinkAlt(alt)) {
+                if (sessionmanager.unlinkAlt(alt)) {
                     toast(view, "Unlinked alt.");
                     Utils.requestUiRefresh().run();
                 } else {
@@ -192,11 +192,11 @@ public class PanelController implements PanelActions {
         }
 
         String alt = selectedEntry.trim();
-        if (!manager.isAlt(alt)) {
+        if (!sessionmanager.isAlt(alt)) {
             toast(view, alt + " is not linked as an alt.");
             return;
         }
-        String main = manager.getMainName(alt);
+        String main = sessionmanager.getMainName(alt);
         if (main == null || !main.equalsIgnoreCase(selectedMain)) {
             toast(view, String.format("%s is linked to %s, not %s.", alt, main, selectedMain));
             return;
@@ -207,7 +207,7 @@ public class PanelController implements PanelActions {
                 JOptionPane.YES_NO_OPTION,
                 JOptionPane.WARNING_MESSAGE);
         if (res != JOptionPane.YES_OPTION) return;
-        if (manager.unlinkAlt(alt)) {
+        if (sessionmanager.unlinkAlt(alt)) {
             toast(view, "Unlinked alt.");
             Utils.requestUiRefresh().run();
         } else {
@@ -222,7 +222,7 @@ public class PanelController implements PanelActions {
             toast(view, "Select a detected value first.");
             return;
         }
-        if (!manager.hasActiveSession()) {
+        if (!sessionmanager.hasActiveSession()) {
             toast(view, "Start a session first.");
             return;
         }
@@ -234,7 +234,7 @@ public class PanelController implements PanelActions {
             toast(view, "Choose a Suggested Player in the table first.");
             return;
         }
-        if (manager.applyPendingValueToPlayer(pv.getId(), target)) {
+        if (sessionmanager.applyPendingValueToPlayer(pv.getId(), target)) {
             Utils.requestUiRefresh().run();
         } else {
             toast(view, "Failed to add value. Is the player in the session?");
@@ -251,7 +251,7 @@ public class PanelController implements PanelActions {
         WaitlistTable m = view.getWaitlistTableModel();
         PendingValue pv = m.getRow(idx);
         if (pv == null) return;
-        if (manager.removePendingValueById(pv.getId())) {
+        if (sessionmanager.removePendingValueById(pv.getId())) {
             Utils.requestUiRefresh().run();
         }
         refreshAllView();
@@ -265,15 +265,15 @@ public class PanelController implements PanelActions {
     @Override
     public void refreshAllView() {
         // Update Known list + labels
-        String[] peeps = manager.getKnownPlayers().toArray(new String[0]);
+        String[] peeps = sessionmanager.getKnownPlayers().toArray(new String[0]);
         view.getKnownPlayersDropdown().setModel(new DefaultComboBoxModel<>(peeps));
         refreshAltList(peeps);
 
         // Session players dropdowns
-        Session currentSession = manager.getCurrentSession().orElse(null);
+        Session currentSession = sessionmanager.getCurrentSession().orElse(null);
         if (currentSession != null && currentSession.isActive()) {
             String[] sessionPlayers = currentSession.getPlayers().toArray(new String[0]);
-            String[] notPeeps = manager.getNonActivePlayers().toArray(new String[0]);
+            String[] notPeeps = sessionmanager.getNonActivePlayers().toArray(new String[0]);
             view.getCurrentSessionPlayerDropdown().setModel(new DefaultComboBoxModel<>(sessionPlayers));
             view.getCurrentSessionPlayerDropdown().setEnabled(true);
             view.getNotInCurrentSessionPlayerDropdown().setModel(new DefaultComboBoxModel<>(notPeeps));
@@ -282,12 +282,12 @@ public class PanelController implements PanelActions {
             view.getCurrentSessionPlayerDropdown().setEnabled(false);
         }
 
-        view.getHistoryLabel().setText("History: " + (manager.isHistoryLoaded() ? "ON" : "OFF"));
+        view.getHistoryLabel().setText("History: " + (sessionmanager.isHistoryLoaded() ? "ON" : "OFF"));
 
-        Session current = manager.getCurrentSession().orElse(null);
+        Session current = sessionmanager.getCurrentSession().orElse(null);
         if (current != null) {
             ((Metrics) view.getMetricsTable().getModel())
-                    .setData(manager.computeMetricsFor(current, true));
+                    .setData(sessionmanager.computeMetricsFor(current, true));
             view.getRecentSplitsModel().setFromKills(current.getKills());
         } else {
             view.getRecentSplitsModel().clear();
@@ -295,8 +295,8 @@ public class PanelController implements PanelActions {
 
         // Waitlist
         var wtm = view.getWaitlistTableModel();
-        java.util.Set<String> mainsOnly = manager.getKnownMains();
-        java.util.List<PendingValue> pvals = manager.getPendingValues();
+        java.util.Set<String> mainsOnly = sessionmanager.getKnownMains();
+        java.util.List<PendingValue> pvals = sessionmanager.getPendingValues();
         wtm.setData(pvals);
         javax.swing.JComboBox<String> cb = new javax.swing.JComboBox<>(mainsOnly.toArray(new String[0]));
         view.getWaitlistTable().getColumnModel().getColumn(2).setCellEditor(new javax.swing.DefaultCellEditor(cb));
@@ -305,22 +305,22 @@ public class PanelController implements PanelActions {
         view.refreshActivePlayerButtons();
 
         // Enable/disable toggles
-        boolean ro = manager.isHistoryLoaded();
-        view.getBtnStart().setEnabled(!ro && !manager.hasActiveSession());
-        view.getBtnStop().setEnabled(!ro && manager.hasActiveSession());
-        view.getBtnAddToSession().setEnabled(!ro && manager.hasActiveSession());
-        view.getNotInCurrentSessionPlayerDropdown().setEnabled(!ro && manager.hasActiveSession());
-        view.getBtnRemoveFromSession().setEnabled(!ro && manager.hasActiveSession());
-        boolean canAddKill = !ro && manager.hasActiveSession();
+        boolean ro = sessionmanager.isHistoryLoaded();
+        view.getBtnStart().setEnabled(!ro && !sessionmanager.hasActiveSession());
+        view.getBtnStop().setEnabled(!ro && sessionmanager.hasActiveSession());
+        view.getBtnAddToSession().setEnabled(!ro && sessionmanager.hasActiveSession());
+        view.getNotInCurrentSessionPlayerDropdown().setEnabled(!ro && sessionmanager.hasActiveSession());
+        view.getBtnRemoveFromSession().setEnabled(!ro && sessionmanager.hasActiveSession());
+        boolean canAddKill = !ro && sessionmanager.hasActiveSession();
         view.getBtnAddKill().setEnabled(canAddKill && view.getCurrentSessionPlayerDropdown().getItemCount() > 0);
         view.getKillAmountField().setEnabled(canAddKill && view.getCurrentSessionPlayerDropdown().getItemCount() > 0);
         int rows = wtm.getRowCount();
-        view.getBtnWaitlistAdd().setEnabled(!ro && manager.hasActiveSession() && rows > 0);
+        view.getBtnWaitlistAdd().setEnabled(!ro && sessionmanager.hasActiveSession() && rows > 0);
         view.getBtnWaitlistDelete().setEnabled(rows > 0);
     }
 
     private void refreshAltList() {
-        refreshAltList(manager.getKnownPlayers().toArray(new String[0]));
+        refreshAltList(sessionmanager.getKnownPlayers().toArray(new String[0]));
     }
 
     private void refreshAltList(String[] peeps) {
@@ -336,19 +336,19 @@ public class PanelController implements PanelActions {
         view.getAltsLabel().setText(altsText);
         DefaultListModel<String> altsModel = (DefaultListModel<String>) view.getAltsList().getModel();
         altsModel.clear();
-        if (selectedMain != null && manager.isAlt(selectedMain)) {
-            String mainName = manager.getMainName(selectedMain);
+        if (selectedMain != null && sessionmanager.isAlt(selectedMain)) {
+            String mainName = sessionmanager.getMainName(selectedMain);
             if (mainName != null && !mainName.equalsIgnoreCase(selectedMain)) {
                 altsModel.addElement(selectedMain + " is an alt of " + mainName);
             }
         }
         if (selectedMain != null) {
-            for (String alt : manager.getAltsOf(selectedMain)) altsModel.addElement(alt);
+            for (String alt : sessionmanager.getAltsOf(selectedMain)) altsModel.addElement(alt);
         }
         java.util.List<String> eligible = new java.util.ArrayList<>();
-        for (String p : manager.getKnownPlayers()) {
+        for (String p : sessionmanager.getKnownPlayers()) {
             if (selectedMain == null) break;
-            if (manager.canLinkAltToMain(p, selectedMain)) eligible.add(p);
+            if (sessionmanager.canLinkAltToMain(p, selectedMain)) eligible.add(p);
         }
         view.getAddAltDropdown().setModel(new DefaultComboBoxModel<>(eligible.toArray(new String[0])));
     }
@@ -356,8 +356,8 @@ public class PanelController implements PanelActions {
     // ---------- Existing non-UI helpers (kept) ----------
 
     public String buildMetricsJson() { /* unchanged from original */
-        var currentSession = manager.getCurrentSession().orElse(null);
-        List<ManagerSession.PlayerMetrics> data = manager.computeMetricsFor(currentSession, true);
+        var currentSession = sessionmanager.getCurrentSession().orElse(null);
+        List<ManagerSession.PlayerMetrics> data = sessionmanager.computeMetricsFor(currentSession, true);
         StringBuilder sb = new StringBuilder();
         sb.append("[");
         for (int i = 0; i < data.size(); i++) {
@@ -373,8 +373,8 @@ public class PanelController implements PanelActions {
     }
 
     public String buildMetricsMarkdown() { /* unchanged core with direct/middleman logic */
-        var currentSession = manager.getCurrentSession().orElse(null);
-        List<ManagerSession.PlayerMetrics> data = manager.computeMetricsFor(currentSession, true);
+        var currentSession = sessionmanager.getCurrentSession().orElse(null);
+        List<ManagerSession.PlayerMetrics> data = sessionmanager.computeMetricsFor(currentSession, true);
         DecimalFormat df = Formats.getDecimalFormat();
 
         boolean directMode = config.directPayments();

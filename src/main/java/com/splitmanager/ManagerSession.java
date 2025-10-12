@@ -6,18 +6,10 @@ import com.google.gson.*;
 import com.splitmanager.models.PendingValue;
 import lombok.Getter;
 
+import javax.annotation.Nonnull;
 import java.lang.reflect.Type;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -182,6 +174,7 @@ public class ManagerSession {
         return rem;
     }
 
+    //Whyy is this optional??/
     public Optional<Session> getCurrentSession() {
         return Optional.ofNullable(currentSessionId).map(sessions::get);
     }
@@ -374,6 +367,8 @@ public class ManagerSession {
         return ok;
     }
 
+
+    //TODO maybe create known player controller
     // ===== Alt/main mapping =====
     public String getMainName(String name) {
         if (name == null) return null;
@@ -453,6 +448,27 @@ public class ManagerSession {
         altToMain.remove(a);
         saveToConfig();
         return true;
+    }
+
+    /**
+     ** Returns true if the given player or one of its alts is in the current session.
+     */
+    public boolean currentSessionHasPlayer(@Nonnull String player) {
+        return sessionHasPlayer(player, getCurrentSession().orElse(null));
+    }
+
+    /**
+     ** Returns true if the given player or one of its alts is in the given session.
+     */
+    public boolean sessionHasPlayer(@Nonnull String player, Session session) {
+        if(isAlt(player)) {
+            player = getMainName(player);
+        }
+
+        String finalPlayer = player;
+
+        return session.getPlayers().stream().anyMatch(e ->
+                e.equals(Objects.requireNonNull(finalPlayer)));
     }
 
 

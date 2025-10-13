@@ -41,15 +41,15 @@ import java.util.Arrays;
 import net.runelite.api.events.ClanChannelChanged;
 import net.runelite.api.events.FriendsChatChanged;
 import net.runelite.api.events.WorldChanged;
-import net.runelite.api.events.GameTick;
+//import net.runelite.api.events.GameTick;
 import net.runelite.api.FriendsChatManager;
 import net.runelite.api.FriendsChatMember;
 import net.runelite.client.ui.overlay.OverlayManager;
-import net.runelite.client.ui.overlay.OverlayLayer;
-import net.runelite.client.ui.overlay.OverlayPanel;
-import net.runelite.client.ui.overlay.OverlayPosition;
-import net.runelite.client.ui.overlay.components.TitleComponent;
-import net.runelite.client.ui.overlay.components.LineComponent;
+//import net.runelite.client.ui.overlay.OverlayLayer;
+//import net.runelite.client.ui.overlay.OverlayPanel;
+//import net.runelite.client.ui.overlay.OverlayPosition;
+//import net.runelite.client.ui.overlay.components.TitleComponent;
+//import net.runelite.client.ui.overlay.components.LineComponent;
 
 import java.awt.Color;
 import java.awt.Dimension;
@@ -60,8 +60,7 @@ import java.awt.Dimension;
         description = "Automatic split manager for group sessions. Tracks sessions, roster changes, chat-detected values, editable recent splits, and settlement metrics (copy JSON). Collapsible sections and configurable panel order.",
         enabledByDefault = true
 )
-/**
- * Main RuneLite plugin entry point for Auto Split Manager.
+/** Main RuneLite plugin entry point for Auto Split Manager.
  * Wires up UI, session management, configuration, and chat/menu event handlers.
  */
 public class ManagerPlugin extends Plugin {
@@ -77,7 +76,7 @@ public class ManagerPlugin extends Plugin {
     private OverlayManager overlayManager;
     private ChatStatusOverlay chatOverlay;
     // Force the overlay to OFF for a few ticks after a leave message
-    private int forceOffTicks = 0;
+    //private int forceOffTicks = 0;
     // --- Authoritative Chat-Channel state from system messages ---
     private boolean chatExplicitKnown = false; // do we have an explicit join/leave signal yet?
     private boolean chatExplicitOn    = false; // last explicit state (true = ON, false = OFF)

@@ -13,7 +13,7 @@ import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.*;
 import net.runelite.api.clan.ClanChannel;
 import net.runelite.api.clan.ClanChannelMember;
-import net.runelite.api.events.GameStateChanged;
+import net.runelite.api.events.GameStateChanged;//login and hop listener, checks for world change
 import net.runelite.api.events.MenuEntryAdded;
 import net.runelite.api.gameval.InterfaceID;
 import net.runelite.api.widgets.WidgetUtil;
@@ -38,11 +38,12 @@ import java.text.ParseException;
 import java.util.Arrays;
 
 //SIGH
-import net.runelite.api.events.GameStateChanged;//login and hop listener, checks for world change
 import net.runelite.api.events.ClanChannelChanged;
 import net.runelite.api.events.FriendsChatChanged;
 import net.runelite.api.events.WorldChanged;
-
+import net.runelite.api.events.GameTick;
+import net.runelite.api.FriendsChatManager;
+import net.runelite.api.FriendsChatMember;
 import net.runelite.client.ui.overlay.OverlayManager;
 import net.runelite.client.ui.overlay.OverlayLayer;
 import net.runelite.client.ui.overlay.OverlayPanel;
@@ -75,6 +76,47 @@ public class ManagerPlugin extends Plugin {
     @Inject
     private OverlayManager overlayManager;
     private ChatStatusOverlay chatOverlay;
+    // Force the overlay to OFF for a few ticks after a leave message
+    private int forceOffTicks = 0;
+    // --- Authoritative Chat-Channel state from system messages ---
+    private boolean chatExplicitKnown = false; // do we have an explicit join/leave signal yet?
+    private boolean chatExplicitOn    = false; // last explicit state (true = ON, false = OFF)
+
+    /** Joined to Friends Chat ("Chat Channel")? */
+    private boolean isFriendsChatOn()
+    {
+        FriendsChatManager fcm = client.getFriendsChatManager();
+        if (fcm == null)
+        {
+            return false;
+        }
+
+        FriendsChatMember[] members = fcm.getMembers();
+        if (members == null || members.length == 0)
+        {
+            return false;
+        }
+
+        // Optional: verify your own name is present (mirrors your clan logic)
+        String me = myCleanName();
+        if (!me.isEmpty())
+        {
+            for (FriendsChatMember m : members)
+            {
+                if (m == null) continue;
+                String n = net.runelite.client.util.Text.toJagexName(
+                        net.runelite.client.util.Text.removeTags(m.getName()));
+                if (me.equalsIgnoreCase(n))
+                {
+                    return true;
+                }
+            }
+        }
+
+        // If members exist but your name didn't match (rare formatting mismatch),
+        // still treat the channel as ON.
+        return true;
+    }
 
     // Return nullable panel; callers must handle null (e.g., during startup/shutdown)
     @Getter
@@ -187,14 +229,55 @@ public class ManagerPlugin extends Plugin {
      * @param event chat message event
      * @throws ParseException when number parsing fails
      */
-    public void onChatMessage(ChatMessage event) throws ParseException {
+    public void onChatMessage(ChatMessage event) throws ParseException
+    {
         Formats.OsrsAmountFormatter f = new Formats.OsrsAmountFormatter();
+
+        // Normalize once
+        String plain = Text.removeTags(event.getMessage()).trim();
+        String lower = plain.toLowerCase();
+
+        // Treat these types as system-ish (varies by build)
+        ChatMessageType t = event.getType();
+        boolean isSystemish = t == ChatMessageType.GAMEMESSAGE
+                || t == ChatMessageType.CLAN_MESSAGE
+                || t == ChatMessageType.CLAN_CHAT
+                || t == ChatMessageType.CLAN_GUEST_CHAT
+                || t.name().contains("CLAN");
+
+        // ---- LEAVE/KICK: authoritative OFF ----
+        if (isSystemish && java.util.regex.Pattern
+                .compile("(?i)^\\s*(?:you\\s+(?:have\\s+)?left\\s+(?:the\\s+)?(?:chat-)?channel\\.?|you\\s+(?:are|aren't|are\\s+not)\\s+currently\\s+in\\s+(?:a|the|your)\\s+(?:chat-)?channel\\.?|you\\s+have\\s+been\\s+kicked\\s+from\\s+the\\s+channel\\.?)\\s*$")
+                .matcher(plain)
+                .find())
+        {
+            chatExplicitKnown = true;
+            chatExplicitOn = false;
+            updateLootChatStatus();   // show OFF immediately (no API fallback)
+            return;                   // stop processing this message
+        }
+
+
+        // ---- JOIN: authoritative ON ----
+        if (isSystemish && java.util.regex.Pattern
+                .compile("(?i)^\\s*now\\s+talking\\s+in\\s+(?:the\\s+)?(?:chat-)?channel\\.?\\s*$")
+                .matcher(plain)
+                .find())
+        {
+            chatExplicitKnown = true;
+            chatExplicitOn = true;
+            updateLootChatStatus();
+            // (don’t return; you can still parse values below)
+        }
+
+
 
         if (!config.enableChatDetection()) {
             return;
         }
         ChatMessageType type = event.getType();
         String tname = type.name();
+
         boolean isClan = tname.contains("CLAN");
         boolean isFriends = tname.contains("FRIEND");
         if (isClan && !config.detectInClanChat()) return;
@@ -228,6 +311,8 @@ public class ManagerPlugin extends Plugin {
         }
 
         // Try parse player !add value
+        //TODO specify add! unit
+        //TODO fix negative numbers
         if (config.detectPlayerValues()) {
             // Accept forms like: !add 250k, !add 1.2m, !add 3b, or plain numbers (treated as K by formatter)
             java.util.regex.Matcher m = java.util.regex.Pattern
@@ -260,73 +345,35 @@ public class ManagerPlugin extends Plugin {
     }
 
     //SIGH START
-    /** Joined to your main Clan Chat? */
-    private boolean isMainClanChatOn()
-    {
-        ClanChannel main = client.getClanChannel();
-        return main != null && main.getName() != null && !main.getName().isEmpty();
-    }
+    /** Joined to a Chat Channel?*/
+    private boolean isChatChannelOn() {return isMainClanChatOn() || isGuestClanChatOn();}
 
-    /** Joined to a Guest Clan Chat? */
-    private boolean isGuestClanChatOn()
-    {
-        ClanChannel guest = client.getGuestClanChannel();
-        return guest != null && guest.getName() != null && !guest.getName().isEmpty();
-    }
-
-    /** Joined to Friends Chat (legacy FC)? — robust across client versions */
-    private boolean isFriendsChatOn()
-    {
-        FriendsChatManager fc = client.getFriendsChatManager();
-        if (fc == null) return false;
-
-        boolean hasName    = fc.getName() != null && !fc.getName().isEmpty();
-        boolean hasMembers = fc.getMembers() != null && fc.getMembers().length > 0; // safest signal
-
-        return hasName || hasMembers;
-    }
-
-
-    /** True if at least one configured loot-broadcast channel is joined. */
-    private boolean anyLootBroadcastChannelOn()
-    {
-        boolean ccWanted = config.detectInClanChat();
-        boolean fcWanted = config.detectInFriendsChat();
-
-        boolean clanAny = isMainClanChatOn() || isGuestClanChatOn();
-        boolean fcOn    = isFriendsChatOn();
-
-        return (ccWanted && clanAny) || (fcWanted && fcOn);
-    }
-
-    /** Recompute and update overlay purely from in-game chat state (no config). */
+    /** Recompute overlay purely from member lists (no timers, no message heuristics). */
     private void updateLootChatStatus()
     {
-        if (chatOverlay == null)
-        {
-            return;
-        }
+        if (chatOverlay == null) return;
 
-        boolean fcOn    = isFriendsChatOn();
+        boolean fcOn    = isFriendsChatOn();     // NEW
         boolean clanOn  = isMainClanChatOn();
         boolean guestOn = isGuestClanChatOn();
 
-        // Overall status = any chat joined
-        boolean anyOn = fcOn || clanOn || guestOn;
+        // Counted = respects detection toggles
+        boolean counted =
+                (config.detectInFriendsChat() && fcOn) ||
+                        (config.detectInClanChat()    && (clanOn || guestOn));
 
-        chatOverlay.setVisible(true); // always show the overlay
-        chatOverlay.setStatuses(fcOn, clanOn, guestOn, anyOn);
-
-        // (Optional) Debug: see raw values the client reports
-        // FriendsChatManager fc = client.getFriendsChatManager();
-        // ClanChannel main = client.getClanChannel();
-        // ClanChannel guest = client.getGuestClanChannel();
-        // int fcMembers = (fc != null && fc.getMembers() != null) ? fc.getMembers().size() : 0;
-        // log.debug("FC(name='{}', members={}) | Clan='{}' | Guest='{}' | anyOn={}",
-        //         fc != null ? fc.getName() : null, fcMembers,
-        //         main != null ? main.getName() : null,
-        //         guest != null ? guest.getName() : null, anyOn);
+        chatOverlay.setVisible(true);
+        // Pass raw states + counted state to the overlay
+        chatOverlay.setStatuses(fcOn /*Chat Channel (Friends Chat)*/,
+                clanOn /*Clan*/,
+                guestOn /*Guest*/,
+                counted /*respects toggles*/);
     }
+
+
+
+
+
 
 
     //SIGH END
@@ -399,10 +446,12 @@ public class ManagerPlugin extends Plugin {
         private final PluginConfig config;
         private boolean visible = false;
 
-        private boolean fcOn = false;
+        private boolean chatchanOn = false;
         private boolean clanOn = false;
         private boolean guestOn = false;
         private boolean countedOn = false; // respects toggles
+
+
 
         ChatStatusOverlay(PluginConfig config)
         {
@@ -414,9 +463,9 @@ public class ManagerPlugin extends Plugin {
         void setVisible(boolean v) { this.visible = v; }
 
         /** fc/clan/guest raw states + combined "counted" state (based on config toggles) */
-        void setStatuses(boolean fc, boolean clan, boolean guest, boolean counted)
+        void setStatuses(boolean chatchan, boolean clan, boolean guest, boolean counted)
         {
-            this.fcOn = fc;
+            this.chatchanOn = chatchan;
             this.clanOn = clan;
             this.guestOn = guest;
             this.countedOn = counted;
@@ -443,12 +492,12 @@ public class ManagerPlugin extends Plugin {
                     .build());
 
             // Show each channel's raw state (always), with per-line color
-            addStatusLine("Friends Chat", fcOn);
+            addStatusLine("Chat Channel", chatchanOn);
             addStatusLine("Clan Chat",    clanOn);
             addStatusLine("Guest Clan",   guestOn);
 
             // Summarize which chats are currently joined (actual game state)
-            String joined = (fcOn ? "FC " : "") + (clanOn ? "Clan " : "") + (guestOn ? "Guest " : "");
+            String joined = (chatchanOn ? "FC " : "") + (clanOn ? "Clan " : "") + (guestOn ? "Guest " : "");
             if (joined.isEmpty()) joined = "None";
             panelComponent.getChildren().add(LineComponent.builder()
                     .left("Joined")
@@ -476,6 +525,52 @@ public class ManagerPlugin extends Plugin {
     }
 
 
+    // Re-check chat state for a few ticks after join/leave messages
+    private int chatProbeTicks = 0;
+
+    @Subscribe
+    public void onGameTick(net.runelite.api.events.GameTick t)
+    {
+        updateLootChatStatus();
+    }
+
+
+    /** Local player's cleaned display name ("" if not ready). */
+    private String myCleanName()
+    {
+        Player me = client.getLocalPlayer();
+        if (me == null) return "";
+        return net.runelite.client.util.Text.toJagexName(
+                net.runelite.client.util.Text.removeTags(me.getName()));
+    }
+
+    /** True iff the given clan channel currently contains *you*. */
+    private boolean channelHasSelf(ClanChannel ch)
+    {
+        if (ch == null || ch.getMembers() == null) return false;
+        String me = myCleanName();
+        if (me.isEmpty()) return false;
+
+        for (ClanChannelMember m : ch.getMembers())
+        {
+            if (m == null) continue;
+            String n = m.getName();
+            if (n == null) continue;
+            n = net.runelite.client.util.Text.toJagexName(
+                    net.runelite.client.util.Text.removeTags(n));
+            if (me.equalsIgnoreCase(n)) return true;
+        }
+        return false;
+    }
+
+    /** Joined to main / guest chat-channel (based solely on your presence). */
+    private boolean isMainClanChatOn()  { return channelHasSelf(client.getClanChannel()); }
+    private boolean isGuestClanChatOn() { return channelHasSelf(client.getGuestClanChannel()); }
+
+
+
+
+
     //SIGH
     //after new login or world hop update if chat is on or off
     @Subscribe
@@ -483,13 +578,15 @@ public class ManagerPlugin extends Plugin {
     {
         switch (e.getGameState())
         {
-            case LOGGED_IN:
-            case LOADING:
+            case LOGGING_IN:
             case HOPPING:
-                updateLootChatStatus();
+            case LOADING:
+                chatExplicitKnown = false; // forget authoritative state when transitioning
                 break;
             default:
                 break;
         }
+        updateLootChatStatus();
     }
+
 }

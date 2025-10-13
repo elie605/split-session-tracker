@@ -1,3 +1,5 @@
+// TODO this is outdated 
+# WORK IN PROGRESS
 # Auto Split Manager
 
 Auto Split Manager is an automatic split manager for RuneLite that helps small groups run fair and transparent group sessions.

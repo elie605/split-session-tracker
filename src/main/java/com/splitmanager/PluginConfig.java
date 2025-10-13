@@ -5,6 +5,8 @@ import net.runelite.client.config.ConfigGroup;
 import net.runelite.client.config.ConfigItem;
 import net.runelite.client.config.ConfigSection;
 
+
+
 /**
  * Stores persistent data and JSON blobs via ConfigManager.
  */
@@ -17,7 +19,11 @@ public interface PluginConfig extends Config {
     String KEY_HISTORY_LOADED = "historyLoaded";
     String KEY_PEOPLE_CSV = "peepsCsv";
 
-    //TODO implement this
+    //TODO implement this SIGHHHH I have claimed this
+    //Added a weird thingy in Auto Split Manager -> Turn Chat Detection ON -> see top left corner for box
+    //Automatically detect if Chat Channel is turned on, if not, warn player
+    //Important because changing worlds may automatically turn Chat off
+    //Option is a pop up, preferably in Canvas, alternatively closable pop up on the side
     @ConfigItem(
             keyName = "WarnNotInFC",
             name = "Warning not in FC",

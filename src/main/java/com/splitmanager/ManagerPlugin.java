@@ -35,6 +35,22 @@ import java.util.Arrays;
 import java.util.Objects;
 import java.util.function.Consumer;
 
+//SIGH
+import net.runelite.api.events.GameStateChanged;//login and hop listener, checks for world change
+import net.runelite.api.events.ClanChannelChanged;
+import net.runelite.api.events.FriendsChatChanged;
+import net.runelite.api.events.WorldChanged;
+
+import net.runelite.client.ui.overlay.OverlayManager;
+import net.runelite.client.ui.overlay.OverlayLayer;
+import net.runelite.client.ui.overlay.OverlayPanel;
+import net.runelite.client.ui.overlay.OverlayPosition;
+import net.runelite.client.ui.overlay.components.TitleComponent;
+import net.runelite.client.ui.overlay.components.LineComponent;
+
+import java.awt.Color;
+import java.awt.Dimension;
+
 @Slf4j
 @PluginDescriptor(
         name = "Auto Split Manager",
@@ -48,6 +64,11 @@ public class ManagerPlugin extends Plugin {
     private ClientToolbar clientToolbar;
     @Inject
     private PluginConfig config;
+
+    //SIGH
+    @Inject
+    private OverlayManager overlayManager;
+    private ChatStatusOverlay chatOverlay;
 
     // Return nullable panel; callers must handle null (e.g., during startup/shutdown)
     @Getter
@@ -66,6 +87,12 @@ public class ManagerPlugin extends Plugin {
         // TODO create an icon
         // Use a transparent placeholder icon so the panel shows in the side menu without bundling an image.
         BufferedImage placeholderIcon = new BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB);
+
+        //SIGH
+        // --- Chat ON/OFF overlay ---
+        chatOverlay = new ChatStatusOverlay(config);
+        overlayManager.add(chatOverlay);
+        updateLootChatStatus(); // initial compute
 
         navButton = NavigationButton.builder()
                 .tooltip("Auto Split Manager")
@@ -86,6 +113,14 @@ public class ManagerPlugin extends Plugin {
         if (sessionManager != null) {
             sessionManager.saveToConfig();
         }
+
+        //SIGH
+        if (chatOverlay != null)
+        {
+            overlayManager.remove(chatOverlay);
+            chatOverlay = null;
+        }
+
         panel = null;
     }
 
@@ -94,11 +129,33 @@ public class ManagerPlugin extends Plugin {
         return configManager.getConfig(PluginConfig.class);
     }
 
+    //SIGH
+    @Subscribe
+    public void onClanChannelChanged(ClanChannelChanged e) {updateLootChatStatus();}
+    @Subscribe
+    public void onFriendsChatChanged(FriendsChatChanged e) {updateLootChatStatus();}
+    @Subscribe
+    public void onWorldChanged(WorldChanged e) {updateLootChatStatus();}
+
+
     @Subscribe
     public void onConfigChanged(ConfigChanged e) {
         if ("Split Manager".equals(e.getGroup()) && "directPayments".equals(e.getKey())) {
             log.info("Direct payments changed, refreshing panel");
             Utils.requestRestart().run();
+        }
+
+        //SIGH
+        if ("Split Manager".equals(e.getGroup()))
+        {
+            switch (e.getKey())
+            {
+                case "enableChatDetection":
+                case "detectInClanChat":
+                case "detectInFriendsChat":
+                    updateLootChatStatus();
+                    break;
+            }
         }
     }
 
@@ -166,6 +223,78 @@ public class ManagerPlugin extends Plugin {
         // Ask UI to refresh
         Utils.requestUiRefresh().run();
     }
+
+    //SIGH START
+    /** Joined to your main Clan Chat? */
+    private boolean isMainClanChatOn()
+    {
+        ClanChannel main = client.getClanChannel();
+        return main != null && main.getName() != null && !main.getName().isEmpty();
+    }
+
+    /** Joined to a Guest Clan Chat? */
+    private boolean isGuestClanChatOn()
+    {
+        ClanChannel guest = client.getGuestClanChannel();
+        return guest != null && guest.getName() != null && !guest.getName().isEmpty();
+    }
+
+    /** Joined to Friends Chat (legacy FC)? — robust across client versions */
+    private boolean isFriendsChatOn()
+    {
+        FriendsChatManager fc = client.getFriendsChatManager();
+        if (fc == null) return false;
+
+        boolean hasName    = fc.getName() != null && !fc.getName().isEmpty();
+        boolean hasMembers = fc.getMembers() != null && fc.getMembers().length > 0; // safest signal
+
+        return hasName || hasMembers;
+    }
+
+
+    /** True if at least one configured loot-broadcast channel is joined. */
+    private boolean anyLootBroadcastChannelOn()
+    {
+        boolean ccWanted = config.detectInClanChat();
+        boolean fcWanted = config.detectInFriendsChat();
+
+        boolean clanAny = isMainClanChatOn() || isGuestClanChatOn();
+        boolean fcOn    = isFriendsChatOn();
+
+        return (ccWanted && clanAny) || (fcWanted && fcOn);
+    }
+
+    /** Recompute and update overlay purely from in-game chat state (no config). */
+    private void updateLootChatStatus()
+    {
+        if (chatOverlay == null)
+        {
+            return;
+        }
+
+        boolean fcOn    = isFriendsChatOn();
+        boolean clanOn  = isMainClanChatOn();
+        boolean guestOn = isGuestClanChatOn();
+
+        // Overall status = any chat joined
+        boolean anyOn = fcOn || clanOn || guestOn;
+
+        chatOverlay.setVisible(true); // always show the overlay
+        chatOverlay.setStatuses(fcOn, clanOn, guestOn, anyOn);
+
+        // (Optional) Debug: see raw values the client reports
+        // FriendsChatManager fc = client.getFriendsChatManager();
+        // ClanChannel main = client.getClanChannel();
+        // ClanChannel guest = client.getGuestClanChannel();
+        // int fcMembers = (fc != null && fc.getMembers() != null) ? fc.getMembers().size() : 0;
+        // log.debug("FC(name='{}', members={}) | Clan='{}' | Guest='{}' | anyOn={}",
+        //         fc != null ? fc.getName() : null, fcMembers,
+        //         main != null ? main.getName() : null,
+        //         guest != null ? guest.getName() : null, anyOn);
+    }
+
+
+    //SIGH END
 
     @Subscribe
     public void onMenuEntryAdded(MenuEntryAdded event) {
@@ -258,4 +387,106 @@ public class ManagerPlugin extends Plugin {
 
         return null;
     }
+
+    //SIGH
+    // Small multi-line overlay: shows FC / Clan / Guest Clan individually + overall status color
+    final class ChatStatusOverlay extends OverlayPanel
+    {
+        private final PluginConfig config;
+        private boolean visible = false;
+
+        private boolean fcOn = false;
+        private boolean clanOn = false;
+        private boolean guestOn = false;
+        private boolean countedOn = false; // respects toggles
+
+        ChatStatusOverlay(PluginConfig config)
+        {
+            this.config = config;
+            setPosition(OverlayPosition.TOP_LEFT);
+            setLayer(OverlayLayer.ABOVE_SCENE);
+        }
+
+        void setVisible(boolean v) { this.visible = v; }
+
+        /** fc/clan/guest raw states + combined "counted" state (based on config toggles) */
+        void setStatuses(boolean fc, boolean clan, boolean guest, boolean counted)
+        {
+            this.fcOn = fc;
+            this.clanOn = clan;
+            this.guestOn = guest;
+            this.countedOn = counted;
+        }
+
+        @Override
+        public Dimension render(java.awt.Graphics2D g)
+        {
+            if (!visible)
+            {
+                return null;
+            }
+
+            panelComponent.getChildren().clear();
+            panelComponent.setPreferredSize(new Dimension(230, 0));
+
+            // Title color reflects overall counted state
+            final String title = "Split Manager";
+            final Color titleColor  = countedOn ? new Color(80, 220, 120)  : new Color(255, 80, 80);
+
+            panelComponent.getChildren().add(TitleComponent.builder()
+                    .text(title)
+                    .color(titleColor)
+                    .build());
+
+            // Show each channel's raw state (always), with per-line color
+            addStatusLine("Friends Chat", fcOn);
+            addStatusLine("Clan Chat",    clanOn);
+            addStatusLine("Guest Clan",   guestOn);
+
+            // Summarize which chats are currently joined (actual game state)
+            String joined = (fcOn ? "FC " : "") + (clanOn ? "Clan " : "") + (guestOn ? "Guest " : "");
+            if (joined.isEmpty()) joined = "None";
+            panelComponent.getChildren().add(LineComponent.builder()
+                    .left("Joined")
+                    .right(joined.trim())
+                    .build());
+
+
+            return super.render(g);
+        }
+
+        private void addStatusLine(String label, boolean on)
+        {
+            final String statusText = on ? "ON" : "OFF";
+            final Color  statusCol  = on ? new Color(120, 255, 120) : new Color(255, 120, 120);
+
+            panelComponent.getChildren().add(LineComponent.builder()
+                    .left(label)
+                    .right(statusText)
+                    .leftColor(Color.WHITE)
+                    .rightColor(statusCol)
+                    .build());
+        }
+
+
+    }
+
+
+    //SIGH
+    //after new login or world hop update if chat is on or off
+    @Subscribe
+    public void onGameStateChanged(GameStateChanged e)
+    {
+        switch (e.getGameState())
+        {
+            case LOGGED_IN:
+            case LOADING:
+            case HOPPING:
+                updateLootChatStatus();
+                break;
+            default:
+                break;
+        }
+    }
+
 }

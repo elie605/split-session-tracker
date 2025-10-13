@@ -8,11 +8,20 @@ import java.awt.*;
 import static com.splitmanager.utils.Utils.requestUiRefresh;
 import static com.splitmanager.utils.Utils.toast;
 
+/**
+ * Table cell editor rendering a small X button to remove a player from the active session.
+ */
 public class RemoveButtonEditor extends DefaultCellEditor {
     private final JButton button = new JButton("X");
     private int row = -1;
 
 
+    /**
+     * Create the editor and wire the remove behavior.
+     * @param parent parent component for toasts
+     * @param manager session manager
+     * @param metricsTable table with player rows
+     */
     public RemoveButtonEditor(Component parent, ManagerSession manager, JTable metricsTable) {
         super(new JCheckBox());
 

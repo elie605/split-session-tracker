@@ -21,6 +21,10 @@ import java.awt.datatransfer.StringSelection;
 import static com.splitmanager.utils.Formats.OsrsAmountFormatter.toSuffixString;
 
 @Getter
+/**
+ * Swing-based view for the Auto Split Manager panel. Renders sections and forwards
+ * user interactions to PanelActions.
+ */
 public class PanelView extends PluginPanel {
     private final JPanel activePlayersButtonsPanel = new JPanel(new GridLayout(0, 1, 0, 2));
     private final ManagerSession manager;

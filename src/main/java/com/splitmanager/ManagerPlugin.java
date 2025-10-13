@@ -14,13 +14,10 @@ import net.runelite.api.*;
 import net.runelite.api.clan.ClanChannel;
 import net.runelite.api.clan.ClanChannelMember;
 import net.runelite.api.events.MenuEntryAdded;
-import net.runelite.api.events.MenuOpened;
 import net.runelite.api.gameval.InterfaceID;
 import net.runelite.api.widgets.WidgetUtil;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.events.ConfigChanged;
-import net.runelite.client.menus.MenuManager;
-import net.runelite.client.menus.WidgetMenuOption;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.ui.ClientToolbar;
@@ -32,8 +29,6 @@ import net.runelite.client.util.Text;
 import java.awt.image.BufferedImage;
 import java.text.ParseException;
 import java.util.Arrays;
-import java.util.Objects;
-import java.util.function.Consumer;
 
 @Slf4j
 @PluginDescriptor(
@@ -41,6 +36,10 @@ import java.util.function.Consumer;
         description = "Automatic split manager for group sessions. Tracks sessions, roster changes, chat-detected values, editable recent splits, and settlement metrics (copy JSON). Collapsible sections and configurable panel order.",
         enabledByDefault = true
 )
+/**
+ * Main RuneLite plugin entry point for Auto Split Manager.
+ * Wires up UI, session management, configuration, and chat/menu event handlers.
+ */
 public class ManagerPlugin extends Plugin {
     @Inject
     private Client client;
@@ -56,6 +55,9 @@ public class ManagerPlugin extends Plugin {
     private ManagerSession sessionManager;
 
     @Override
+    /**
+     * Initialize plugin state and register the sidebar panel/navigation.
+     */
     protected void startUp() {
         sessionManager = new ManagerSession(config);
         sessionManager.loadFromConfig(); // load sessions and players (peeps)
@@ -78,23 +80,36 @@ public class ManagerPlugin extends Plugin {
 
 
     @Override
+    /**
+     * Persist state and remove UI elements when the plugin shuts down.
+     */
     protected void shutDown() {
         if (navButton != null) {
             clientToolbar.removeNavigation(navButton);
             navButton = null;
         }
         if (sessionManager != null) {
+            //TODO It might be smart to save data during runtime.
             sessionManager.saveToConfig();
         }
         panel = null;
     }
 
     @Provides
+    /**
+     * Provide injectable configuration instance.
+     * @param configManager RuneLite config manager
+     * @return plugin config
+     */
     PluginConfig provideConfig(ConfigManager configManager) {
         return configManager.getConfig(PluginConfig.class);
     }
 
     @Subscribe
+    /**
+     * React to plugin configuration changes that require a panel refresh/restart.
+     * @param e config change event
+     */
     public void onConfigChanged(ConfigChanged e) {
         if ("Split Manager".equals(e.getGroup()) && "directPayments".equals(e.getKey())) {
             log.info("Direct payments changed, refreshing panel");
@@ -103,6 +118,11 @@ public class ManagerPlugin extends Plugin {
     }
 
     @Subscribe
+    /**
+     * Parse chat messages to detect values and enqueue PendingValue suggestions.
+     * @param event chat message event
+     * @throws ParseException when number parsing fails
+     */
     public void onChatMessage(ChatMessage event) throws ParseException {
         Formats.OsrsAmountFormatter f = new Formats.OsrsAmountFormatter();
 
@@ -159,6 +179,14 @@ public class ManagerPlugin extends Plugin {
     }
 
 
+    /**
+     * Enqueue a pending value suggestion for user approval.
+     * @param type source type (PvM, PvP, player add)
+     * @param source chat source label
+     * @param msg original chat message
+     * @param value numeric value (coins or K)
+     * @param suggestedPlayer prefilled player name when available
+     */
     private void queuePending(PendingValue.Type type, String source, String msg, Long value, String suggestedPlayer) {
         if (sessionManager == null) return;
         PendingValue pv = PendingValue.of(type, source, msg, value, suggestedPlayer);
@@ -168,6 +196,11 @@ public class ManagerPlugin extends Plugin {
     }
 
     @Subscribe
+    /**
+     * Track context (in game) menu openings to add an option to add/remove players from session.
+     * This Triggers when you right click a player in the friends/clan chat.
+     * @param event menu entry added event
+     */
     public void onMenuEntryAdded(MenuEntryAdded event) {
         int componentId = event.getActionParam1();
         int groupId = WidgetUtil.componentToInterface(componentId);
@@ -186,6 +219,7 @@ public class ManagerPlugin extends Plugin {
         if (sessionManager.currentSessionHasPlayer(playername)) {
             String removeFromSession = "Remove from session";
 
+            // TODO Fix bug: For some reason this event/function triggers twice, so i have to check that the entry doesn't already exist' and i feel like i should not have to check this.
             // This might be a janky mess but idc
             if (Arrays.stream(client.getMenu().getMenuEntries()).anyMatch(e -> e.getOption().equals(removeFromSession)))
                 return;
@@ -204,6 +238,7 @@ public class ManagerPlugin extends Plugin {
 
         String removeFromSession = "Add to session";
 
+        // TODO Fix bug: For some reason this event/function triggers twice, so i have to check that the entry doesn't already exist' and i feel like i should not have to check this.
         // This might be a janky mess but idc
         if (Arrays.stream(client.getMenu().getMenuEntries()).anyMatch(e -> e.getOption().equals(removeFromSession)))
             return;
@@ -221,41 +256,4 @@ public class ManagerPlugin extends Plugin {
     }
 
 
-    //Yoinked
-    private ChatPlayer getChatPlayerFromName(String name) {
-        String cleanName = Text.removeTags(name);
-
-        // Search friends chat members first, because we can always get their world;
-        // friends worlds may be hidden if they have private off. (#5679)
-        FriendsChatManager friendsChatManager = client.getFriendsChatManager();
-        if (friendsChatManager != null) {
-            FriendsChatMember member = friendsChatManager.findByName(cleanName);
-            if (member != null) {
-                return member;
-            }
-        }
-
-        ClanChannel clanChannel = client.getClanChannel();
-        if (clanChannel != null) {
-            ClanChannelMember member = clanChannel.findMember(cleanName);
-            if (member != null) {
-                return member;
-            }
-        }
-
-        clanChannel = client.getGuestClanChannel();
-        if (clanChannel != null) {
-            ClanChannelMember member = clanChannel.findMember(cleanName);
-            if (member != null) {
-                return member;
-            }
-        }
-
-        NameableContainer<Friend> friendContainer = client.getFriendContainer();
-        if (friendContainer != null) {
-            return friendContainer.findByName(cleanName);
-        }
-
-        return null;
-    }
 }

@@ -262,6 +262,7 @@ public class PanelController implements PanelActions {
         refreshAltList();
     }
 
+    //TODO Refactor and Split this up to different functions so it can be called more efficiently
     @Override
     public void refreshAllView() {
         // Update Known list + labels

@@ -19,6 +19,9 @@ public interface PluginConfig extends Config {
     String KEY_HISTORY_LOADED = "historyLoaded";
     String KEY_PEOPLE_CSV = "peepsCsv";
 
+    //TODO Create a new configitem that allows the user to submit any forms on enter, e.g. 1) user fills in split amount 2) presses enter 3) The same function as button press is called
+
+    //TODO implement this
     //TODO implement this SIGHHHH I have claimed this
     //Added a weird thingy in Auto Split Manager -> Turn Chat Detection ON -> see top left corner for box
     //Automatically detect if Chat Channel is turned on, if not, warn player

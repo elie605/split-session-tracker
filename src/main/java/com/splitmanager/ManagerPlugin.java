@@ -312,7 +312,63 @@ public class ManagerPlugin extends Plugin {
         // Try parse player !add value
         //TODO specify add! unit
         //TODO fix negative numbers
-        if (config.detectPlayerValues()) {
+        if (config.detectPlayerValues())
+        {
+            // !add 100      -> 100
+            // !add 100k     -> 100_000
+            // !add 1.2m     -> 1_200_000
+            // !add 1 mil    -> 1_000_000
+            // !add 2 b      -> 2_000_000_000
+            java.util.regex.Matcher m = java.util.regex.Pattern
+                    .compile("(?i)!add\\s+([0-9][0-9,]*(?:\\.[0-9]+)?)\\s*(k|tousand|thousand|m|mil|mill|million|b|bil|bill|billion)?\\b")
+                    .matcher(msg);
+
+            if (m.find())
+            {
+                String who       = sender != null ? sender : "";
+                String numberTxt = m.group(1); // e.g. "100", "1,200", "1.5"
+                String unitTxt   = m.group(2); // e.g. "k", "mil", "billion", or null
+
+                // Strip commas and parse
+                java.math.BigDecimal base = new java.math.BigDecimal(numberTxt.replace(",", ""));
+
+                java.math.BigDecimal multiplier = java.math.BigDecimal.ONE;
+                if (unitTxt != null)
+                {
+                    switch (unitTxt.toLowerCase())
+                    {
+                        case "k":
+                        case "tousand":
+                        case "thousand": // optional alias if you ever want it
+                            multiplier = new java.math.BigDecimal(1_000L);
+                            break;
+
+                        case "m":
+                        case "mil":
+                        case "mill":
+                        case "million":
+                            multiplier = new java.math.BigDecimal(1_000_000L);
+                            break;
+
+                        case "b":
+                        case "bil":
+                        case "bill":
+                        case "billion":
+                            multiplier = new java.math.BigDecimal(1_000_000_000L);
+                            break;
+                    }
+                }
+
+                long value = base.multiply(multiplier)
+                        .setScale(0, java.math.RoundingMode.DOWN)
+                        .longValue();
+
+                queuePending(PendingValue.Type.ADD, isClan ? "Clan" : "Friends", msg, value, who);
+            }
+        }
+
+        //original
+        /*if (config.detectPlayerValues()) {
             // Accept forms like: !add 250k, !add 1.2m, !add 3b, or plain numbers (treated as K by formatter)
             java.util.regex.Matcher m = java.util.regex.Pattern
                     .compile("(?i)!add\\s+([0-9][0-9,]*(?:\\.[0-9]+)?\\s*[kmb]?)")
@@ -322,8 +378,8 @@ public class ManagerPlugin extends Plugin {
                 String amtText = m.group(1);
                 Long valueK = (Long) f.stringToValue(amtText);
                 queuePending(PendingValue.Type.ADD, isClan ? "Clan" : "Friends", msg, valueK, who);
-            }
-        }
+            }*/
+
     }
 
 

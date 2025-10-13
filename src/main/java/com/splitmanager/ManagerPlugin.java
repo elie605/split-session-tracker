@@ -392,44 +392,6 @@ public class ManagerPlugin extends Plugin {
     }
 
 
-    //Yoinked
-    private ChatPlayer getChatPlayerFromName(String name) {
-        String cleanName = Text.removeTags(name);
-
-        // Search friends chat members first, because we can always get their world;
-        // friends worlds may be hidden if they have private off. (#5679)
-        FriendsChatManager friendsChatManager = client.getFriendsChatManager();
-        if (friendsChatManager != null) {
-            FriendsChatMember member = friendsChatManager.findByName(cleanName);
-            if (member != null) {
-                return member;
-            }
-        }
-
-        ClanChannel clanChannel = client.getClanChannel();
-        if (clanChannel != null) {
-            ClanChannelMember member = clanChannel.findMember(cleanName);
-            if (member != null) {
-                return member;
-            }
-        }
-
-        clanChannel = client.getGuestClanChannel();
-        if (clanChannel != null) {
-            ClanChannelMember member = clanChannel.findMember(cleanName);
-            if (member != null) {
-                return member;
-            }
-        }
-
-        NameableContainer<Friend> friendContainer = client.getFriendContainer();
-        if (friendContainer != null) {
-            return friendContainer.findByName(cleanName);
-        }
-
-        return null;
-    }
-
     //SIGH
     // Small multi-line overlay: shows FC / Clan / Guest Clan individually + overall status color
     final class ChatStatusOverlay extends OverlayPanel

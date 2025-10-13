@@ -353,7 +353,7 @@ public class ManagerPlugin extends Plugin {
     {
         if (chatOverlay == null) return;
 
-        boolean fcOn    = isFriendsChatOn();     // NEW
+        boolean fcOn    = isFriendsChatOn();
         boolean clanOn  = isMainClanChatOn();
         boolean guestOn = isGuestClanChatOn();
 
@@ -479,33 +479,45 @@ public class ManagerPlugin extends Plugin {
                 return null;
             }
 
-            panelComponent.getChildren().clear();
-            panelComponent.setPreferredSize(new Dimension(230, 0));
+            if (chatchanOn == true)
+            {
+                return null;
+            }
 
-            // Title color reflects overall counted state
-            final String title = "Split Manager";
-            final Color titleColor  = countedOn ? new Color(80, 220, 120)  : new Color(255, 80, 80);
+            if (chatchanOn == false)
+            {
 
-            panelComponent.getChildren().add(TitleComponent.builder()
-                    .text(title)
-                    .color(titleColor)
-                    .build());
+                panelComponent.getChildren().clear();
+                panelComponent.setPreferredSize(new Dimension(230, 0));
 
-            // Show each channel's raw state (always), with per-line color
-            addStatusLine("Chat Channel", chatchanOn);
-            addStatusLine("Clan Chat",    clanOn);
-            addStatusLine("Guest Clan",   guestOn);
+                // Title color reflects overall counted state
+                final String title = "WARNING! NOT IN FC!";
+                final Color titleColor = new Color(255, 80, 80);
+                //new Color(255, 80, 80)RED
+                //new Color(80, 220, 120)GREEN
 
-            // Summarize which chats are currently joined (actual game state)
-            String joined = (chatchanOn ? "FC " : "") + (clanOn ? "Clan " : "") + (guestOn ? "Guest " : "");
-            if (joined.isEmpty()) joined = "None";
-            panelComponent.getChildren().add(LineComponent.builder()
-                    .left("Joined")
-                    .right(joined.trim())
-                    .build());
+                panelComponent.getChildren().add(TitleComponent.builder()
+                        .text(title)
+                        .color(titleColor)
+                        .build());
+
+                // Show each channel's raw state (always), with per-line color
+                addStatusLine("Chat Channel", chatchanOn);
+                //addStatusLine("Clan Chat",    clanOn);
+                //addStatusLine("Guest Clan",   guestOn);
+
+                // Summarize which chats are currently joined (actual game state)
+                //String joined = (chatchanOn ? "FC " : "") + (clanOn ? "Clan " : "") + (guestOn ? "Guest " : "");
+                //if (joined.isEmpty()) joined = "None";
+                //panelComponent.getChildren().add(LineComponent.builder()
+                //        .left("Joined")
+                //        .right(joined.trim())
+                //        .build());
 
 
-            return super.render(g);
+                return super.render(g);
+            }
+            return null;
         }
 
         private void addStatusLine(String label, boolean on)

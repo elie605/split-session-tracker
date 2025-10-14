@@ -1,6 +1,8 @@
+
 package com.splitmanager.controllers;
 
-import com.splitmanager.utils.Formats;
+import com.splitmanager.ManagerKnownPlayers;
+import com.splitmanager.ManagerPanel;
 import com.splitmanager.PluginConfig;
 import com.splitmanager.ManagerSession;
 import com.splitmanager.models.Metrics;
@@ -9,11 +11,10 @@ import com.splitmanager.models.Transfer;
 import com.splitmanager.models.Session;
 import com.splitmanager.models.WaitlistTable;
 import com.splitmanager.views.PanelView;
-import com.splitmanager.utils.Utils;
+import com.splitmanager.utils.MarkdownFormatter;
+import com.splitmanager.utils.PaymentProcessor;
 
 import javax.swing.*;
-import java.text.DecimalFormat;
-import java.util.ArrayList;
 import java.util.List;
 
 import static com.splitmanager.utils.Utils.toast;
@@ -26,14 +27,24 @@ public class PanelController implements PanelActions {
     private final ManagerSession sessionmanager;
     private final PluginConfig config;
     private final PanelView view;
+    private final ManagerKnownPlayers playerManager;
+    private final ManagerPanel managerPanel;
 
-    public PanelController(ManagerSession sessionmanager, PluginConfig config, PanelView view) {
-        this.sessionmanager = sessionmanager;
-        this.config = config;
-        this.view = view;
+    public PanelController() {
+        sessionmanager = null;
+        config = null;
+        view = null;
+        playerManager = null;
+        managerPanel = null;
     }
 
-    // ---------- Actions from the View ----------
+    public PanelController(ManagerSession sessionManager, PluginConfig config, PanelView view, ManagerKnownPlayers playerManager, ManagerPanel managerPanel) {
+        this.sessionmanager = sessionManager;
+        this.playerManager = playerManager;
+        this.config = config;
+        this.view = view;
+        this.managerPanel = managerPanel;
+    }
 
     @Override
     public void startSession() {
@@ -46,7 +57,7 @@ public class PanelController implements PanelActions {
             return;
         }
         sessionmanager.startSession().ifPresent(s -> toast(view, "Session started."));
-        Utils.requestUiRefresh().run();
+        managerPanel.refreshAllView();
         refreshAllView();
     }
 
@@ -57,7 +68,7 @@ public class PanelController implements PanelActions {
             return;
         }
         if (sessionmanager.stopSession()) {
-            Utils.requestUiRefresh().run();
+            managerPanel.refreshAllView();
             toast(view, "Session stopped.");
         } else {
             toast(view, "Failed to stop session.");
@@ -72,7 +83,7 @@ public class PanelController implements PanelActions {
             return;
         }
         if (sessionmanager.addPlayerToActive(player)) {
-            Utils.requestUiRefresh().run();
+            managerPanel.refreshAllView();
         } else {
             toast(view, "Failed to add player, player might already be in session.");
         }
@@ -86,12 +97,12 @@ public class PanelController implements PanelActions {
             toast(view, "Enter a name.");
             return;
         }
-        if (!sessionmanager.addKnownPlayer(clean)) {
+        if (!playerManager.addKnownPlayer(clean)) {
             toast(view, "Player already in list exists.");
             return;
         }
-        sessionmanager.saveToConfig();
-        Utils.requestUiRefresh().run();
+        playerManager.saveToConfig();
+        managerPanel.refreshAllView();
         view.getKnownPlayersDropdown().setSelectedItem(clean);
         view.getNewPeepField().setText("");
         view.getNewPeepField().requestFocusInWindow();
@@ -111,12 +122,12 @@ public class PanelController implements PanelActions {
                 JOptionPane.WARNING_MESSAGE);
         if (res != JOptionPane.YES_OPTION) return;
 
-        if (!sessionmanager.removeKnownPlayer(name)) {
+        if (!playerManager.removeKnownPlayer(name)) {
             toast(view, "Not found.");
             return;
         }
-        sessionmanager.saveToConfig();
-        Utils.requestUiRefresh().run();
+        playerManager.saveToConfig();
+        managerPanel.refreshAllView();
         refreshAllView();
     }
 
@@ -128,7 +139,7 @@ public class PanelController implements PanelActions {
         }
         if (sessionmanager.addKill(player, amount)) {
             view.getKillAmountField().setText("");
-            Utils.requestUiRefresh().run();
+            managerPanel.refreshAllView();
         } else {
             toast(view, "Failed to add kill (is player in session?).");
         }
@@ -141,79 +152,60 @@ public class PanelController implements PanelActions {
             toast(view, "Select a player and an alt to add.");
             return;
         }
-        if (!sessionmanager.canLinkAltToMain(alt, main)) {
+        if (!playerManager.canLinkAltToMain(alt, main)) {
             toast(view, "Cannot link: either main is an alt, alt already linked, or alt is a main.");
             return;
         }
-        if (sessionmanager.trySetAltMain(alt, main)) {
+        if (playerManager.trySetAltMain(alt, main)) {
             toast(view, String.format("Linked %s → %s", alt, main));
-            Utils.requestUiRefresh().run();
+            managerPanel.refreshAllView();
+            refreshAllView();
         } else {
             toast(view, "Failed to link alt.");
         }
-        refreshAllView();
     }
 
     @Override
     public void removeSelectedAlt(String selectedMain, String selectedEntry) {
+        //TODO TEST me, selectedEntry should be a alt?
         if (selectedMain == null || selectedMain.isBlank()) {
             toast(view, "Select a player in Known list.");
-            return;
+            return ;
         }
         if (selectedEntry == null || selectedEntry.isBlank()) {
             toast(view, "Select an alt in the list to remove.");
-            return;
+            return ;
         }
 
-        if (selectedEntry.contains(" is an alt of ")) {
-            String[] parts = selectedEntry.split(" is an alt of ", 2);
-            if (parts.length == 2) {
-                String alt = parts[0].trim();
-                String main = parts[1].trim();
-                if (!sessionmanager.isAlt(alt)) {
-                    toast(view, alt + " is not linked as an alt.");
-                    return;
-                }
-                int res = JOptionPane.showConfirmDialog(view,
-                        "Unlink '" + alt + "' from '" + main + "'?",
-                        "Confirm unlink",
-                        JOptionPane.YES_NO_OPTION,
-                        JOptionPane.WARNING_MESSAGE);
-                if (res != JOptionPane.YES_OPTION) return;
-                if (sessionmanager.unlinkAlt(alt)) {
-                    toast(view, "Unlinked alt.");
-                    Utils.requestUiRefresh().run();
-                } else {
-                    toast(view, "Failed to unlink alt.");
-                }
-            }
-            refreshAllView();
-            return;
-        }
+        String alt = playerManager.parseAltFromEntry(selectedEntry);
+        String main = playerManager.getMainName(alt);
 
-        String alt = selectedEntry.trim();
-        if (!sessionmanager.isAlt(alt)) {
+        if (!playerManager.isAlt(alt)) {
             toast(view, alt + " is not linked as an alt.");
-            return;
+            return ;
         }
-        String main = sessionmanager.getMainName(alt);
+
         if (main == null || !main.equalsIgnoreCase(selectedMain)) {
             toast(view, String.format("%s is linked to %s, not %s.", alt, main, selectedMain));
-            return;
+            return ;
         }
+
         int res = JOptionPane.showConfirmDialog(view,
                 "Unlink '" + alt + "' from '" + main + "'?",
                 "Confirm unlink",
                 JOptionPane.YES_NO_OPTION,
                 JOptionPane.WARNING_MESSAGE);
-        if (res != JOptionPane.YES_OPTION) return;
-        if (sessionmanager.unlinkAlt(alt)) {
+
+        if (res != JOptionPane.YES_OPTION) return ;
+
+        if (playerManager.unlinkAlt(alt)) {
             toast(view, "Unlinked alt.");
-            Utils.requestUiRefresh().run();
+            managerPanel.refreshAllView();
+            playerManager.saveToConfig();
+            refreshAllView();
         } else {
             toast(view, "Failed to unlink alt.");
         }
-        refreshAllView();
     }
 
     @Override
@@ -235,7 +227,7 @@ public class PanelController implements PanelActions {
             return;
         }
         if (sessionmanager.applyPendingValueToPlayer(pv.getId(), target)) {
-            Utils.requestUiRefresh().run();
+            managerPanel.refreshAllView();
         } else {
             toast(view, "Failed to add value. Is the player in the session?");
         }
@@ -252,31 +244,52 @@ public class PanelController implements PanelActions {
         PendingValue pv = m.getRow(idx);
         if (pv == null) return;
         if (sessionmanager.removePendingValueById(pv.getId())) {
-            Utils.requestUiRefresh().run();
+            managerPanel.refreshAllView();
         }
         refreshAllView();
     }
 
     @Override
     public void onKnownPlayerSelectionChanged(String selected) {
-        refreshAltList();
+        refreshAlts();
     }
 
-    //TODO Refactor and Split this up to different functions so it can be called more efficiently
     @Override
     public void refreshAllView() {
-        // Update Known list + labels
-        String[] peeps = sessionmanager.getKnownPlayers().toArray(new String[0]);
-        view.getKnownPlayersDropdown().setModel(new DefaultComboBoxModel<>(peeps));
-        refreshAltList(peeps);
+        refreshKnownPlayers();
+        refreshSessionData();
+        refreshWaitlist();
+        refreshButtonStates();
+    }
 
-        // Session players dropdowns
+    /**
+     * Refreshes the list of known players and updates corresponding UI components.
+     * <p>
+     * This method retrieves the list of known players from the session manager and updates
+     * the dropdown menu for known players in the user interface, as well as the label showing
+     * the count of known players. It ensures synchronization between the backend data and
+     * the visual presentation of known players.
+     */
+    private void refreshKnownPlayers() {
+        String[] players = sessionmanager.getKnownPlayers().toArray(new String[0]);
+        view.getKnownPlayersDropdown().setModel(new DefaultComboBoxModel<>(players));
+        view.getKnownListLabel().setText("Known (" + players.length + "):");
+
+        refreshAlts();
+    }
+
+    /**
+     * Refreshes and updates user interface components related to the current session data.
+     */
+    private void refreshSessionData() {
         Session currentSession = sessionmanager.getCurrentSession().orElse(null);
+
         if (currentSession != null && currentSession.isActive()) {
             String[] sessionPlayers = currentSession.getPlayers().toArray(new String[0]);
             String[] notPeeps = sessionmanager.getNonActivePlayers().toArray(new String[0]);
-            view.getCurrentSessionPlayerDropdown().setModel(new DefaultComboBoxModel<>(sessionPlayers));
+
             view.getCurrentSessionPlayerDropdown().setEnabled(true);
+            view.getCurrentSessionPlayerDropdown().setModel(new DefaultComboBoxModel<>(sessionPlayers));
             view.getNotInCurrentSessionPlayerDropdown().setModel(new DefaultComboBoxModel<>(notPeeps));
         } else {
             view.getCurrentSessionPlayerDropdown().setModel(new DefaultComboBoxModel<>(new String[0]));
@@ -293,76 +306,135 @@ public class PanelController implements PanelActions {
         } else {
             view.getRecentSplitsModel().clear();
         }
+    }
 
-        // Waitlist
-        var wtm = view.getWaitlistTableModel();
-        java.util.Set<String> mainsOnly = sessionmanager.getKnownMains();
-        java.util.List<PendingValue> pvals = sessionmanager.getPendingValues();
-        wtm.setData(pvals);
-        javax.swing.JComboBox<String> cb = new javax.swing.JComboBox<>(mainsOnly.toArray(new String[0]));
-        view.getWaitlistTable().getColumnModel().getColumn(2).setCellEditor(new javax.swing.DefaultCellEditor(cb));
+    /**
+     * Refreshes the data and UI components related to the waitlist table.
+     * <p>
+     * This method fetches the latest pending values from the session manager and updates
+     * the waitlist table model with this data. It also configures the cell editor for the
+     * third column of the waitlist table, populating it with a dropdown of known main players
+     * retrieved from the session manager.
+     * <p>
+     * Ensures that the waitlist table reflects the most up-to-date state of the application.
+     */
+    private void refreshWaitlist() {
+        view.getWaitlistTableModel().setData(sessionmanager.getPendingValues());
+        view.getWaitlistTable()
+                .getColumnModel()
+                .getColumn(2)
+                .setCellEditor(new DefaultCellEditor(new JComboBox<>(
+                        playerManager.getKnownMains().toArray(new String[0]
+                        )
+                )));
+    }
 
-        // Dynamic buttons
+    /**
+     * Updates the enabled or disabled state of various buttons and fields in the user interface.
+     * The button states are set based on the current session status, player selections, and
+     * whether the session is in a read-only mode.
+     */
+    private void refreshButtonStates() {
         view.refreshActivePlayerButtons();
 
-        // Enable/disable toggles
-        boolean ro = sessionmanager.isHistoryLoaded();
-        view.getBtnStart().setEnabled(!ro && !sessionmanager.hasActiveSession());
-        view.getBtnStop().setEnabled(!ro && sessionmanager.hasActiveSession());
-        view.getBtnAddToSession().setEnabled(!ro && sessionmanager.hasActiveSession());
-        view.getNotInCurrentSessionPlayerDropdown().setEnabled(!ro && sessionmanager.hasActiveSession());
-        view.getBtnRemoveFromSession().setEnabled(!ro && sessionmanager.hasActiveSession());
-        boolean canAddKill = !ro && sessionmanager.hasActiveSession();
-        view.getBtnAddKill().setEnabled(canAddKill && view.getCurrentSessionPlayerDropdown().getItemCount() > 0);
-        view.getKillAmountField().setEnabled(canAddKill && view.getCurrentSessionPlayerDropdown().getItemCount() > 0);
-        int rows = wtm.getRowCount();
-        view.getBtnWaitlistAdd().setEnabled(!ro && sessionmanager.hasActiveSession() && rows > 0);
-        view.getBtnWaitlistDelete().setEnabled(rows > 0);
+        boolean readOnly = sessionmanager.isHistoryLoaded();
+        boolean hasActiveSession = sessionmanager.hasActiveSession();
+
+        view.getBtnStart().setEnabled(!readOnly && !hasActiveSession);
+        view.getBtnStop().setEnabled(!readOnly && hasActiveSession);
+        view.getBtnAddToSession().setEnabled(!readOnly && hasActiveSession);
+        view.getNotInCurrentSessionPlayerDropdown().setEnabled(!readOnly && hasActiveSession);
+        view.getBtnRemoveFromSession().setEnabled(!readOnly && hasActiveSession);
+
+        boolean canAddKill = !readOnly && hasActiveSession;
+        boolean hasSessionPlayers = view.getCurrentSessionPlayerDropdown().getItemCount() > 0;
+
+        view.getBtnAddKill().setEnabled(canAddKill && hasSessionPlayers);
+        view.getKillAmountField().setEnabled(canAddKill && hasSessionPlayers);
+
+        int waitlistRows = view.getWaitlistTableModel().getRowCount();
+
+        view.getBtnWaitlistAdd().setEnabled(!readOnly && hasActiveSession && waitlistRows > 0);
+        view.getBtnWaitlistDelete().setEnabled(waitlistRows > 0);
     }
 
-    private void refreshAltList() {
-        refreshAltList(sessionmanager.getKnownPlayers().toArray(new String[0]));
-    }
+    /**
+     * Refreshes the dropdown lists and UI components related to alternate accounts.
+     * This method ensures that the UI reflects the currently selected main player
+     * and dynamically updates the list of eligible alternate accounts that can be linked to the selected player.
+     */
+    private void refreshAlts() {
+        String[] players = sessionmanager.getKnownPlayers().toArray(new String[0]);
 
-    private void refreshAltList(String[] peeps) {
-        view.getKnownListLabel().setText("Known (" + peeps.length + "):");
         String selectedMain = (String) view.getKnownPlayersDropdown().getSelectedItem();
-        if (selectedMain == null && peeps.length > 0) {
-            selectedMain = peeps[0];
+        if (selectedMain == null && players.length > 0) {
+            selectedMain = players[0];
             view.getKnownPlayersDropdown().setSelectedIndex(0);
         }
-        String altsText = (selectedMain != null && !selectedMain.isBlank())
-                ? (selectedMain + " known alts:")
-                : "Known alts:";
-        view.getAltsLabel().setText(altsText);
-        DefaultListModel<String> altsModel = (DefaultListModel<String>) view.getAltsList().getModel();
-        altsModel.clear();
-        if (selectedMain != null && sessionmanager.isAlt(selectedMain)) {
-            String mainName = sessionmanager.getMainName(selectedMain);
-            if (mainName != null && !mainName.equalsIgnoreCase(selectedMain)) {
-                altsModel.addElement(selectedMain + " is an alt of " + mainName);
+
+        refreshAltList(selectedMain);
+
+        List<String> eligiblePlayers = new java.util.ArrayList<>();
+
+        if (selectedMain != null) {
+            for (String p : sessionmanager.getKnownPlayers()) {
+                if (playerManager.canLinkAltToMain(p, selectedMain)) {
+                    eligiblePlayers.add(p);
+                }
             }
         }
-        if (selectedMain != null) {
-            for (String alt : sessionmanager.getAltsOf(selectedMain)) altsModel.addElement(alt);
-        }
-        java.util.List<String> eligible = new java.util.ArrayList<>();
-        for (String p : sessionmanager.getKnownPlayers()) {
-            if (selectedMain == null) break;
-            if (sessionmanager.canLinkAltToMain(p, selectedMain)) eligible.add(p);
-        }
-        view.getAddAltDropdown().setModel(new DefaultComboBoxModel<>(eligible.toArray(new String[0])));
+
+        view.getAddAltDropdown().setModel(new DefaultComboBoxModel<>(eligiblePlayers.toArray(new String[0])));
     }
 
-    // ---------- Existing non-UI helpers (kept) ----------
+    /**
+     * Refreshes the list of alternate accounts associated with the given main player.
+     * Updates the alt label and list in the view with relevant information about the player's alt accounts.
+     * If the player is identified as an alt, displays the corresponding main account name.
+     *
+     * @param mainPlayer the name of the main player whose alternate accounts are to be refreshed;
+     *                   if null, the method exits without performing any action.
+     */
+    public void refreshAltList(String mainPlayer) {
+        if (mainPlayer == null) return;
 
-    public String buildMetricsJson() { /* unchanged from original */
-        var currentSession = sessionmanager.getCurrentSession().orElse(null);
+        String altsText = !mainPlayer.isBlank()
+                ? (mainPlayer + " known alts:")
+                : "Known alts:";
+        view.getAltsLabel().setText(altsText);
+
+        DefaultListModel<String> altsModel = (DefaultListModel<String>) view.getAltsList().getModel();
+        altsModel.clear();
+
+        if (playerManager.isAlt(mainPlayer)) {
+            String mainName = playerManager.getMainName(mainPlayer);
+            if (mainName != null && !mainName.equalsIgnoreCase(mainPlayer)) {
+                altsModel.addElement(mainPlayer + " is an alt of " + mainName);
+            }
+        }
+
+        for (String alt : playerManager.getAltsOf(mainPlayer)) {
+            altsModel.addElement(alt);
+        }
+    }
+
+    /**
+     * Builds a JSON representation of the player metrics for the current session.
+     * The method retrieves the current session and computes metrics for each player in that session.
+     * The metrics are then formatted as a JSON array, where each entry contains the player's name,
+     * total count, split count, and active player status.
+     *
+     * @return A JSON string representing the computed player metrics for the current session.
+     * Returns an empty JSON array "[]" if no session is active or there are no metrics.
+     */
+    public String buildMetricsJson() {
+        Session currentSession = sessionmanager.getCurrentSession().orElse(null);
         List<ManagerSession.PlayerMetrics> data = sessionmanager.computeMetricsFor(currentSession, true);
         StringBuilder sb = new StringBuilder();
+
         sb.append("[");
         for (int i = 0; i < data.size(); i++) {
-            var pm = data.get(i);
+            ManagerSession.PlayerMetrics pm = data.get(i);
             sb.append("{\"player\":\"").append(pm.player).append("\",")
                     .append("\"total\":").append(pm.total).append(",")
                     .append("\"split\":").append(pm.split).append(",")
@@ -370,175 +442,21 @@ public class PanelController implements PanelActions {
             if (i < data.size() - 1) sb.append(",");
         }
         sb.append("]");
+
         return sb.toString();
     }
 
-    public String buildMetricsMarkdown() { /* unchanged core with direct/middleman logic */
-        var currentSession = sessionmanager.getCurrentSession().orElse(null);
-        List<ManagerSession.PlayerMetrics> data = sessionmanager.computeMetricsFor(currentSession, true);
-        DecimalFormat df = Formats.getDecimalFormat();
-
-        boolean directMode = config.directPayments();
-        boolean forDiscord = config.copyForDiscord();
-
-        StringBuilder sb = new StringBuilder();
-        if (forDiscord) sb.append("```\n");
-
-        if (!directMode) {
-            List<String[]> rows = new ArrayList<>();
-            int maxPlayer = "Player".length();
-            int maxTotal = "Total".length();
-            int maxSplit = "Split".length();
-            for (var pm : data) {
-                String player = pm.player == null ? "" : pm.player.replace("|", "\\|");
-                String total = df.format(pm.total);
-                long dispSplit = pm.split;
-                if (config.flipSettlementSign()) dispSplit = -dispSplit;
-                String split = df.format(dispSplit);
-                rows.add(new String[]{player, total, split});
-                if (player.length() > maxPlayer) maxPlayer = player.length();
-                if (total.length() > maxTotal) maxTotal = total.length();
-                if (split.length() > maxSplit) maxSplit = split.length();
-            }
-            sb.append("| ").append(padRight("Player", maxPlayer)).append(" | ")
-                    .append(padLeft("Total", maxTotal)).append(" | ")
-                    .append(padLeft("Split", maxSplit)).append(" |\n");
-            sb.append("| ").append(repeat('-', maxPlayer)).append(" | ")
-                    .append(repeat('-', maxTotal - 1)).append(":").append(" | ")
-                    .append(repeat('-', maxSplit - 1)).append(":").append(" |\n");
-            for (String[] r : rows) {
-                sb.append("| ").append(padRight(r[0], maxPlayer)).append(" | ")
-                        .append(padLeft(r[1], maxTotal)).append(" | ")
-                        .append(padLeft(r[2], maxSplit)).append(" |\n");
-            }
-        } else {
-            List<String[]> rows = new ArrayList<>();
-            int maxPlayer = "Player".length();
-            int maxSplit = "Split".length();
-            for (var pm : data) {
-                String player = pm.player == null ? "" : pm.player.replace("|", "\\|");
-                long dispSplit = pm.split;
-                String split = df.format(dispSplit);
-                rows.add(new String[]{player, split});
-                if (player.length() > maxPlayer) maxPlayer = player.length();
-                if (split.length() > maxSplit) maxSplit = split.length();
-            }
-            sb.append("| ").append(padRight("Player", maxPlayer)).append(" | ")
-                    .append(padLeft("Split", maxSplit)).append(" |\n");
-            sb.append("| ").append(repeat('-', maxPlayer)).append(" | ")
-                    .append(repeat('-', maxSplit - 1)).append(":").append(" |\n");
-            for (String[] r : rows) {
-                sb.append("| ").append(padRight(r[0], maxPlayer)).append(" | ")
-                        .append(padLeft(r[1], maxSplit)).append(" |\n");
-            }
-        }
-
-        if (config.directPayments()) {
-            List<String> transfers = computeDirectPayments(data);
-            if (!transfers.isEmpty()) {
-                sb.append('\n').append("Suggested direct payments:\n");
-                for (String line : transfers) sb.append("- ").append(line).append('\n');
-            }
-        }
-
-        if (forDiscord) sb.append("```\n");
-        return sb.toString();
+    public String buildMetricsMarkdown() {
+        List<ManagerSession.PlayerMetrics> data =
+                sessionmanager.computeMetricsFor(sessionmanager.getCurrentSession().orElse(null), true);
+        return MarkdownFormatter.buildMetricsMarkdown(data, config);
     }
 
     public List<String> computeDirectPayments(List<ManagerSession.PlayerMetrics> data) {
-        List<ManagerSession.PlayerMetrics> receivers = new ArrayList<>();
-        List<ManagerSession.PlayerMetrics> payers = new ArrayList<>();
-        for (var pm : data) {
-            if (pm.split > 0) receivers.add(pm);
-            else if (pm.split < 0) payers.add(pm);
-        }
-        receivers.sort((a, b) -> Long.compare(b.split, a.split));
-        payers.sort((a, b) -> Long.compare(Math.abs(b.split), Math.abs(a.split)));
-
-        List<String> lines = new ArrayList<>();
-        DecimalFormat df = Formats.getDecimalFormat();
-
-        int i = 0, j = 0;
-        long recvLeft = receivers.isEmpty() ? 0 : receivers.get(0).split;
-        long payLeft = payers.isEmpty() ? 0 : -payers.get(0).split;
-        while (i < receivers.size() && j < payers.size()) {
-            long amt = Math.min(recvLeft, payLeft);
-            if (amt > 0) {
-                String from = payers.get(j).player;
-                String to = receivers.get(i).player;
-                lines.add(from + " -> " + to + ": " + df.format(amt));
-                recvLeft -= amt;
-                payLeft -= amt;
-            }
-            if (recvLeft == 0) {
-                i++;
-                if (i < receivers.size()) recvLeft = receivers.get(i).split;
-            }
-            if (payLeft == 0) {
-                j++;
-                if (j < payers.size()) payLeft = -payers.get(j).split;
-            }
-        }
-        return lines;
+        return PaymentProcessor.computeDirectPayments(data);
     }
 
     public List<Transfer> computeDirectPaymentsStructured(List<ManagerSession.PlayerMetrics> data) {
-        List<ManagerSession.PlayerMetrics> receivers = new ArrayList<>();
-        List<ManagerSession.PlayerMetrics> payers = new ArrayList<>();
-        for (ManagerSession.PlayerMetrics pm : data) {
-            if (pm.split > 0) receivers.add(pm);
-            else if (pm.split < 0) payers.add(pm);
-        }
-        receivers.sort((a, b) -> Long.compare(b.split, a.split));
-        payers.sort((a, b) -> Long.compare(Math.abs(b.split), Math.abs(a.split)));
-
-        List<Transfer> out = new ArrayList<>();
-        int i = 0, j = 0;
-        long recvLeft = receivers.isEmpty() ? 0 : receivers.get(0).split;
-        long payLeft = payers.isEmpty() ? 0 : -payers.get(0).split;
-
-        while (i < receivers.size() && j < payers.size()) {
-            long amt = Math.min(recvLeft, payLeft);
-            if (amt > 0) {
-                String from = payers.get(j).player;
-                String to = receivers.get(i).player;
-                out.add(new Transfer(from, to, amt));
-                recvLeft -= amt;
-                payLeft -= amt;
-            }
-            if (recvLeft == 0) {
-                i++;
-                if (i < receivers.size()) recvLeft = receivers.get(i).split;
-            }
-            if (payLeft == 0) {
-                j++;
-                if (j < payers.size()) payLeft = -payers.get(j).split;
-            }
-        }
-        return out;
-    }
-
-    private static String padRight(String s, int width) {
-        if (s == null) s = "";
-        if (s.length() >= width) return s;
-        StringBuilder sb = new StringBuilder(width);
-        sb.append(s);
-        for (int i = s.length(); i < width; i++) sb.append(' ');
-        return sb.toString();
-    }
-
-    private static String padLeft(String s, int width) {
-        if (s == null) s = "";
-        StringBuilder sb = new StringBuilder(width);
-        for (int i = s.length(); i < width; i++) sb.append(' ');
-        sb.append(s);
-        return sb.toString();
-    }
-
-    private static String repeat(char ch, int count) {
-        if (count <= 0) return "";
-        StringBuilder sb = new StringBuilder(count);
-        for (int i = 0; i < count; i++) sb.append(ch);
-        return sb.toString();
+        return PaymentProcessor.computeDirectPaymentsStructured(data);
     }
 }

@@ -75,22 +75,21 @@ public class ManagerPlugin extends Plugin {
     @Inject
     private OverlayManager overlayManager;
     private ChatStatusOverlay chatOverlay;
-
-    // Return nullable panel; callers must handle null (e.g., during startup/shutdown)
-    @Getter
-    private static ManagerPanel panel;
     private NavigationButton navButton;
+
+    @Inject
+    private ManagerPanel panel;
+    @Inject
     private ManagerSession sessionManager;
+    @Inject
+    private ManagerKnownPlayers playerManager;
+
 
     @Override
     /**
      * Initialize plugin state and register the sidebar panel/navigation.
      */
     protected void startUp() {
-        sessionManager = new ManagerSession(config);
-        sessionManager.loadFromConfig(); // load sessions and players (peeps)
-
-        panel = new ManagerPanel(sessionManager, config);
         panel.refreshAllView();
 
         // TODO create an icon
@@ -164,7 +163,7 @@ public class ManagerPlugin extends Plugin {
     public void onConfigChanged(ConfigChanged e) {
         if ("Split Manager".equals(e.getGroup()) && "directPayments".equals(e.getKey())) {
             log.info("Direct payments changed, refreshing panel");
-            Utils.requestRestart().run();
+            panel.restart();
         }
 
         //SIGH
@@ -256,7 +255,7 @@ public class ManagerPlugin extends Plugin {
         PendingValue pv = PendingValue.of(type, source, msg, value, suggestedPlayer);
         sessionManager.addPendingValue(pv);
         // Ask UI to refresh
-        Utils.requestUiRefresh().run();
+        panel.refreshAllView();
     }
 
     //SIGH START
@@ -367,7 +366,7 @@ public class ManagerPlugin extends Plugin {
                     .onClick(e ->
                     {
                         sessionManager.removePlayerFromSession(playername);
-                        Utils.requestUiRefresh().run();
+                        panel.refreshAllView();
                     });
             return;
         }
@@ -385,9 +384,9 @@ public class ManagerPlugin extends Plugin {
                 .setType(MenuAction.RUNELITE)
                 .onClick(e ->
                 {
-                    if (sessionManager.addKnownPlayer(playername))
+                    if (playerManager.addKnownPlayer(playername))
                         sessionManager.addPlayerToActive(playername);
-                    Utils.requestUiRefresh().run();
+                    panel.refreshAllView();
                 });
     }
 

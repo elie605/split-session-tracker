@@ -1,29 +1,39 @@
 package com.splitmanager;
 
+
 import com.splitmanager.views.PanelView;
 import com.splitmanager.controllers.PanelController;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.ui.PluginPanel;
 
+import javax.inject.Inject;
+import javax.inject.Singleton;
+
 /**
  * Composition root: builds Model, View, Controller and wires them together.
  * No UI logic or event handling lives here anymore.
  */
-@Slf4j
+@Singleton
 public class ManagerPanel extends PluginPanel {
 
     private PanelController controller;
     private ManagerSession manager;
     private PluginConfig config;
+    private ManagerKnownPlayers playerManager;
 
     /**
      * Construct a new plugin panel and bootstrap its MVC components.
-     * @param manager session/state manager for split tracking
+     * @param sessionManager session/state sessionManager for split tracking
      * @param config plugin configuration
      */
-    public ManagerPanel(ManagerSession manager, PluginConfig config) {
-        this.manager = manager;
+    @Inject
+    public ManagerPanel(ManagerSession sessionManager, PluginConfig config, ManagerKnownPlayers playerManager) {
+        this.manager = sessionManager;
         this.config = config;
+        this.playerManager = playerManager;
+    }
+
+    public void start() {
         startPanel();
     }
 
@@ -38,8 +48,8 @@ public class ManagerPanel extends PluginPanel {
      * Initialize and wire the view and controller, and perform an initial sync.
      */
     private void startPanel() {
-        PanelView view = new PanelView(manager, config);
-        controller = new PanelController(manager, config, view);
+        PanelView view = new PanelView(manager, config, playerManager);
+        controller = new PanelController(manager, config, view, playerManager, this);
         view.bindActions(controller);
         add(view);
 

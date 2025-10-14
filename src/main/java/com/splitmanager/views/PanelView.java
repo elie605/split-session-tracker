@@ -1,5 +1,7 @@
 package com.splitmanager.views;
 
+import com.splitmanager.ManagerKnownPlayers;
+import com.splitmanager.ManagerPanel;
 import com.splitmanager.controllers.PanelActions;
 import com.splitmanager.controllers.PanelController;
 import com.splitmanager.models.*;
@@ -12,6 +14,7 @@ import com.splitmanager.views.components.DropdownRip;
 import lombok.Getter;
 import net.runelite.client.ui.PluginPanel;
 
+import javax.inject.Inject;
 import javax.swing.*;
 import javax.swing.event.TableModelListener;
 import javax.swing.text.DefaultFormatterFactory;
@@ -19,6 +22,7 @@ import java.awt.*;
 import java.awt.datatransfer.StringSelection;
 
 import static com.splitmanager.utils.Formats.OsrsAmountFormatter.toSuffixString;
+import static com.splitmanager.utils.Utils.toast;
 
 @Getter
 /**
@@ -27,8 +31,12 @@ import static com.splitmanager.utils.Formats.OsrsAmountFormatter.toSuffixString;
  */
 public class PanelView extends PluginPanel {
     private final JPanel activePlayersButtonsPanel = new JPanel(new GridLayout(0, 1, 0, 2));
-    private final ManagerSession manager;
+    private final ManagerSession sessionManager;
     private final PluginConfig config;
+    private final ManagerKnownPlayers playerManager;
+
+    @Inject
+    private ManagerPanel managerPanel;
 
     // actions (Controller port). Set with bindActions(...)
     private PanelActions actions;
@@ -80,10 +88,11 @@ public class PanelView extends PluginPanel {
     // lightweight helper (kept for markdown/json building)
     private final PanelController controllerHelper;
 
-    public PanelView(ManagerSession manager, PluginConfig config) {
-        this.manager = manager;
+    public PanelView(ManagerSession sessionManager, PluginConfig config, ManagerKnownPlayers playerManager) {
+        this.sessionManager = sessionManager;
         this.config = config;
-        this.controllerHelper = new PanelController(manager, config, this); // used only for clipboard helpers
+        this.controllerHelper = new PanelController(); // used only for clipboard helpers
+        this.playerManager = playerManager;
 
         recentSplitsModel.setListener(this::refreshMetrics);
         recentSplitsTable = makeRecentSplitsTable(recentSplitsModel);
@@ -163,7 +172,7 @@ public class PanelView extends PluginPanel {
             try {
                 amt = val == null ? Long.parseLong(killAmountField.getText()) : ((Number) val).longValue();
             } catch (Exception ex) {
-                Utils.toast(this, "Invalid amount.");
+                toast(this, "Invalid amount.");
                 return;
             }
             actions.addKill(player, amt);
@@ -198,10 +207,10 @@ public class PanelView extends PluginPanel {
         JComboBox<String> playerEditorCombo = new JComboBox<>();
         {
             java.util.Set<String> choices;
-            Session curr = manager.getCurrentSession().orElse(null);
+            Session curr = sessionManager.getCurrentSession().orElse(null);
             if (curr != null && !curr.getPlayers().isEmpty())
                 choices = new java.util.LinkedHashSet<>(curr.getPlayers());
-            else choices = new java.util.LinkedHashSet<>(manager.getKnownMains());
+            else choices = new java.util.LinkedHashSet<>(playerManager.getKnownMains());
             playerEditorCombo.setModel(new DefaultComboBoxModel<>(choices.toArray(new String[0])));
         }
         t.getColumnModel().getColumn(1).setCellEditor(new DefaultCellEditor(playerEditorCombo));
@@ -288,7 +297,7 @@ public class PanelView extends PluginPanel {
         gbc.weightx = 1.0;
         gbc.fill = GridBagConstraints.HORIZONTAL;
 
-        String[] peeps = manager.getNonActivePlayers().toArray(new String[0]);
+        String[] peeps = sessionManager.getNonActivePlayers().toArray(new String[0]);
         notInCurrentSessionPlayerDropdown.setModel(new DefaultComboBoxModel<>(peeps));
         rosterPanel.add(notInCurrentSessionPlayerDropdown, gbc);
 
@@ -662,14 +671,14 @@ public class PanelView extends PluginPanel {
         try {
             int actionIdx = metricsTable.getColumnModel().getColumnIndex("X");
             metricsTable.getColumnModel().getColumn(actionIdx)
-                    .setCellEditor(new RemoveButtonEditor(this, manager, metricsTable));
+                    .setCellEditor(new RemoveButtonEditor(this, sessionManager, metricsTable));
         } catch (IllegalArgumentException ignored) {
         }
 
         JComponent centerContent;
         if (direct) {
-            Session currentSession = manager.getCurrentSession().orElse(null);
-            java.util.List<ManagerSession.PlayerMetrics> data = manager.computeMetricsFor(currentSession, true);
+            Session currentSession = sessionManager.getCurrentSession().orElse(null);
+            java.util.List<ManagerSession.PlayerMetrics> data = sessionManager.computeMetricsFor(currentSession, true);
             java.util.List<Transfer> transfers = controllerHelper.computeDirectPaymentsStructured(data);
 
             if (transfers != null && !transfers.isEmpty()) {
@@ -726,8 +735,8 @@ public class PanelView extends PluginPanel {
     }
 
     private void refreshMetrics() {
-        Session currentSession = manager.getCurrentSession().orElse(null);
-        ((Metrics) metricsTable.getModel()).setData(manager.computeMetricsFor(currentSession, true));
+        Session currentSession = sessionManager.getCurrentSession().orElse(null);
+        ((Metrics) metricsTable.getModel()).setData(sessionManager.computeMetricsFor(currentSession, true));
     }
 
     private void copyMetricsJsonToClipboard() {
@@ -784,7 +793,7 @@ public class PanelView extends PluginPanel {
 
     public void refreshActivePlayerButtons() {
         activePlayersButtonsPanel.removeAll();
-        Session current = manager.getCurrentSession().orElse(null);
+        Session current = sessionManager.getCurrentSession().orElse(null);
         if (current != null && current.isActive()) {
             for (String p : new java.util.ArrayList<>(current.getPlayers())) {
                 JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 2));
@@ -803,16 +812,16 @@ public class PanelView extends PluginPanel {
                         javax.swing.JOptionPane.showMessageDialog(null, "Invalid amount.", "Error", javax.swing.JOptionPane.ERROR_MESSAGE);
                         return;
                     }
-                    if (manager.addKill(p, amt)) {
+                    if (sessionManager.addKill(p, amt)) {
                         activeKillAmountField.setText("");
-                        Utils.requestUiRefresh().run();
+                        managerPanel.refreshAllView();
                     } else {
                         javax.swing.JOptionPane.showMessageDialog(null, "Failed to add split. Is player in session?", "Error", javax.swing.JOptionPane.ERROR_MESSAGE);
                     }
                 });
                 rmBtn.addActionListener(e -> {
-                    if (manager.removePlayerFromSession(p)) {
-                        Utils.requestUiRefresh().run();
+                    if (sessionManager.removePlayerFromSession(p)) {
+                        managerPanel.refreshAllView();
                     } else {
                         javax.swing.JOptionPane.showMessageDialog(null, "Failed to remove player from session.", "Error", javax.swing.JOptionPane.ERROR_MESSAGE);
                     }

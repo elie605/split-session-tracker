@@ -186,6 +186,7 @@ public class ManagerPlugin extends Plugin {
                 case "enableChatDetection":
                 case "detectInClanChat":
                 case "detectInFriendsChat":
+                case "WarnNotInFC":
                     updateLootChatStatus();
                     break;
             }
@@ -363,15 +364,16 @@ public class ManagerPlugin extends Plugin {
         boolean fcOn    = isFriendsChatOn();
         boolean clanOn  = isMainClanChatOn();
         boolean guestOn = isGuestClanChatOn();
+
         boolean counted =
                 (config.detectInFriendsChat() && fcOn) ||
-                        (config.detectInClanChat()    && (clanOn || guestOn));
+                        (config.detectInClanChat() && (clanOn || guestOn));
 
-        chatOverlay.setVisible(true);
-        chatOverlay.setStatuses(fcOn,
-                clanOn,
-                guestOn,
-                counted);
+        // Only show warning if chat detection + warning are enabled
+        boolean showWarning = config.enableChatDetection() && config.warnNotFC();
+
+        chatOverlay.setVisible(showWarning);
+        chatOverlay.setStatuses(fcOn, clanOn, guestOn, counted);
     }
 
 

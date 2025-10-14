@@ -2,17 +2,14 @@ package com.splitmanager;
 
 import com.splitmanager.models.Session;
 import com.splitmanager.utils.Formats;
-import com.splitmanager.utils.Utils;
 import com.google.inject.Provides;
 
 import javax.inject.Inject;
 
 import com.splitmanager.models.PendingValue;
-import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.*;
 import net.runelite.api.clan.ClanChannel;
-import net.runelite.api.clan.ClanChannelMember;
 import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.MenuEntryAdded;
 import net.runelite.api.gameval.InterfaceID;
@@ -32,23 +29,16 @@ import net.runelite.client.ui.overlay.components.LineComponent;
 import net.runelite.client.ui.overlay.components.TitleComponent;
 import net.runelite.client.util.Text;
 
-import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.text.ParseException;
 import java.util.Arrays;
 
 //SIGH
-import net.runelite.api.events.GameStateChanged;//login and hop listener, checks for world change
 import net.runelite.api.events.ClanChannelChanged;
 import net.runelite.api.events.FriendsChatChanged;
 import net.runelite.api.events.WorldChanged;
 
 import net.runelite.client.ui.overlay.OverlayManager;
-import net.runelite.client.ui.overlay.OverlayLayer;
-import net.runelite.client.ui.overlay.OverlayPanel;
-import net.runelite.client.ui.overlay.OverlayPosition;
-import net.runelite.client.ui.overlay.components.TitleComponent;
-import net.runelite.client.ui.overlay.components.LineComponent;
 
 import java.awt.Color;
 import java.awt.Dimension;
@@ -78,7 +68,7 @@ public class ManagerPlugin extends Plugin {
     private NavigationButton navButton;
 
     @Inject
-    private ManagerPanel panel;
+    private ManagerPanel panelManager;
     @Inject
     private ManagerSession sessionManager;
     @Inject
@@ -90,7 +80,11 @@ public class ManagerPlugin extends Plugin {
      * Initialize plugin state and register the sidebar panel/navigation.
      */
     protected void startUp() {
-        panel.refreshAllView();
+        playerManager.init();
+        sessionManager.init();
+        panelManager.init();
+
+        panelManager.refreshAllView();
 
         // TODO create an icon
         // Use a transparent placeholder icon so the panel shows in the side menu without bundling an image.
@@ -106,7 +100,7 @@ public class ManagerPlugin extends Plugin {
                 .tooltip("Auto Split Manager")
                 .icon(placeholderIcon)
                 .priority(5)
-                .panel(panel)
+                .panel(panelManager)
                 .build();
         clientToolbar.addNavigation(navButton);
     }
@@ -133,7 +127,7 @@ public class ManagerPlugin extends Plugin {
             chatOverlay = null;
         }
 
-        panel = null;
+        panelManager = null;
     }
 
     @Provides
@@ -163,7 +157,7 @@ public class ManagerPlugin extends Plugin {
     public void onConfigChanged(ConfigChanged e) {
         if ("Split Manager".equals(e.getGroup()) && "directPayments".equals(e.getKey())) {
             log.info("Direct payments changed, refreshing panel");
-            panel.restart();
+            panelManager.restart();
         }
 
         //SIGH
@@ -255,7 +249,7 @@ public class ManagerPlugin extends Plugin {
         PendingValue pv = PendingValue.of(type, source, msg, value, suggestedPlayer);
         sessionManager.addPendingValue(pv);
         // Ask UI to refresh
-        panel.refreshAllView();
+        panelManager.refreshAllView();
     }
 
     //SIGH START
@@ -366,7 +360,7 @@ public class ManagerPlugin extends Plugin {
                     .onClick(e ->
                     {
                         sessionManager.removePlayerFromSession(playername);
-                        panel.refreshAllView();
+                        panelManager.refreshAllView();
                     });
             return;
         }
@@ -386,7 +380,7 @@ public class ManagerPlugin extends Plugin {
                 {
                     if (playerManager.addKnownPlayer(playername))
                         sessionManager.addPlayerToActive(playername);
-                    panel.refreshAllView();
+                    panelManager.refreshAllView();
                 });
     }
 

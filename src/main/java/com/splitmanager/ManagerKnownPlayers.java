@@ -8,6 +8,7 @@ import com.splitmanager.utils.InstantTypeAdapter;
 import com.splitmanager.views.PanelView;
 import lombok.Getter;
 
+import javax.inject.Inject;
 import javax.inject.Singleton;
 import javax.swing.DefaultListModel;
 import javax.swing.JOptionPane;
@@ -35,6 +36,7 @@ public class ManagerKnownPlayers {
     private Map<String, String> altMainMapping = new LinkedHashMap<>();
     private final PluginConfig config;
 
+    @Inject
     public ManagerKnownPlayers(PluginConfig config) {
         this.config = config;
         this.gson = new GsonBuilder()
@@ -73,21 +75,6 @@ public class ManagerKnownPlayers {
         } catch (Exception e) {
             // ignore
         }
-    }
-
-
-
-    /**
-     * Removes the association between a selected alt player and its main player if the conditions
-     * for unlinking are met. Displays appropriate feedback messages for success or failure.
-     *
-     * @param selectedMain the main player to which the alt is currently associated;
-     *                     must not be null or blank
-     * @param selectedEntry the alt player entry to be unlinked; must not be null or blank
-     * @return true if the alt was successfully unlinked from the main, otherwise false
-     */
-    public boolean removeSelectedAlt(String selectedMain, String selectedEntry) {
-
     }
 
     /**
@@ -248,5 +235,9 @@ public class ManagerKnownPlayers {
 
         saveToConfig();
         return rem;
+    }
+
+    public void init() {
+        loadFromConfig();
     }
 }

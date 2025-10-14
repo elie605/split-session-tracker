@@ -64,4 +64,8 @@ public class ManagerPanel extends PluginPanel {
         removeAll();
         startPanel();
     }
+
+    public void init() {
+        startPanel();
+    }
 }

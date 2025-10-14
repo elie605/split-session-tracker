@@ -10,7 +10,6 @@ import lombok.Getter;
 import javax.annotation.Nonnull;
 import javax.inject.Inject;
 import javax.inject.Singleton;
-import java.lang.reflect.Type;
 import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -43,7 +42,6 @@ public class ManagerSession {
         this.gson = new GsonBuilder()
                 .registerTypeAdapter(Instant.class, new InstantTypeAdapter())
                 .create();
-        loadFromConfig();
     }
 
 
@@ -433,6 +431,10 @@ public class ManagerSession {
 
         return session.getPlayers().stream().anyMatch(e ->
                 e.equals(Objects.requireNonNull(finalPlayer)));
+    }
+
+    public void init() {
+        loadFromConfig();
     }
 
 

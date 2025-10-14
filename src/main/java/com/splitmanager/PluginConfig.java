@@ -21,8 +21,7 @@ public interface PluginConfig extends Config {
 
     //TODO Create a new configitem that allows the user to submit any forms on enter, e.g. 1) user fills in split amount 2) presses enter 3) The same function as button press is called
 
-    //TODO implement this
-    //TODO implement this SIGHHHH I have claimed this
+    //TODO implement this SIGH has reclaimed this
     //Added a weird thingy in Auto Split Manager -> Turn Chat Detection ON -> see top left corner for box
     //Automatically detect if Chat Channel is turned on, if not, warn player
     //Important because changing worlds may automatically turn Chat off
@@ -30,10 +29,10 @@ public interface PluginConfig extends Config {
     @ConfigItem(
             keyName = "WarnNotInFC",
             name = "Warning not in FC",
-            description = "Give a warning on OSRS canvas that you are not in a FC, usefull if you have !add on",
-            hidden = true
+            description = "Give a warning on OSRS canvas that you are not in a FC, useful if you have !add on",
+            section = chatDetectionSection
     )
-    default Boolean warnNotFC() {
+    default boolean warnNotFC() {
         return false;
     }
 

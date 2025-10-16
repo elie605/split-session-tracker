@@ -1,9 +1,12 @@
 package com.splitmanager;
+
 import com.splitmanager.models.Session;
 import com.splitmanager.utils.Formats;
 import com.splitmanager.utils.Utils;
 import com.google.inject.Provides;
+
 import javax.inject.Inject;
+
 import com.splitmanager.models.PendingValue;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -26,24 +29,17 @@ import net.runelite.api.events.ClanChannelChanged;
 import net.runelite.api.events.FriendsChatChanged;
 import net.runelite.api.events.WorldChanged;
 import net.runelite.api.events.GameTick;
+
 import java.awt.*;
 
 import java.awt.image.BufferedImage;
 import java.text.ParseException;
 import java.util.Arrays;
+
 import net.runelite.api.FriendsChatManager;
 import net.runelite.api.FriendsChatMember;
-
-//SIGH
-import net.runelite.api.events.ClanChannelChanged;
-import net.runelite.api.events.FriendsChatChanged;
-import net.runelite.api.events.WorldChanged;
-
 import net.runelite.client.ui.overlay.OverlayManager;
 import com.splitmanager.utils.ChatStatusOverlay;
-
-import java.awt.Color;
-import java.awt.Dimension;
 
 @Slf4j
 @PluginDescriptor(
@@ -68,30 +64,7 @@ public class ManagerPlugin extends Plugin {
     private OverlayManager overlayManager;
     private ChatStatusOverlay chatOverlay;
     private boolean chatExplicitKnown = false;
-    private boolean chatExplicitOn    = false;
-
-    /** Joined to Friends Chat ("Chat Channel")? */
-    private boolean isFriendsChatOn()
-    {
-        FriendsChatManager fcm = client.getFriendsChatManager();
-        if (fcm == null) {return false;}
-
-        FriendsChatMember[] members = fcm.getMembers();
-        if (members == null || members.length == 0) {return false;}
-
-        String me = myCleanName();
-        if (!me.isEmpty())
-        {
-            for (FriendsChatMember m : members)
-            {
-                if (m == null) continue;
-                String n = net.runelite.client.util.Text.toJagexName(
-                        net.runelite.client.util.Text.removeTags(m.getName()));
-                if (me.equalsIgnoreCase(n)) {return true;}
-            }
-        }
-        return true;
-    }
+    private boolean chatExplicitOn = false;
 
     @Getter
     private static ManagerPanel panel;
@@ -148,8 +121,10 @@ public class ManagerPlugin extends Plugin {
         }
 
         //SIGH
-        if (chatOverlay != null) {overlayManager.remove(chatOverlay);
-            chatOverlay = null;}
+        if (chatOverlay != null) {
+            overlayManager.remove(chatOverlay);
+            chatOverlay = null;
+        }
 
         panelManager = null;
     }
@@ -166,21 +141,35 @@ public class ManagerPlugin extends Plugin {
 
     //SIGH
     @Subscribe
-    public void onClanChannelChanged(ClanChannelChanged e) {updateLootChatStatus();}
+    public void onClanChannelChanged(ClanChannelChanged e) {
+        updateLootChatStatus();
+    }
+
     @Subscribe
-    public void onFriendsChatChanged(FriendsChatChanged e) {updateLootChatStatus();}
+    public void onFriendsChatChanged(FriendsChatChanged e) {
+        updateLootChatStatus();
+    }
+
     @Subscribe
-    public void onWorldChanged(WorldChanged e) {updateLootChatStatus();}
+    public void onWorldChanged(WorldChanged e) {
+        updateLootChatStatus();
+    }
+
     @Subscribe
-    public void onGameTick(GameTick t) {updateLootChatStatus();}
-    @Subscribe public void onGameStateChanged(net.runelite.api.events.GameStateChanged e){
-        switch (e.getGameState()){
+    public void onGameTick(GameTick t) {
+        updateLootChatStatus();
+    }
+
+    @Subscribe
+    public void onGameStateChanged(net.runelite.api.events.GameStateChanged e) {
+        switch (e.getGameState()) {
             case LOGGING_IN:
             case HOPPING:
             case LOADING:
                 chatExplicitKnown = false;
                 break;
-            default: break;
+            default:
+                break;
         }
         updateLootChatStatus();
     }
@@ -198,10 +187,8 @@ public class ManagerPlugin extends Plugin {
         }
 
         //SIGH
-        if ("Split Manager".equals(e.getGroup()))
-        {
-            switch (e.getKey())
-            {
+        if ("Split Manager".equals(e.getGroup())) {
+            switch (e.getKey()) {
                 case "enableChatDetection":
                 case "detectInClanChat":
                 case "detectInFriendsChat":
@@ -217,10 +204,11 @@ public class ManagerPlugin extends Plugin {
      * @param event chat message event
      * @throws ParseException when number parsing fails
      */
-    public void onChatMessage(ChatMessage event) throws ParseException
-    {
+    public void onChatMessage(ChatMessage event) throws ParseException {
 
-        if (CheckChatJoinLeave(event)){return;}//SIGH LOOK IM HERE
+        if (CheckChatJoinLeave(event)) {
+            return;
+        }//SIGH LOOK IM HERE
 
         Formats.OsrsAmountFormatter f = new Formats.OsrsAmountFormatter();
 
@@ -265,26 +253,23 @@ public class ManagerPlugin extends Plugin {
         // Try parse player !add value
         //TODO specify add! unit
         //TODO fix negative numbers
-        if (config.detectPlayerValues())
-        {
+        //TODO this duplicate of format function  @SIGH
+        if (config.detectPlayerValues()) {
             java.util.regex.Matcher m = java.util.regex.Pattern
                     .compile("(?i)!add\\s+([0-9][0-9,]*(?:\\.[0-9]+)?)\\s*(k|tousand|thousand|m|mil|mill|million|b|bil|bill|billion)?\\b")
                     .matcher(msg);
 
-            if (m.find())
-            {
-                String who       = sender != null ? sender : "";
+            if (m.find()) {
+                String who = sender != null ? sender : "";
                 String numberTxt = m.group(1);
-                String unitTxt   = m.group(2);
+                String unitTxt = m.group(2);
 
                 // Strip commas and parse
                 java.math.BigDecimal base = new java.math.BigDecimal(numberTxt.replace(",", ""));
 
                 java.math.BigDecimal multiplier = java.math.BigDecimal.ONE;
-                if (unitTxt != null)
-                {
-                    switch (unitTxt.toLowerCase())
-                    {
+                if (unitTxt != null) {
+                    switch (unitTxt.toLowerCase()) {
                         case "k":
                         case "tousand"://possible accepted typo
                         case "thousand":
@@ -318,10 +303,11 @@ public class ManagerPlugin extends Plugin {
 
     /**
      * Enqueue a pending value suggestion for user approval.
-     * @param type source type (PvM, PvP, player add)
-     * @param source chat source label
-     * @param msg original chat message
-     * @param value numeric value (coins or K)
+     *
+     * @param type            source type (PvM, PvP, player add)
+     * @param source          chat source label
+     * @param msg             original chat message
+     * @param value           numeric value (coins or K)
      * @param suggestedPlayer prefilled player name when available
      */
     private void queuePending(PendingValue.Type type, String source, String msg, Long value, String suggestedPlayer) {
@@ -329,10 +315,10 @@ public class ManagerPlugin extends Plugin {
         PendingValue pv = PendingValue.of(type, source, msg, value, suggestedPlayer);
         sessionManager.addPendingValue(pv);
         // Ask UI to refresh
-        Utils.requestUiRefresh().run();
+        panel.refreshAllView();
     }
 
-    private boolean CheckChatJoinLeave(ChatMessage event){
+    private boolean CheckChatJoinLeave(ChatMessage event) {
 
         String plain = Text.removeTags(event.getMessage()).trim();
         String lower = plain.toLowerCase();
@@ -344,14 +330,15 @@ public class ManagerPlugin extends Plugin {
                 || t == ChatMessageType.CLAN_GUEST_CHAT
                 || t.name().contains("CLAN");
 
-        if (!isSystemish){return false;}
+        if (!isSystemish) {
+            return false;
+        }
 
         //LEAVE/KICK Chat
         if (isSystemish && java.util.regex.Pattern
                 .compile("(?i)^\\s*(?:you\\s+(?:have\\s+)?left\\s+(?:the\\s+)?(?:chat-)?channel\\.?|you\\s+(?:are|aren't|are\\s+not)\\s+currently\\s+in\\s+(?:a|the|your)\\s+(?:chat-)?channel\\.?|you\\s+have\\s+been\\s+kicked\\s+from\\s+the\\s+channel\\.?)\\s*$")
                 .matcher(plain)
-                .find())
-        {
+                .find()) {
             chatExplicitKnown = true;
             chatExplicitOn = false;
             updateLootChatStatus();
@@ -363,8 +350,7 @@ public class ManagerPlugin extends Plugin {
         if (isSystemish && java.util.regex.Pattern
                 .compile("(?i)^\\s*now\\s+talking\\s+in\\s+(?:the\\s+)?(?:chat-)?channel\\.?\\s*$")
                 .matcher(plain)
-                .find())
-        {
+                .find()) {
             chatExplicitKnown = true;
             chatExplicitOn = true;
             updateLootChatStatus();
@@ -374,17 +360,18 @@ public class ManagerPlugin extends Plugin {
     }
 
 
-    /** Recompute overlay purely from member lists (no timers, no message heuristics). */
-    private void updateLootChatStatus()
-    {
+    /**
+     * Recompute overlay purely from member lists (no timers, no message heuristics).
+     */
+    private void updateLootChatStatus() {
         if (chatOverlay == null) return;
 
-        boolean fcOn    = isFriendsChatOn();
-        boolean clanOn  = isMainClanChatOn();
+        boolean fcOn = isFriendsChatOn();
+        boolean clanOn = isMainClanChatOn();
         boolean guestOn = isGuestClanChatOn();
         boolean counted =
                 (config.detectInFriendsChat() && fcOn) ||
-                        (config.detectInClanChat()    && (clanOn || guestOn));
+                        (config.detectInClanChat() && (clanOn || guestOn));
 
         chatOverlay.setVisible(true);
         chatOverlay.setStatuses(fcOn,
@@ -392,7 +379,6 @@ public class ManagerPlugin extends Plugin {
                 guestOn,
                 counted);
     }
-
 
 
     @Subscribe
@@ -456,25 +442,25 @@ public class ManagerPlugin extends Plugin {
     }
 
 
-
-    /** Local player's cleaned display name ("" if not ready). */
-    private String myCleanName()
-    {
+    /**
+     * Local player's cleaned display name ("" if not ready).
+     */
+    private String myCleanName() {
         Player me = client.getLocalPlayer();
         if (me == null) return "";
         return net.runelite.client.util.Text.toJagexName(
                 net.runelite.client.util.Text.removeTags(me.getName()));
     }
 
-    /** True iff the given clan channel currently contains *you*. */
-    private boolean channelHasSelf(ClanChannel ch)
-    {
+    /**
+     * True iff the given clan channel currently contains *you*.
+     */
+    private boolean channelHasSelf(ClanChannel ch) {
         if (ch == null || ch.getMembers() == null) return false;
         String me = myCleanName();
         if (me.isEmpty()) return false;
 
-        for (ClanChannelMember m : ch.getMembers())
-        {
+        for (ClanChannelMember m : ch.getMembers()) {
             if (m == null) continue;
             String n = m.getName();
             if (n == null) continue;
@@ -485,10 +471,42 @@ public class ManagerPlugin extends Plugin {
         return false;
     }
 
-    /** Joined to main / guest chat-channel (based solely on your presence). */
-    private boolean isMainClanChatOn()  {return channelHasSelf(client.getClanChannel());}
-    private boolean isGuestClanChatOn() {return channelHasSelf(client.getGuestClanChannel());}
+    /**
+     * Joined to main / guest chat-channel (based solely on your presence).
+     */
+    private boolean isMainClanChatOn() {
+        return channelHasSelf(client.getClanChannel());
+    }
 
+    private boolean isGuestClanChatOn() {
+        return channelHasSelf(client.getGuestClanChannel());
+    }
 
+    /**
+     * Joined to Friends Chat ("Chat Channel")?
+     */
+    private boolean isFriendsChatOn() {
+        FriendsChatManager fcm = client.getFriendsChatManager();
+        if (fcm == null) {
+            return false;
+        }
 
+        FriendsChatMember[] members = fcm.getMembers();
+        if (members == null || members.length == 0) {
+            return false;
+        }
+
+        String me = myCleanName();
+        if (!me.isEmpty()) {
+            for (FriendsChatMember m : members) {
+                if (m == null) continue;
+                String n = net.runelite.client.util.Text.toJagexName(
+                        net.runelite.client.util.Text.removeTags(m.getName()));
+                if (me.equalsIgnoreCase(n)) {
+                    return true;
+                }
+            }
+        }
+        return true;
+    }
 }

@@ -85,4 +85,8 @@ public interface PanelActions
 	 * Refresh all sections of the view; idempotent and safe after mutations.
 	 */
 	void refreshAllView(); // idempotent, safe to call after model mutations
+
+	void altPlayerManageAddPlayer(String player);
+
+	void altPlayerManageRemovePlayer(String player);
 }

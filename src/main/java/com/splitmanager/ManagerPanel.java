@@ -57,7 +57,6 @@ public class ManagerPanel extends PluginPanel
 		view.bindActions(controller);
 		add(view);
 
-		// initial sync
 		controller.refreshAllView();
 	}
 

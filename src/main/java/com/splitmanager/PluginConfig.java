@@ -17,7 +17,7 @@ public interface PluginConfig extends Config
 	String KEY_SESSIONS_JSON = "sessionsJson";
 	String KEY_CURRENT_SESSION_ID = "currentSessionId";
 	String KEY_HISTORY_LOADED = "historyLoaded";
-	String KEY_PEOPLE_CSV = "peepsCsv";
+	String KEY_PEOPLE_CSV = "PlayersCsv";
 
 	//TODO Create a new configitem that allows the user to submit any forms on enter, e.g. 1) user fills in split amount 2) presses enter 3) The same function as button press is called
 	@ConfigSection(
@@ -114,7 +114,7 @@ public interface PluginConfig extends Config
 
 	@ConfigItem(
 		keyName = KEY_PEOPLE_CSV,
-		name = "Peeps",
+		name = "Players",
 		description = "Comma-separated known players",
 		hidden = true
 	)
@@ -125,7 +125,7 @@ public interface PluginConfig extends Config
 
 	@ConfigItem(
 		keyName = KEY_PEOPLE_CSV,
-		name = "Peeps",
+		name = "Players",
 		description = "Comma-separated known players",
 		hidden = true
 	)

@@ -3,6 +3,8 @@ package com.splitmanager.utils;
 import com.splitmanager.PluginConfig;
 import java.awt.Color;
 import java.awt.Dimension;
+import lombok.Getter;
+import lombok.Setter;
 import net.runelite.client.ui.overlay.OverlayLayer;
 import net.runelite.client.ui.overlay.OverlayPanel;
 import net.runelite.client.ui.overlay.OverlayPosition;
@@ -12,6 +14,8 @@ import net.runelite.client.ui.overlay.components.TitleComponent;
 public class ChatStatusOverlay extends OverlayPanel
 {
 	private final PluginConfig config;
+	@Setter
+	@Getter
 	private boolean visible = false;
 	private boolean chatchanOn = false;
 	private boolean clanOn = false;
@@ -24,11 +28,6 @@ public class ChatStatusOverlay extends OverlayPanel
 		setPosition(OverlayPosition.TOP_LEFT);
 		setPosition(OverlayPosition.TOP_LEFT);
 		setLayer(OverlayLayer.ABOVE_SCENE);
-	}
-
-	public void setVisible(boolean v)
-	{
-		this.visible = v;
 	}
 
 	/**
@@ -49,11 +48,7 @@ public class ChatStatusOverlay extends OverlayPanel
 		{
 			return null;
 		}
-		if (chatchanOn == true)
-		{
-			return null;
-		}
-		if (chatchanOn == false)
+		if (!chatchanOn)
 		{
 			panelComponent.getChildren().clear();
 			panelComponent.setPreferredSize(new Dimension(230, 0));

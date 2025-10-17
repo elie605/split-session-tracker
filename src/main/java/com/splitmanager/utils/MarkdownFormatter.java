@@ -1,7 +1,7 @@
 package com.splitmanager.utils;
 
-import com.splitmanager.ManagerSession;
 import com.splitmanager.PluginConfig;
+import com.splitmanager.models.PlayerMetrics;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.List;
@@ -15,7 +15,7 @@ public class MarkdownFormatter
 	/**
 	 * Build metrics table as markdown.
 	 */
-	public static String buildMetricsMarkdown(List<ManagerSession.PlayerMetrics> data, PluginConfig config)
+	public static String buildMetricsMarkdown(List<PlayerMetrics> data, PluginConfig config)
 	{
 		DecimalFormat df = Formats.getDecimalFormat();
 		StringBuilder sb = new StringBuilder();
@@ -55,7 +55,7 @@ public class MarkdownFormatter
 		return sb.toString();
 	}
 
-	private static void appendFullTable(List<ManagerSession.PlayerMetrics> data,
+	private static void appendFullTable(List<PlayerMetrics> data,
 										DecimalFormat df,
 										StringBuilder sb,
 										PluginConfig config)
@@ -65,7 +65,7 @@ public class MarkdownFormatter
 		int maxTotal = "Total".length();
 		int maxSplit = "Split".length();
 
-		for (var pm : data)
+		for (PlayerMetrics pm : data)
 		{
 			String player = pm.player == null ? "" : pm.player.replace("|", "\\|");
 			String total = df.format(pm.total);
@@ -112,7 +112,7 @@ public class MarkdownFormatter
 		}
 	}
 
-	private static void appendSimpleTable(List<ManagerSession.PlayerMetrics> data,
+	private static void appendSimpleTable(List<PlayerMetrics> data,
 										  DecimalFormat df,
 										  StringBuilder sb)
 	{

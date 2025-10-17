@@ -1,22 +1,25 @@
 package com.splitmanager.controllers;
 
-import com.splitmanager.utils.Formats;
-import com.splitmanager.PluginConfig;
+import com.splitmanager.ManagerKnownPlayers;
+import com.splitmanager.ManagerPanel;
 import com.splitmanager.ManagerSession;
+import com.splitmanager.PluginConfig;
 import com.splitmanager.models.Metrics;
 import com.splitmanager.models.PendingValue;
+import com.splitmanager.models.PlayerMetrics;
 import com.splitmanager.models.Session;
 import com.splitmanager.models.Transfer;
 import com.splitmanager.models.WaitlistTable;
-import com.splitmanager.views.PanelView;
-import com.splitmanager.utils.Utils;
-
-import javax.swing.*;
-import java.text.DecimalFormat;
-import java.util.ArrayList;
-import java.util.List;
-
+import com.splitmanager.utils.MarkdownFormatter;
+import com.splitmanager.utils.PaymentProcessor;
 import static com.splitmanager.utils.Utils.toast;
+import com.splitmanager.views.PanelView;
+import java.util.List;
+import javax.swing.DefaultCellEditor;
+import javax.swing.DefaultComboBoxModel;
+import javax.swing.DefaultListModel;
+import javax.swing.JComboBox;
+import javax.swing.JOptionPane;
 
 //Testing push again
 
@@ -26,24 +29,15 @@ import static com.splitmanager.utils.Utils.toast;
  */
 public class PanelController implements PanelActions
 {
-	private final ManagerSession sessionmanager;
+	private final ManagerSession sessionManager;
 	private final PluginConfig config;
 	private final PanelView view;
 	private final ManagerKnownPlayers playerManager;
 	private final ManagerPanel managerPanel;
 
-	public PanelController()
-	{
-		sessionmanager = null;
-		config = null;
-		view = null;
-		playerManager = null;
-		managerPanel = null;
-	}
-
 	public PanelController(ManagerSession sessionManager, PluginConfig config, PanelView view, ManagerKnownPlayers playerManager, ManagerPanel managerPanel)
 	{
-		this.sessionmanager = sessionManager;
+		this.sessionManager = sessionManager;
 		this.playerManager = playerManager;
 		this.config = config;
 		this.view = view;
@@ -53,17 +47,17 @@ public class PanelController implements PanelActions
 	@Override
 	public void startSession()
 	{
-		if (sessionmanager.isHistoryLoaded())
+		if (sessionManager.isHistoryLoaded())
 		{
 			toast(view, "Unload history first.");
 			return;
 		}
-		if (sessionmanager.hasActiveSession())
+		if (sessionManager.hasActiveSession())
 		{
 			toast(view, "Active session exists.");
 			return;
 		}
-		sessionmanager.startSession().ifPresent(s -> toast(view, "Session started."));
+		sessionManager.startSession().ifPresent(s -> toast(view, "Session started."));
 		managerPanel.refreshAllView();
 		refreshAllView();
 	}
@@ -71,12 +65,12 @@ public class PanelController implements PanelActions
 	@Override
 	public void stopSession()
 	{
-		if (sessionmanager.isHistoryLoaded())
+		if (sessionManager.isHistoryLoaded())
 		{
 			toast(view, "Cannot stop while history loaded.");
 			return;
 		}
-		if (sessionmanager.stopSession())
+		if (sessionManager.stopSession())
 		{
 			managerPanel.refreshAllView();
 			toast(view, "Session stopped.");
@@ -96,7 +90,7 @@ public class PanelController implements PanelActions
 			toast(view, "Select a player in dropdown.");
 			return;
 		}
-		if (sessionmanager.addPlayerToActive(player))
+		if (sessionManager.addPlayerToActive(player))
 		{
 			managerPanel.refreshAllView();
 		}
@@ -124,8 +118,8 @@ public class PanelController implements PanelActions
 		playerManager.saveToConfig();
 		managerPanel.refreshAllView();
 		view.getKnownPlayersDropdown().setSelectedItem(clean);
-		view.getNewPeepField().setText("");
-		view.getNewPeepField().requestFocusInWindow();
+		view.getNewPlayerField().setText("");
+		view.getNewPlayerField().requestFocusInWindow();
 		refreshAllView();
 	}
 
@@ -134,7 +128,7 @@ public class PanelController implements PanelActions
 	{
 		if (name == null)
 		{
-			toast(view, "Select a peep to remove.");
+			toast(view, "Select a Player to remove.");
 			return;
 		}
 		int res = JOptionPane.showConfirmDialog(view,
@@ -165,7 +159,7 @@ public class PanelController implements PanelActions
 			toast(view, "Select a player.");
 			return;
 		}
-		if (sessionmanager.addKill(player, amount))
+		if (sessionManager.addKill(player, amount))
 		{
 			view.getKillAmountField().setText("");
 			managerPanel.refreshAllView();
@@ -264,7 +258,7 @@ public class PanelController implements PanelActions
 			toast(view, "Select a detected value first.");
 			return;
 		}
-		if (!sessionmanager.hasActiveSession())
+		if (!sessionManager.hasActiveSession())
 		{
 			toast(view, "Start a session first.");
 			return;
@@ -281,7 +275,7 @@ public class PanelController implements PanelActions
 			toast(view, "Choose a Suggested Player in the table first.");
 			return;
 		}
-		if (sessionmanager.applyPendingValueToPlayer(pv.getId(), target))
+		if (sessionManager.applyPendingValueToPlayer(pv.getId(), target))
 		{
 			managerPanel.refreshAllView();
 		}
@@ -306,7 +300,7 @@ public class PanelController implements PanelActions
 		{
 			return;
 		}
-		if (sessionmanager.removePendingValueById(pv.getId()))
+		if (sessionManager.removePendingValueById(pv.getId()))
 		{
 			managerPanel.refreshAllView();
 		}
@@ -328,6 +322,43 @@ public class PanelController implements PanelActions
 		refreshButtonStates();
 	}
 
+	@Override
+	public void altPlayerManageAddPlayer(String player){
+		long amt;
+		Object val = view.getActiveKillAmountField().getValue();
+		try
+		{
+			amt = val == null ? Long.parseLong(view.getActiveKillAmountField().getText()) : ((Number) val).longValue();
+		}
+		catch (Exception ex)
+		{
+			javax.swing.JOptionPane.showMessageDialog(null, "Invalid amount.", "Error", javax.swing.JOptionPane.ERROR_MESSAGE);
+			return;
+		}
+		if (sessionManager.addKill(player, amt))
+		{
+			view.getActiveKillAmountField().setText("");
+			managerPanel.refreshAllView();
+		}
+		else
+		{
+			javax.swing.JOptionPane.showMessageDialog(null, "Failed to add split. Is player in session?", "Error", javax.swing.JOptionPane.ERROR_MESSAGE);
+		}
+	}
+
+	@Override
+	public void altPlayerManageRemovePlayer(String player){
+		if (sessionManager.removePlayerFromSession(player))
+		{
+			managerPanel.refreshAllView();
+		}
+		else
+		{
+			javax.swing.JOptionPane.showMessageDialog(null, "Failed to remove player from session.", "Error", javax.swing.JOptionPane.ERROR_MESSAGE);
+		}
+	}
+
+
 	/**
 	 * Refreshes the list of known players and updates corresponding UI components.
 	 * <p>
@@ -338,7 +369,7 @@ public class PanelController implements PanelActions
 	 */
 	private void refreshKnownPlayers()
 	{
-		String[] players = sessionmanager.getKnownPlayers().toArray(new String[0]);
+		String[] players = sessionManager.getKnownPlayers().toArray(new String[0]);
 		view.getKnownPlayersDropdown().setModel(new DefaultComboBoxModel<>(players));
 		view.getKnownListLabel().setText("Known (" + players.length + "):");
 
@@ -350,16 +381,16 @@ public class PanelController implements PanelActions
 	 */
 	private void refreshSessionData()
 	{
-		Session currentSession = sessionmanager.getCurrentSession().orElse(null);
+		Session currentSession = sessionManager.getCurrentSession().orElse(null);
 
 		if (currentSession != null && currentSession.isActive())
 		{
 			String[] sessionPlayers = currentSession.getPlayers().toArray(new String[0]);
-			String[] notPeeps = sessionmanager.getNonActivePlayers().toArray(new String[0]);
+			String[] notPlayers = sessionManager.getNonActivePlayers().toArray(new String[0]);
 
 			view.getCurrentSessionPlayerDropdown().setEnabled(true);
 			view.getCurrentSessionPlayerDropdown().setModel(new DefaultComboBoxModel<>(sessionPlayers));
-			view.getNotInCurrentSessionPlayerDropdown().setModel(new DefaultComboBoxModel<>(notPeeps));
+			view.getNotInCurrentSessionPlayerDropdown().setModel(new DefaultComboBoxModel<>(notPlayers));
 		}
 		else
 		{
@@ -367,13 +398,13 @@ public class PanelController implements PanelActions
 			view.getCurrentSessionPlayerDropdown().setEnabled(false);
 		}
 
-		view.getHistoryLabel().setText("History: " + (sessionmanager.isHistoryLoaded() ? "ON" : "OFF"));
+		view.getHistoryLabel().setText("History: " + (sessionManager.isHistoryLoaded() ? "ON" : "OFF"));
 
-		Session current = sessionmanager.getCurrentSession().orElse(null);
+		Session current = sessionManager.getCurrentSession().orElse(null);
 		if (current != null)
 		{
 			((Metrics) view.getMetricsTable().getModel())
-				.setData(sessionmanager.computeMetricsFor(current, true));
+				.setData(sessionManager.computeMetricsFor(current, true));
 			view.getRecentSplitsModel().setFromKills(current.getKills());
 		}
 		else
@@ -394,7 +425,7 @@ public class PanelController implements PanelActions
 	 */
 	private void refreshWaitlist()
 	{
-		view.getWaitlistTableModel().setData(sessionmanager.getPendingValues());
+		view.getWaitlistTableModel().setData(sessionManager.getPendingValues());
 		view.getWaitlistTable()
 			.getColumnModel()
 			.getColumn(2)
@@ -413,8 +444,8 @@ public class PanelController implements PanelActions
 	{
 		view.refreshActivePlayerButtons();
 
-		boolean readOnly = sessionmanager.isHistoryLoaded();
-		boolean hasActiveSession = sessionmanager.hasActiveSession();
+		boolean readOnly = sessionManager.isHistoryLoaded();
+		boolean hasActiveSession = sessionManager.hasActiveSession();
 
 		view.getBtnStart().setEnabled(!readOnly && !hasActiveSession);
 		view.getBtnStop().setEnabled(!readOnly && hasActiveSession);
@@ -441,7 +472,7 @@ public class PanelController implements PanelActions
 	 */
 	private void refreshAlts()
 	{
-		String[] players = sessionmanager.getKnownPlayers().toArray(new String[0]);
+		String[] players = sessionManager.getKnownPlayers().toArray(new String[0]);
 
 		String selectedMain = (String) view.getKnownPlayersDropdown().getSelectedItem();
 		if (selectedMain == null && players.length > 0)
@@ -456,7 +487,7 @@ public class PanelController implements PanelActions
 
 		if (selectedMain != null)
 		{
-			for (String p : sessionmanager.getKnownPlayers())
+			for (String p : sessionManager.getKnownPlayers())
 			{
 				if (playerManager.canLinkAltToMain(p, selectedMain))
 				{
@@ -517,14 +548,14 @@ public class PanelController implements PanelActions
 	 */
 	public String buildMetricsJson()
 	{
-		Session currentSession = sessionmanager.getCurrentSession().orElse(null);
-		List<ManagerSession.PlayerMetrics> data = sessionmanager.computeMetricsFor(currentSession, true);
+		Session currentSession = sessionManager.getCurrentSession().orElse(null);
+		List<PlayerMetrics> data = sessionManager.computeMetricsFor(currentSession, true);
 		StringBuilder sb = new StringBuilder();
 
 		sb.append("[");
 		for (int i = 0; i < data.size(); i++)
 		{
-			ManagerSession.PlayerMetrics pm = data.get(i);
+			PlayerMetrics pm = data.get(i);
 			sb.append("{\"player\":\"").append(pm.player).append("\",")
 				.append("\"total\":").append(pm.total).append(",")
 				.append("\"split\":").append(pm.split).append(",")
@@ -541,17 +572,17 @@ public class PanelController implements PanelActions
 
 	public String buildMetricsMarkdown()
 	{
-		List<ManagerSession.PlayerMetrics> data =
-			sessionmanager.computeMetricsFor(sessionmanager.getCurrentSession().orElse(null), true);
+		List<PlayerMetrics> data =
+			sessionManager.computeMetricsFor(sessionManager.getCurrentSession().orElse(null), true);
 		return MarkdownFormatter.buildMetricsMarkdown(data, config);
 	}
 
-	public List<String> computeDirectPayments(List<ManagerSession.PlayerMetrics> data)
+	public List<String> computeDirectPayments(List<PlayerMetrics> data)
 	{
 		return PaymentProcessor.computeDirectPayments(data);
 	}
 
-	public List<Transfer> computeDirectPaymentsStructured(List<ManagerSession.PlayerMetrics> data)
+	public List<Transfer> computeDirectPaymentsStructured(List<PlayerMetrics> data)
 	{
 		return PaymentProcessor.computeDirectPaymentsStructured(data);
 	}

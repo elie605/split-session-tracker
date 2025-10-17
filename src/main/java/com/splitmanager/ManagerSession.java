@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.splitmanager.models.Kill;
 import com.splitmanager.models.PendingValue;
+import com.splitmanager.models.PlayerMetrics;
 import com.splitmanager.models.Session;
 import com.splitmanager.utils.InstantTypeAdapter;
 import java.time.Instant;
@@ -145,8 +146,6 @@ public class ManagerSession
 		// TODO Implement: Session s = sessions.get(sessionId); return s != null ? gson.toJson(s) : "";
 		return "";
 	}
-
-	//TODO make sure this make sense to be option and fix it: Whyy is this optional??/
 
 	/**
 	 * @return unmodifiable set of all known player names (mains and alts).
@@ -716,25 +715,5 @@ public class ManagerSession
 		return UUID.randomUUID().toString();
 	}
 
-	/**
-	 * Aggregate row to display per-player totals and split deltas for a session thread.
-	 * total = sum of that player's kills across all sessions in the thread.
-	 * split = sum over each session in the thread of (playerTotalInThatSession - avgOfThatSessionRoster).
-	 * activePlayer indicates whether the player is on the provided session's current roster.
-	 */
-	public static class PlayerMetrics
-	{
-		public final String player;
-		public final Long total;
-		public final Long split;
-		public final boolean activePlayer;
 
-		public PlayerMetrics(String player, Long total, Long split, boolean activePlayer)
-		{
-			this.player = player;
-			this.total = total;
-			this.split = split;
-			this.activePlayer = activePlayer;
-		}
-	}
 }

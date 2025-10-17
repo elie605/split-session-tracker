@@ -84,7 +84,6 @@ public class ManagerKnownPlayers
 	public void saveToConfig()
 	{
 		config.knownPlayersCsv(String.join(",", knownPlayers));
-		// save alt mapping
 		try
 		{
 			config.altsJson(gson.toJson(altMainMapping));
@@ -146,19 +145,16 @@ public class ManagerKnownPlayers
 		}
 		if (a.equalsIgnoreCase(m))
 		{
-			return false; // cannot link self
+			return false;
 		}
-		// main cannot be an alt
 		if (altMainMapping.containsKey(m))
 		{
 			return false;
 		}
-		// alt cannot already have a different main
 		if (altMainMapping.containsKey(a) && !altMainMapping.get(a).equalsIgnoreCase(m))
 		{
 			return false;
 		}
-		// alt cannot be a main of others (prevents main being alt through this change)
 		for (Map.Entry<String, String> e : altMainMapping.entrySet())
 		{
 			if (e.getValue() != null && e.getValue().equalsIgnoreCase(a))
@@ -183,7 +179,6 @@ public class ManagerKnownPlayers
 		}
 		String a = alt.trim();
 		String m = main.trim();
-		// no-op if already linked
 		if (altMainMapping.containsKey(a) && altMainMapping.get(a).equalsIgnoreCase(m))
 		{
 			return true;

@@ -1,12 +1,12 @@
 package com.splitmanager.views;
 
 import com.splitmanager.ManagerKnownPlayers;
-import com.splitmanager.ManagerPanel;
 import com.splitmanager.ManagerSession;
 import com.splitmanager.PluginConfig;
 import com.splitmanager.controllers.PanelActions;
 import com.splitmanager.controllers.PanelController;
 import com.splitmanager.models.Metrics;
+import com.splitmanager.models.PlayerMetrics;
 import com.splitmanager.models.RecentSplitsTable;
 import com.splitmanager.models.Session;
 import com.splitmanager.models.Transfer;
@@ -26,7 +26,7 @@ import java.awt.GridBagLayout;
 import java.awt.GridLayout;
 import java.awt.Insets;
 import java.awt.datatransfer.StringSelection;
-import javax.inject.Inject;
+import java.util.ArrayList;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.DefaultCellEditor;
@@ -62,7 +62,7 @@ public class PanelView extends PluginPanel
 	private final PluginConfig config;
 	private final ManagerKnownPlayers playerManager;
 	private final JComboBox<String> knownPlayersDropdown = new JComboBox<>();
-	private final JTextField newPeepField = new JTextField();
+	private final JTextField newPlayerField = new JTextField();
 	private final JLabel historyLabel = new JLabel("History: OFF");
 	private final JFormattedTextField killAmountField = makeOsrsField();
 	private final JFormattedTextField activeKillAmountField = makeOsrsField();
@@ -72,7 +72,7 @@ public class PanelView extends PluginPanel
 	private final JTable waitlistTable = new JTable(waitlistTableModel);
 	private final JButton btnWaitlistAdd = new JButton("Add");
 	private final JButton btnWaitlistDelete = new JButton("Del");
-	private final JButton btnAddPeep = new JButton("Add peep");
+	private final JButton btnAddPlayer = new JButton("Add Player");
 	private final JLabel knownListLabel = new JLabel("Known:");
 	private final JLabel altsLabel = new JLabel("Known alts:");
 	private final JLabel altOfLabel = new JLabel("");
@@ -98,11 +98,7 @@ public class PanelView extends PluginPanel
 	private final Insets inset = new Insets(3, 3, 3, 3);
 	private final Dimension lm = new Dimension(0, 140);
 	private final Dimension ll = new Dimension(0, 280);
-	// lightweight helper (kept for markdown/json building)
-	private final PanelController controllerHelper;
-	@Inject
-	private ManagerPanel managerPanel;
-	// actions (Controller port). Set with bindActions(...)
+	private final PanelController controllerHelper = null;
 	private PanelActions actions;
 	private JTable recentSplitsTable;
 
@@ -110,7 +106,6 @@ public class PanelView extends PluginPanel
 	{
 		this.sessionManager = sessionManager;
 		this.config = config;
-		this.controllerHelper = new PanelController(); // used only for clipboard helpers
 		this.playerManager = playerManager;
 
 		recentSplitsModel.setListener(this::refreshMetrics);
@@ -182,8 +177,8 @@ public class PanelView extends PluginPanel
 			actions.addPlayerToSession((String) notInCurrentSessionPlayerDropdown.getSelectedItem()));
 
 		// Known players
-		btnAddPeep.addActionListener(e ->
-			actions.addKnownPlayer(newPeepField.getText()));
+		btnAddPlayer.addActionListener(e ->
+			actions.addKnownPlayer(newPlayerField.getText()));
 		btnRemovePlayer.addActionListener(e ->
 			actions.removeKnownPlayer((String) knownPlayersDropdown.getSelectedItem()));
 		knownPlayersDropdown.addItemListener(e -> {
@@ -346,8 +341,8 @@ public class PanelView extends PluginPanel
 		gbc.weightx = 1.0;
 		gbc.fill = GridBagConstraints.HORIZONTAL;
 
-		String[] peeps = sessionManager.getNonActivePlayers().toArray(new String[0]);
-		notInCurrentSessionPlayerDropdown.setModel(new DefaultComboBoxModel<>(peeps));
+		String[] Players = sessionManager.getNonActivePlayers().toArray(new String[0]);
+		notInCurrentSessionPlayerDropdown.setModel(new DefaultComboBoxModel<>(Players));
 		rosterPanel.add(notInCurrentSessionPlayerDropdown, gbc);
 
 		gbc.gridx = 0;
@@ -383,8 +378,8 @@ public class PanelView extends PluginPanel
 
 	private JPanel generateKnownPlayersManagement()
 	{
-		JPanel peepsPanel = new JPanel();
-		peepsPanel.setLayout(new GridBagLayout());
+		JPanel PlayersPanel = new JPanel();
+		PlayersPanel.setLayout(new GridBagLayout());
 		GridBagConstraints gbc = new GridBagConstraints();
 		gbc.insets = inset;
 		gbc.anchor = GridBagConstraints.WEST;
@@ -393,8 +388,8 @@ public class PanelView extends PluginPanel
 		JLabel title = new JLabel("Edit the known players list:");
 		title.setFont(title.getFont().deriveFont(Font.BOLD));
 
-		newPeepField.setColumns(14);
-		newPeepField.setPreferredSize(dv);
+		newPlayerField.setColumns(14);
+		newPlayerField.setPreferredSize(dv);
 		knownPlayersDropdown.setPreferredSize(dv);
 		addAltDropdown.setPreferredSize(dv);
 
@@ -404,7 +399,7 @@ public class PanelView extends PluginPanel
 		gbc.gridy = row;
 		gbc.gridwidth = 2;
 		gbc.weightx = 1.0;
-		peepsPanel.add(title, gbc);
+		PlayersPanel.add(title, gbc);
 		row++;
 
 		JLabel nameLabel = new JLabel("Name:");
@@ -417,14 +412,14 @@ public class PanelView extends PluginPanel
 		gbc.weightx = 0;
 		gbc.fill = GridBagConstraints.NONE;
 		gbc.anchor = GridBagConstraints.EAST;
-		peepsPanel.add(nameLabel, gbc);
+		PlayersPanel.add(nameLabel, gbc);
 
 		gbc.gridx = 1;
 		gbc.gridy = row;
 		gbc.weightx = 1.0;
 		gbc.fill = GridBagConstraints.HORIZONTAL;
 		gbc.anchor = GridBagConstraints.WEST;
-		peepsPanel.add(newPeepField, gbc);
+		PlayersPanel.add(newPlayerField, gbc);
 		row++;
 
 		gbc.gridx = 0;
@@ -433,9 +428,9 @@ public class PanelView extends PluginPanel
 		gbc.weightx = 1.0;
 		gbc.anchor = GridBagConstraints.EAST;
 		gbc.fill = GridBagConstraints.NONE;
-		btnAddPeep.setPreferredSize(dv);
-		btnAddPeep.setMinimumSize(dv);
-		peepsPanel.add(btnAddPeep, gbc);
+		btnAddPlayer.setPreferredSize(dv);
+		btnAddPlayer.setMinimumSize(dv);
+		PlayersPanel.add(btnAddPlayer, gbc);
 		row++;
 
 		gbc.gridx = 0;
@@ -444,7 +439,7 @@ public class PanelView extends PluginPanel
 		gbc.weightx = 1.0;
 		gbc.fill = GridBagConstraints.HORIZONTAL;
 		gbc.anchor = GridBagConstraints.CENTER;
-		peepsPanel.add(new JSeparator(SwingConstants.HORIZONTAL), gbc);
+		PlayersPanel.add(new JSeparator(SwingConstants.HORIZONTAL), gbc);
 		row++;
 
 		JLabel alterLbl = new JLabel("Alter player info:");
@@ -455,7 +450,7 @@ public class PanelView extends PluginPanel
 		gbc.weightx = 1.0;
 		gbc.fill = GridBagConstraints.HORIZONTAL;
 		gbc.anchor = GridBagConstraints.WEST;
-		peepsPanel.add(alterLbl, gbc);
+		PlayersPanel.add(alterLbl, gbc);
 		row++;
 
 		gbc.gridx = 0;
@@ -464,7 +459,7 @@ public class PanelView extends PluginPanel
 		gbc.weightx = 1.0;
 		gbc.fill = GridBagConstraints.HORIZONTAL;
 		gbc.anchor = GridBagConstraints.WEST;
-		peepsPanel.add(knownPlayersDropdown, gbc);
+		PlayersPanel.add(knownPlayersDropdown, gbc);
 		row++;
 
 		gbc.gridx = 0;
@@ -475,7 +470,7 @@ public class PanelView extends PluginPanel
 		gbc.fill = GridBagConstraints.NONE;
 		btnRemovePlayer.setPreferredSize(dv);
 		btnRemovePlayer.setMinimumSize(dv);
-		peepsPanel.add(btnRemovePlayer, gbc);
+		PlayersPanel.add(btnRemovePlayer, gbc);
 		row++;
 
 		gbc.gridx = 0;
@@ -484,7 +479,7 @@ public class PanelView extends PluginPanel
 		gbc.weightx = 1.0;
 		gbc.fill = GridBagConstraints.HORIZONTAL;
 		gbc.anchor = GridBagConstraints.CENTER;
-		peepsPanel.add(new JSeparator(SwingConstants.HORIZONTAL), gbc);
+		PlayersPanel.add(new JSeparator(SwingConstants.HORIZONTAL), gbc);
 		row++;
 
 		altsLabel.setHorizontalAlignment(SwingConstants.LEFT);
@@ -494,7 +489,7 @@ public class PanelView extends PluginPanel
 		gbc.weightx = 1.0;
 		gbc.fill = GridBagConstraints.HORIZONTAL;
 		gbc.anchor = GridBagConstraints.WEST;
-		peepsPanel.add(altsLabel, gbc);
+		PlayersPanel.add(altsLabel, gbc);
 		row++;
 
 		JScrollPane altsScroll = new JScrollPane(altsList);
@@ -506,7 +501,7 @@ public class PanelView extends PluginPanel
 		gbc.weighty = 1.0;
 		gbc.fill = GridBagConstraints.BOTH;
 		gbc.anchor = GridBagConstraints.CENTER;
-		peepsPanel.add(altsScroll, gbc);
+		PlayersPanel.add(altsScroll, gbc);
 		row++;
 
 		JLabel addAltLbl = new JLabel("Add alt:");
@@ -520,14 +515,14 @@ public class PanelView extends PluginPanel
 		gbc.weightx = 0;
 		gbc.fill = GridBagConstraints.NONE;
 		gbc.anchor = GridBagConstraints.EAST;
-		peepsPanel.add(addAltLbl, gbc);
+		PlayersPanel.add(addAltLbl, gbc);
 
 		gbc.gridx = 1;
 		gbc.gridy = row;
 		gbc.weightx = 1.0;
 		gbc.fill = GridBagConstraints.HORIZONTAL;
 		gbc.anchor = GridBagConstraints.WEST;
-		peepsPanel.add(addAltDropdown, gbc);
+		PlayersPanel.add(addAltDropdown, gbc);
 		row++;
 
 		JPanel altButtonsRow = new JPanel(new GridLayout(1, 2, 6, 0));
@@ -540,9 +535,9 @@ public class PanelView extends PluginPanel
 		gbc.weightx = 1.0;
 		gbc.fill = GridBagConstraints.HORIZONTAL;
 		gbc.anchor = GridBagConstraints.CENTER;
-		peepsPanel.add(altButtonsRow, gbc);
+		PlayersPanel.add(altButtonsRow, gbc);
 
-		return new DropdownRip("Known player info", peepsPanel);
+		return new DropdownRip("Known player info", PlayersPanel);
 	}
 
 	private JPanel generateSessionPanel()
@@ -770,7 +765,7 @@ public class PanelView extends PluginPanel
 		if (direct)
 		{
 			Session currentSession = sessionManager.getCurrentSession().orElse(null);
-			java.util.List<ManagerSession.PlayerMetrics> data = sessionManager.computeMetricsFor(currentSession, true);
+			java.util.List<PlayerMetrics> data = sessionManager.computeMetricsFor(currentSession, true);
 			java.util.List<Transfer> transfers = controllerHelper.computeDirectPaymentsStructured(data);
 
 			if (transfers != null && !transfers.isEmpty())
@@ -895,46 +890,20 @@ public class PanelView extends PluginPanel
 		Session current = sessionManager.getCurrentSession().orElse(null);
 		if (current != null && current.isActive())
 		{
-			for (String p : new java.util.ArrayList<>(current.getPlayers()))
+			for (String player : new ArrayList<>(current.getPlayers()))
 			{
 				JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 2));
-				JLabel name = new JLabel(p);
+				JLabel name = new JLabel(player);
 				JButton addBtn = new JButton("➕");
-				addBtn.setToolTipText("Add split amount to " + p);
+				addBtn.setToolTipText("Add split amount to " + player);
 				JButton rmBtn = new JButton("🗑");
-				rmBtn.setToolTipText("Remove " + p + " from session");
+				rmBtn.setToolTipText("Remove " + player + " from session");
 
 				addBtn.addActionListener(e -> {
-					long amt;
-					Object val = activeKillAmountField.getValue();
-					try
-					{
-						amt = val == null ? Long.parseLong(activeKillAmountField.getText()) : ((Number) val).longValue();
-					}
-					catch (Exception ex)
-					{
-						javax.swing.JOptionPane.showMessageDialog(null, "Invalid amount.", "Error", javax.swing.JOptionPane.ERROR_MESSAGE);
-						return;
-					}
-					if (sessionManager.addKill(p, amt))
-					{
-						activeKillAmountField.setText("");
-						managerPanel.refreshAllView();
-					}
-					else
-					{
-						javax.swing.JOptionPane.showMessageDialog(null, "Failed to add split. Is player in session?", "Error", javax.swing.JOptionPane.ERROR_MESSAGE);
-					}
+					actions.altPlayerManageAddPlayer(player);
 				});
 				rmBtn.addActionListener(e -> {
-					if (sessionManager.removePlayerFromSession(p))
-					{
-						managerPanel.refreshAllView();
-					}
-					else
-					{
-						javax.swing.JOptionPane.showMessageDialog(null, "Failed to remove player from session.", "Error", javax.swing.JOptionPane.ERROR_MESSAGE);
-					}
+					actions.altPlayerManageRemovePlayer(player);
 				});
 
 				row.add(addBtn);

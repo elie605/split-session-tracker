@@ -1,6 +1,6 @@
 package com.splitmanager.utils;
 
-import com.splitmanager.ManagerSession;
+import com.splitmanager.models.PlayerMetrics;
 import com.splitmanager.models.Transfer;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
@@ -15,12 +15,12 @@ public class PaymentProcessor
 	/**
 	 * Compute direct payments as text instructions.
 	 */
-	public static List<String> computeDirectPayments(List<ManagerSession.PlayerMetrics> data)
+	public static List<String> computeDirectPayments(List<PlayerMetrics> data)
 	{
-		List<ManagerSession.PlayerMetrics> receivers = new ArrayList<>();
-		List<ManagerSession.PlayerMetrics> payers = new ArrayList<>();
+		List<PlayerMetrics> receivers = new ArrayList<>();
+		List<PlayerMetrics> payers = new ArrayList<>();
 
-		for (var pm : data)
+		for (PlayerMetrics pm : data)
 		{
 			if (pm.split > 0)
 			{
@@ -76,11 +76,11 @@ public class PaymentProcessor
 	/**
 	 * Compute direct payments as structured Transfer objects.
 	 */
-	public static List<Transfer> computeDirectPaymentsStructured(List<ManagerSession.PlayerMetrics> data)
+	public static List<Transfer> computeDirectPaymentsStructured(List<PlayerMetrics> data)
 	{
-		List<ManagerSession.PlayerMetrics> receivers = new ArrayList<>();
-		List<ManagerSession.PlayerMetrics> payers = new ArrayList<>();
-		for (ManagerSession.PlayerMetrics pm : data)
+		List<PlayerMetrics> receivers = new ArrayList<>();
+		List<PlayerMetrics> payers = new ArrayList<>();
+		for (PlayerMetrics pm : data)
 		{
 			if (pm.split > 0)
 			{

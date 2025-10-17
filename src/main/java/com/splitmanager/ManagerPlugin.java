@@ -57,7 +57,6 @@ public class ManagerPlugin extends Plugin
 	private ClientToolbar clientToolbar;
 	@Inject
 	private PluginConfig config;
-	//SIGH
 	@Inject
 	private OverlayManager overlayManager;
 	private ChatStatusOverlay chatOverlay;
@@ -82,9 +81,6 @@ public class ManagerPlugin extends Plugin
 		playerManager.init();
 		sessionManager.init();
 		panelManager.init();
-
-		panel = new ManagerPanel(sessionManager, config);
-		panel.refreshAllView();
 
 		// TODO create an icon
 		// Use a transparent placeholder icon so the panel shows in the side menu without bundling an image.
@@ -120,15 +116,14 @@ public class ManagerPlugin extends Plugin
 			sessionManager.saveToConfig();
 		}
 
-		//SIGH
 		if (chatOverlay != null)
 		{
 			overlayManager.remove(chatOverlay);
 			chatOverlay = null;
 		}
 
-        panel = null;
-    }
+		panel = null;
+	}
 
 	@Provides
 	/**
@@ -141,7 +136,6 @@ public class ManagerPlugin extends Plugin
 		return configManager.getConfig(PluginConfig.class);
 	}
 
-	//SIGH
 	@Subscribe
 	public void onClanChannelChanged(ClanChannelChanged e)
 	{
@@ -222,7 +216,7 @@ public class ManagerPlugin extends Plugin
 		if (CheckChatJoinLeave(event))
 		{
 			return;
-		}//SIGH LOOK IM HERE
+		}
 
 		Formats.OsrsAmountFormatter f = new Formats.OsrsAmountFormatter();
 
@@ -245,11 +239,11 @@ public class ManagerPlugin extends Plugin
 		}
 		if (!isClan && !isFriends)
 		{
-			return; // only these channels
+			return;
 		}
 
 		String msg = event.getMessage();
-		String sender = event.getName(); // may include rank/icon tags
+		String sender = event.getName();
 		if (sender != null)
 		{
 			sender = sender.replaceAll("<[^>]*>", "");
@@ -288,7 +282,7 @@ public class ManagerPlugin extends Plugin
 		if (config.detectPlayerValues())
 		{
 			java.util.regex.Matcher m = java.util.regex.Pattern
-				.compile("(?i)!add\\s+([0-9][0-9,]*(?:\\.[0-9]+)?)\\s*(k|tousand|thousand|m|mil|mill|million|b|bil|bill|billion)?\\b")
+				.compile("(?i)!add\\s+([0-9][0-9,]*(?:\\.[0-9]+)?)\\s*(k|thousand|m|mil|mill|million|b|bil|bill|billion)?\\b")
 				.matcher(msg);
 
 			if (m.find())
@@ -306,7 +300,6 @@ public class ManagerPlugin extends Plugin
 					switch (unitTxt.toLowerCase())
 					{
 						case "k":
-						case "tousand"://possible accepted typo
 						case "thousand":
 							multiplier = new java.math.BigDecimal(1_000L);
 							break;
@@ -353,7 +346,7 @@ public class ManagerPlugin extends Plugin
 		}
 		PendingValue pv = PendingValue.of(type, source, msg, value, suggestedPlayer);
 		sessionManager.addPendingValue(pv);
-		// Ask UI to refresh
+
 		panel.refreshAllView();
 	}
 

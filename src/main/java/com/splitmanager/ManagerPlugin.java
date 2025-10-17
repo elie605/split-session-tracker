@@ -5,7 +5,6 @@ import com.splitmanager.models.PendingValue;
 import com.splitmanager.models.Session;
 import com.splitmanager.utils.ChatStatusOverlay;
 import com.splitmanager.utils.Formats;
-import com.splitmanager.utils.Utils;
 import java.awt.image.BufferedImage;
 import java.text.ParseException;
 import java.util.Arrays;
@@ -44,7 +43,8 @@ import net.runelite.client.util.Text;
 	description = "Automatic split manager for group sessions. Tracks sessions, roster changes, chat-detected values, editable recent splits, and settlement metrics (copy JSON). Collapsible sections and configurable panel order.",
 	enabledByDefault = true
 )
-/** Main RuneLite plugin entry point for Auto Split Manager.
+/**
+ * Main RuneLite plugin entry point for Auto Split Manager.
  * Wires up UI, session management, configuration, and chat/menu event handlers.
  */
 public class ManagerPlugin extends Plugin
@@ -63,44 +63,14 @@ public class ManagerPlugin extends Plugin
 	private boolean chatExplicitKnown = false;
 	private boolean chatExplicitOn = false;
 	private NavigationButton navButton;
+
+	@Inject
+	private ManagerPanel panelManager;
+	@Inject
 	private ManagerSession sessionManager;
+	@Inject
+	private ManagerKnownPlayers playerManager;
 
-	/**
-	 * Joined to Friends Chat ("Chat Channel")?
-	 */
-	private boolean isFriendsChatOn()
-	{
-		FriendsChatManager fcm = client.getFriendsChatManager();
-		if (fcm == null)
-		{
-			return false;
-		}
-
-		FriendsChatMember[] members = fcm.getMembers();
-		if (members == null || members.length == 0)
-		{
-			return false;
-		}
-
-		String me = myCleanName();
-		if (!me.isEmpty())
-		{
-			for (FriendsChatMember m : members)
-			{
-				if (m == null)
-				{
-					continue;
-				}
-				String n = net.runelite.client.util.Text.toJagexName(
-					net.runelite.client.util.Text.removeTags(m.getName()));
-				if (me.equalsIgnoreCase(n))
-				{
-					return true;
-				}
-			}
-		}
-		return true;
-	}
 
 	@Override
 	/**
@@ -108,11 +78,9 @@ public class ManagerPlugin extends Plugin
 	 */
 	protected void startUp()
 	{
-		sessionManager = new ManagerSession(config);
-		sessionManager.loadFromConfig(); // load sessions and players (peeps)
-
-		panel = new ManagerPanel(sessionManager, config);
-		panel.refreshAllView();
+		playerManager.init();
+		sessionManager.init();
+		panelManager.init();
 
 		// TODO create an icon
 		// Use a transparent placeholder icon so the panel shows in the side menu without bundling an image.
@@ -125,7 +93,7 @@ public class ManagerPlugin extends Plugin
 			.tooltip("Auto Split Manager")
 			.icon(placeholderIcon)
 			.priority(5)
-			.panel(panel)
+			.panel(panelManager.getView())
 			.build();
 		clientToolbar.addNavigation(navButton);
 	}
@@ -148,7 +116,6 @@ public class ManagerPlugin extends Plugin
 			sessionManager.saveToConfig();
 		}
 
-		//SIGH
 		if (chatOverlay != null)
 		{
 			overlayManager.remove(chatOverlay);
@@ -157,19 +124,17 @@ public class ManagerPlugin extends Plugin
 
 		panel = null;
 	}
-
-	@Provides
 	/**
 	 * Provide injectable configuration instance.
 	 * @param configManager RuneLite config manager
 	 * @return plugin config
 	 */
+	@Provides
 	PluginConfig provideConfig(ConfigManager configManager)
 	{
 		return configManager.getConfig(PluginConfig.class);
 	}
 
-	//no usages is a lie, these are incredibly important, do not delete!!!
 	@Subscribe
 	public void onClanChannelChanged(ClanChannelChanged e)
 	{
@@ -211,17 +176,17 @@ public class ManagerPlugin extends Plugin
 	}
 
 
-	@Subscribe
 	/**
 	 * React to plugin configuration changes that require a panel refresh/restart.
 	 * @param e config change event
 	 */
+	@Subscribe
 	public void onConfigChanged(ConfigChanged e)
 	{
 		if ("Split Manager".equals(e.getGroup()) && "directPayments".equals(e.getKey()))
 		{
 			log.info("Direct payments changed, refreshing panel");
-			Utils.requestRestart().run();
+			panelManager.restart();
 		}
 
 		//SIGH
@@ -238,19 +203,19 @@ public class ManagerPlugin extends Plugin
 		}
 	}
 
-	@Subscribe
 	/**
 	 * Parse chat messages to detect values and enqueue PendingValue suggestions.
 	 * @param event chat message event
 	 * @throws ParseException when number parsing fails
 	 */
+	@Subscribe
 	public void onChatMessage(ChatMessage event) throws ParseException
 	{
 
 		if (CheckChatJoinLeave(event))
 		{
 			return;
-		}//SIGH LOOK IM HERE
+		}
 
 		Formats.OsrsAmountFormatter f = new Formats.OsrsAmountFormatter();
 
@@ -273,11 +238,11 @@ public class ManagerPlugin extends Plugin
 		}
 		if (!isClan && !isFriends)
 		{
-			return; // only these channels
+			return;
 		}
 
 		String msg = event.getMessage();
-		String sender = event.getName(); // may include rank/icon tags
+		String sender = event.getName();
 		if (sender != null)
 		{
 			sender = sender.replaceAll("<[^>]*>", "");
@@ -312,10 +277,11 @@ public class ManagerPlugin extends Plugin
 		// Try parse player !add value
 		//TODO specify add! unit
 		//TODO fix negative numbers
+		//TODO this duplicate of format function  @SIGH
 		if (config.detectPlayerValues())
 		{
 			java.util.regex.Matcher m = java.util.regex.Pattern
-				.compile("(?i)!add\\s+([0-9][0-9,]*(?:\\.[0-9]+)?)\\s*(k|tousand|thousand|m|mil|mill|million|b|bil|bill|billion)?\\b")
+				.compile("(?i)!add\\s+([0-9][0-9,]*(?:\\.[0-9]+)?)\\s*(k|thousand|m|mil|mill|million|b|bil|bill|billion)?\\b")
 				.matcher(msg);
 
 			if (m.find())
@@ -333,7 +299,6 @@ public class ManagerPlugin extends Plugin
 					switch (unitTxt.toLowerCase())
 					{
 						case "k":
-						case "tousand"://possible accepted typo
 						case "thousand":
 							multiplier = new java.math.BigDecimal(1_000L);
 							break;
@@ -380,8 +345,8 @@ public class ManagerPlugin extends Plugin
 		}
 		PendingValue pv = PendingValue.of(type, source, msg, value, suggestedPlayer);
 		sessionManager.addPendingValue(pv);
-		// Ask UI to refresh
-		Utils.requestUiRefresh().run();
+
+		panel.refreshAllView();
 	}
 
 	private boolean CheckChatJoinLeave(ChatMessage event)
@@ -403,10 +368,10 @@ public class ManagerPlugin extends Plugin
 		}
 
 		//LEAVE/KICK Chat
-		if (isSystemish && java.util.regex.Pattern
-			.compile("(?i)^\\s*(?:you\\s+(?:have\\s+)?left\\s+(?:the\\s+)?(?:chat-)?channel\\.?|you\\s+(?:are|aren't|are\\s+not)\\s+currently\\s+in\\s+(?:a|the|your)\\s+(?:chat-)?channel\\.?|you\\s+have\\s+been\\s+kicked\\s+from\\s+the\\s+channel\\.?)\\s*$")
-			.matcher(plain)
-			.find())
+		if (java.util.regex.Pattern
+					.compile("(?i)^\\s*(?:you\\s+(?:have\\s+)?left\\s+(?:the\\s+)?(?:chat-)?channel\\.?|you\\s+(?:are|aren't|are\\s+not)\\s+currently\\s+in\\s+(?:a|the|your)\\s+(?:chat-)?channel\\.?|you\\s+have\\s+been\\s+kicked\\s+from\\s+the\\s+channel\\.?)\\s*$")
+					.matcher(plain)
+					.find())
 		{
 			chatExplicitKnown = true;
 			chatExplicitOn = false;
@@ -416,10 +381,10 @@ public class ManagerPlugin extends Plugin
 
 
 		//JOIN Chat
-		if (isSystemish && java.util.regex.Pattern
-			.compile("(?i)^\\s*now\\s+talking\\s+in\\s+(?:the\\s+)?(?:chat-)?channel\\.?\\s*$")
-			.matcher(plain)
-			.find())
+		if (java.util.regex.Pattern
+					.compile("(?i)^\\s*now\\s+talking\\s+in\\s+(?:the\\s+)?(?:chat-)?channel\\.?\\s*$")
+					.matcher(plain)
+					.find())
 		{
 			chatExplicitKnown = true;
 			chatExplicitOn = true;
@@ -455,12 +420,12 @@ public class ManagerPlugin extends Plugin
 	}
 
 
-	@Subscribe
 	/**
 	 * Track context (in game) menu openings to add an option to add/remove players from session.
 	 * This Triggers when you right click a player in the friends/clan chat.
 	 * @param event menu entry added event
 	 */
+	@Subscribe
 	public void onMenuEntryAdded(MenuEntryAdded event)
 	{
 		int componentId = event.getActionParam1();
@@ -506,7 +471,7 @@ public class ManagerPlugin extends Plugin
 				.onClick(e ->
 				{
 					sessionManager.removePlayerFromSession(playername);
-					Utils.requestUiRefresh().run();
+					panelManager.refreshAllView();
 				});
 			return;
 		}
@@ -526,11 +491,11 @@ public class ManagerPlugin extends Plugin
 			.setType(MenuAction.RUNELITE)
 			.onClick(e ->
 			{
-				if (sessionManager.addKnownPlayer(playername))
+				if (playerManager.addKnownPlayer(playername))
 				{
 					sessionManager.addPlayerToActive(playername);
 				}
-				Utils.requestUiRefresh().run();
+				panelManager.refreshAllView();
 			});
 	}
 
@@ -598,5 +563,40 @@ public class ManagerPlugin extends Plugin
 		return channelHasSelf(client.getGuestClanChannel());
 	}
 
+	/**
+	 * Joined to Friends Chat ("Chat Channel")?
+	 */
+	private boolean isFriendsChatOn()
+	{
+		FriendsChatManager fcm = client.getFriendsChatManager();
+		if (fcm == null)
+		{
+			return false;
+		}
 
+		FriendsChatMember[] members = fcm.getMembers();
+		if (members == null || members.length == 0)
+		{
+			return false;
+		}
+
+		String me = myCleanName();
+		if (!me.isEmpty())
+		{
+			for (FriendsChatMember m : members)
+			{
+				if (m == null)
+				{
+					continue;
+				}
+				String n = net.runelite.client.util.Text.toJagexName(
+					net.runelite.client.util.Text.removeTags(m.getName()));
+				if (me.equalsIgnoreCase(n))
+				{
+					return true;
+				}
+			}
+		}
+		return true;
+	}
 }

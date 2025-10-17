@@ -50,7 +50,6 @@ public class WaitlistTable extends AbstractTableModel
 				return pv.getType().name();
 			case 1:
 				double k = pv.getValue();
-				// show with max one decimal when needed
 				return (k % 1.0 == 0.0) ? String.format("%,.0fK", k) : String.format("%,.1fK", k);
 			case 2:
 				return pv.getSuggestedPlayer() == null ? "" : pv.getSuggestedPlayer();
@@ -81,7 +80,7 @@ public class WaitlistTable extends AbstractTableModel
 	@Override
 	public boolean isCellEditable(int rowIndex, int columnIndex)
 	{
-		return columnIndex == 2; // only suggested player editable
+		return columnIndex == 2;
 	}
 
 	@Override

@@ -1,21 +1,26 @@
 package com.splitmanager.views;
 
+import com.splitmanager.ManagerKnownPlayers;
 import com.splitmanager.ManagerSession;
 import com.splitmanager.PluginConfig;
 import com.splitmanager.controllers.PanelActions;
 import com.splitmanager.controllers.PanelController;
 import com.splitmanager.models.Metrics;
+import com.splitmanager.models.PlayerMetrics;
 import com.splitmanager.models.RecentSplitsTable;
 import com.splitmanager.models.Session;
 import com.splitmanager.models.Transfer;
 import com.splitmanager.models.WaitlistTable;
 import com.splitmanager.utils.Formats;
 import static com.splitmanager.utils.Formats.OsrsAmountFormatter.toSuffixString;
-import com.splitmanager.utils.Utils;
+import com.splitmanager.utils.MarkdownFormatter;
+import com.splitmanager.utils.PaymentProcessor;
+import static com.splitmanager.utils.Utils.toast;
 import com.splitmanager.views.components.DropdownRip;
 import com.splitmanager.views.components.table.RemoveButtonEditor;
 import java.awt.BorderLayout;
 import java.awt.Color;
+import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
@@ -24,8 +29,16 @@ import java.awt.GridBagLayout;
 import java.awt.GridLayout;
 import java.awt.Insets;
 import java.awt.datatransfer.StringSelection;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.function.Supplier;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
+import javax.swing.BoxLayout;
 import javax.swing.DefaultCellEditor;
 import javax.swing.DefaultComboBoxModel;
 import javax.swing.DefaultListModel;
@@ -55,10 +68,11 @@ import net.runelite.client.ui.PluginPanel;
 public class PanelView extends PluginPanel
 {
 	private final JPanel activePlayersButtonsPanel = new JPanel(new GridLayout(0, 1, 0, 2));
-	private final ManagerSession manager;
+	private final ManagerSession sessionManager;
 	private final PluginConfig config;
+	private final ManagerKnownPlayers playerManager;
 	private final JComboBox<String> knownPlayersDropdown = new JComboBox<>();
-	private final JTextField newPeepField = new JTextField();
+	private final JTextField newPlayerField = new JTextField();
 	private final JLabel historyLabel = new JLabel("History: OFF");
 	private final JFormattedTextField killAmountField = makeOsrsField();
 	private final JFormattedTextField activeKillAmountField = makeOsrsField();
@@ -68,7 +82,7 @@ public class PanelView extends PluginPanel
 	private final JTable waitlistTable = new JTable(waitlistTableModel);
 	private final JButton btnWaitlistAdd = new JButton("Add");
 	private final JButton btnWaitlistDelete = new JButton("Del");
-	private final JButton btnAddPeep = new JButton("Add peep");
+	private final JButton btnAddPlayer = new JButton("Add Player");
 	private final JLabel knownListLabel = new JLabel("Known:");
 	private final JLabel altsLabel = new JLabel("Known alts:");
 	private final JLabel altOfLabel = new JLabel("");
@@ -94,25 +108,22 @@ public class PanelView extends PluginPanel
 	private final Insets inset = new Insets(3, 3, 3, 3);
 	private final Dimension lm = new Dimension(0, 140);
 	private final Dimension ll = new Dimension(0, 280);
-	// lightweight helper (kept for markdown/json building)
-	private final PanelController controllerHelper;
-	// actions (Controller port). Set with bindActions(...)
 	private PanelActions actions;
-	private JTable recentSplitsTable;
+	private final JTable recentSplitsTable;
 
-	public PanelView(ManagerSession manager, PluginConfig config)
+	public PanelView(ManagerSession sessionManager, PluginConfig config, ManagerKnownPlayers playerManager)
 	{
-		this.manager = manager;
+		this.sessionManager = sessionManager;
 		this.config = config;
-		this.controllerHelper = new PanelController(manager, config, this); // used only for clipboard helpers
+		this.playerManager = playerManager;
 
 		recentSplitsModel.setListener(this::refreshMetrics);
 		recentSplitsTable = makeRecentSplitsTable(recentSplitsModel);
 
 		JPanel top = new JPanel();
-		top.setLayout(new javax.swing.BoxLayout(top, javax.swing.BoxLayout.Y_AXIS));
+		top.setLayout(new BoxLayout(top, BoxLayout.Y_AXIS));
 
-		java.util.Map<String, java.util.function.Supplier<java.awt.Component>> sections = new java.util.LinkedHashMap<>();
+		Map<String, Supplier<Component>> sections = new LinkedHashMap<>();
 		if (config.useActivePlayerManagement())
 		{
 			sections.put("activeplayermgmt", this::generateActivePlayerManagement);
@@ -125,14 +136,14 @@ public class PanelView extends PluginPanel
 		sections.put("settlement", this::generateMetrics);
 		sections.put("knownplayers", this::generateKnownPlayersManagement);
 
-		java.util.Set<String> added = new java.util.LinkedHashSet<>();
+		Set<String> added = new LinkedHashSet<>();
 		String orderCsv = config.sectionOrderCsv();
 		if (orderCsv != null && !orderCsv.isBlank())
 		{
 			for (String key : orderCsv.split(","))
 			{
 				String k = key.trim().toLowerCase();
-				java.util.function.Supplier<java.awt.Component> sup = sections.get(k);
+				Supplier<Component> sup = sections.get(k);
 				if (sup != null)
 				{
 					top.add(sup.get());
@@ -149,6 +160,7 @@ public class PanelView extends PluginPanel
 				top.add(Box.createVerticalStrut(3));
 			}
 		}
+
 		add(top, BorderLayout.NORTH);
 	}
 
@@ -166,17 +178,14 @@ public class PanelView extends PluginPanel
 	{
 		this.actions = actions;
 
-		// Session start/stop
 		btnStart.addActionListener(e -> actions.startSession());
 		btnStop.addActionListener(e -> actions.stopSession());
 
-		// Session player mgmt
 		btnAddToSession.addActionListener(e ->
 			actions.addPlayerToSession((String) notInCurrentSessionPlayerDropdown.getSelectedItem()));
 
-		// Known players
-		btnAddPeep.addActionListener(e ->
-			actions.addKnownPlayer(newPeepField.getText()));
+		btnAddPlayer.addActionListener(e ->
+			actions.addKnownPlayer(newPlayerField.getText()));
 		btnRemovePlayer.addActionListener(e ->
 			actions.removeKnownPlayer((String) knownPlayersDropdown.getSelectedItem()));
 		knownPlayersDropdown.addItemListener(e -> {
@@ -186,7 +195,6 @@ public class PanelView extends PluginPanel
 			}
 		});
 
-		// Alts
 		btnAddAlt.addActionListener(e ->
 			actions.addAltToMain((String) knownPlayersDropdown.getSelectedItem(),
 				(String) addAltDropdown.getSelectedItem()));
@@ -194,7 +202,6 @@ public class PanelView extends PluginPanel
 			actions.removeSelectedAlt((String) knownPlayersDropdown.getSelectedItem(),
 				altsList.getSelectedValue()));
 
-		// Splits
 		btnAddKill.addActionListener(e -> {
 			String player = (String) currentSessionPlayerDropdown.getSelectedItem();
 			long amt;
@@ -205,13 +212,12 @@ public class PanelView extends PluginPanel
 			}
 			catch (Exception ex)
 			{
-				Utils.toast(this, "Invalid amount.");
+				toast(this, "Invalid amount.");
 				return;
 			}
 			actions.addKill(player, amt);
 		});
 
-		// Waitlist
 		btnWaitlistAdd.addActionListener(e -> actions.applySelectedPendingValue(waitlistTable.getSelectedRow()));
 		btnWaitlistDelete.addActionListener(e -> actions.deleteSelectedPendingValue(waitlistTable.getSelectedRow()));
 	}
@@ -242,14 +248,14 @@ public class PanelView extends PluginPanel
 		JComboBox<String> playerEditorCombo = new JComboBox<>();
 		{
 			java.util.Set<String> choices;
-			Session curr = manager.getCurrentSession().orElse(null);
+			Session curr = sessionManager.getCurrentSession().orElse(null);
 			if (curr != null && !curr.getPlayers().isEmpty())
 			{
 				choices = new java.util.LinkedHashSet<>(curr.getPlayers());
 			}
 			else
 			{
-				choices = new java.util.LinkedHashSet<>(manager.getKnownMains());
+				choices = new java.util.LinkedHashSet<>(playerManager.getKnownMains());
 			}
 			playerEditorCombo.setModel(new DefaultComboBoxModel<>(choices.toArray(new String[0])));
 		}
@@ -339,8 +345,8 @@ public class PanelView extends PluginPanel
 		gbc.weightx = 1.0;
 		gbc.fill = GridBagConstraints.HORIZONTAL;
 
-		String[] peeps = manager.getNonActivePlayers().toArray(new String[0]);
-		notInCurrentSessionPlayerDropdown.setModel(new DefaultComboBoxModel<>(peeps));
+		String[] Players = sessionManager.getNonActivePlayers().toArray(new String[0]);
+		notInCurrentSessionPlayerDropdown.setModel(new DefaultComboBoxModel<>(Players));
 		rosterPanel.add(notInCurrentSessionPlayerDropdown, gbc);
 
 		gbc.gridx = 0;
@@ -376,8 +382,8 @@ public class PanelView extends PluginPanel
 
 	private JPanel generateKnownPlayersManagement()
 	{
-		JPanel peepsPanel = new JPanel();
-		peepsPanel.setLayout(new GridBagLayout());
+		JPanel PlayersPanel = new JPanel();
+		PlayersPanel.setLayout(new GridBagLayout());
 		GridBagConstraints gbc = new GridBagConstraints();
 		gbc.insets = inset;
 		gbc.anchor = GridBagConstraints.WEST;
@@ -386,8 +392,8 @@ public class PanelView extends PluginPanel
 		JLabel title = new JLabel("Edit the known players list:");
 		title.setFont(title.getFont().deriveFont(Font.BOLD));
 
-		newPeepField.setColumns(14);
-		newPeepField.setPreferredSize(dv);
+		newPlayerField.setColumns(14);
+		newPlayerField.setPreferredSize(dv);
 		knownPlayersDropdown.setPreferredSize(dv);
 		addAltDropdown.setPreferredSize(dv);
 
@@ -397,7 +403,7 @@ public class PanelView extends PluginPanel
 		gbc.gridy = row;
 		gbc.gridwidth = 2;
 		gbc.weightx = 1.0;
-		peepsPanel.add(title, gbc);
+		PlayersPanel.add(title, gbc);
 		row++;
 
 		JLabel nameLabel = new JLabel("Name:");
@@ -410,14 +416,14 @@ public class PanelView extends PluginPanel
 		gbc.weightx = 0;
 		gbc.fill = GridBagConstraints.NONE;
 		gbc.anchor = GridBagConstraints.EAST;
-		peepsPanel.add(nameLabel, gbc);
+		PlayersPanel.add(nameLabel, gbc);
 
 		gbc.gridx = 1;
 		gbc.gridy = row;
 		gbc.weightx = 1.0;
 		gbc.fill = GridBagConstraints.HORIZONTAL;
 		gbc.anchor = GridBagConstraints.WEST;
-		peepsPanel.add(newPeepField, gbc);
+		PlayersPanel.add(newPlayerField, gbc);
 		row++;
 
 		gbc.gridx = 0;
@@ -426,9 +432,9 @@ public class PanelView extends PluginPanel
 		gbc.weightx = 1.0;
 		gbc.anchor = GridBagConstraints.EAST;
 		gbc.fill = GridBagConstraints.NONE;
-		btnAddPeep.setPreferredSize(dv);
-		btnAddPeep.setMinimumSize(dv);
-		peepsPanel.add(btnAddPeep, gbc);
+		btnAddPlayer.setPreferredSize(dv);
+		btnAddPlayer.setMinimumSize(dv);
+		PlayersPanel.add(btnAddPlayer, gbc);
 		row++;
 
 		gbc.gridx = 0;
@@ -437,7 +443,7 @@ public class PanelView extends PluginPanel
 		gbc.weightx = 1.0;
 		gbc.fill = GridBagConstraints.HORIZONTAL;
 		gbc.anchor = GridBagConstraints.CENTER;
-		peepsPanel.add(new JSeparator(SwingConstants.HORIZONTAL), gbc);
+		PlayersPanel.add(new JSeparator(SwingConstants.HORIZONTAL), gbc);
 		row++;
 
 		JLabel alterLbl = new JLabel("Alter player info:");
@@ -448,7 +454,7 @@ public class PanelView extends PluginPanel
 		gbc.weightx = 1.0;
 		gbc.fill = GridBagConstraints.HORIZONTAL;
 		gbc.anchor = GridBagConstraints.WEST;
-		peepsPanel.add(alterLbl, gbc);
+		PlayersPanel.add(alterLbl, gbc);
 		row++;
 
 		gbc.gridx = 0;
@@ -457,7 +463,7 @@ public class PanelView extends PluginPanel
 		gbc.weightx = 1.0;
 		gbc.fill = GridBagConstraints.HORIZONTAL;
 		gbc.anchor = GridBagConstraints.WEST;
-		peepsPanel.add(knownPlayersDropdown, gbc);
+		PlayersPanel.add(knownPlayersDropdown, gbc);
 		row++;
 
 		gbc.gridx = 0;
@@ -468,7 +474,7 @@ public class PanelView extends PluginPanel
 		gbc.fill = GridBagConstraints.NONE;
 		btnRemovePlayer.setPreferredSize(dv);
 		btnRemovePlayer.setMinimumSize(dv);
-		peepsPanel.add(btnRemovePlayer, gbc);
+		PlayersPanel.add(btnRemovePlayer, gbc);
 		row++;
 
 		gbc.gridx = 0;
@@ -477,7 +483,7 @@ public class PanelView extends PluginPanel
 		gbc.weightx = 1.0;
 		gbc.fill = GridBagConstraints.HORIZONTAL;
 		gbc.anchor = GridBagConstraints.CENTER;
-		peepsPanel.add(new JSeparator(SwingConstants.HORIZONTAL), gbc);
+		PlayersPanel.add(new JSeparator(SwingConstants.HORIZONTAL), gbc);
 		row++;
 
 		altsLabel.setHorizontalAlignment(SwingConstants.LEFT);
@@ -487,7 +493,7 @@ public class PanelView extends PluginPanel
 		gbc.weightx = 1.0;
 		gbc.fill = GridBagConstraints.HORIZONTAL;
 		gbc.anchor = GridBagConstraints.WEST;
-		peepsPanel.add(altsLabel, gbc);
+		PlayersPanel.add(altsLabel, gbc);
 		row++;
 
 		JScrollPane altsScroll = new JScrollPane(altsList);
@@ -499,7 +505,7 @@ public class PanelView extends PluginPanel
 		gbc.weighty = 1.0;
 		gbc.fill = GridBagConstraints.BOTH;
 		gbc.anchor = GridBagConstraints.CENTER;
-		peepsPanel.add(altsScroll, gbc);
+		PlayersPanel.add(altsScroll, gbc);
 		row++;
 
 		JLabel addAltLbl = new JLabel("Add alt:");
@@ -513,14 +519,14 @@ public class PanelView extends PluginPanel
 		gbc.weightx = 0;
 		gbc.fill = GridBagConstraints.NONE;
 		gbc.anchor = GridBagConstraints.EAST;
-		peepsPanel.add(addAltLbl, gbc);
+		PlayersPanel.add(addAltLbl, gbc);
 
 		gbc.gridx = 1;
 		gbc.gridy = row;
 		gbc.weightx = 1.0;
 		gbc.fill = GridBagConstraints.HORIZONTAL;
 		gbc.anchor = GridBagConstraints.WEST;
-		peepsPanel.add(addAltDropdown, gbc);
+		PlayersPanel.add(addAltDropdown, gbc);
 		row++;
 
 		JPanel altButtonsRow = new JPanel(new GridLayout(1, 2, 6, 0));
@@ -533,9 +539,9 @@ public class PanelView extends PluginPanel
 		gbc.weightx = 1.0;
 		gbc.fill = GridBagConstraints.HORIZONTAL;
 		gbc.anchor = GridBagConstraints.CENTER;
-		peepsPanel.add(altButtonsRow, gbc);
+		PlayersPanel.add(altButtonsRow, gbc);
 
-		return new DropdownRip("Known player info", peepsPanel);
+		return new DropdownRip("Known player info", PlayersPanel);
 	}
 
 	private JPanel generateSessionPanel()
@@ -594,19 +600,14 @@ public class PanelView extends PluginPanel
 		gbc.insets = new Insets(3, 0, 0, 0);
 		p.add(btns, gbc);
 
-		waitlistTableModel.addTableModelListener(new TableModelListener()
-		{
-			@Override
-			public void tableChanged(javax.swing.event.TableModelEvent e)
+		waitlistTableModel.addTableModelListener(e -> {
+			if (waitlistTable.getRowCount() > 0)
 			{
-				if (waitlistTable.getRowCount() > 0)
-				{
-					waitlistTable.getSelectionModel().setSelectionInterval(0, 0);
-				}
-				else
-				{
-					waitlistTable.clearSelection();
-				}
+				waitlistTable.getSelectionModel().setSelectionInterval(0, 0);
+			}
+			else
+			{
+				waitlistTable.clearSelection();
 			}
 		});
 		if (waitlistTable.getRowCount() > 0)
@@ -753,7 +754,7 @@ public class PanelView extends PluginPanel
 		{
 			int actionIdx = metricsTable.getColumnModel().getColumnIndex("X");
 			metricsTable.getColumnModel().getColumn(actionIdx)
-				.setCellEditor(new RemoveButtonEditor(this, manager, metricsTable));
+				.setCellEditor(new RemoveButtonEditor(this, sessionManager, metricsTable));
 		}
 		catch (IllegalArgumentException ignored)
 		{
@@ -762,9 +763,9 @@ public class PanelView extends PluginPanel
 		JComponent centerContent;
 		if (direct)
 		{
-			Session currentSession = manager.getCurrentSession().orElse(null);
-			java.util.List<ManagerSession.PlayerMetrics> data = manager.computeMetricsFor(currentSession, true);
-			java.util.List<Transfer> transfers = controllerHelper.computeDirectPaymentsStructured(data);
+			Session currentSession = sessionManager.getCurrentSession().orElse(null);
+			List<PlayerMetrics> data = sessionManager.computeMetricsFor(currentSession, true);
+			List<Transfer> transfers = PaymentProcessor.computeDirectPaymentsStructured(data);
 
 			if (transfers != null && !transfers.isEmpty())
 			{
@@ -823,20 +824,22 @@ public class PanelView extends PluginPanel
 
 	private void refreshMetrics()
 	{
-		Session currentSession = manager.getCurrentSession().orElse(null);
-		((Metrics) metricsTable.getModel()).setData(manager.computeMetricsFor(currentSession, true));
+		Session currentSession = sessionManager.getCurrentSession().orElse(null);
+		((Metrics) metricsTable.getModel()).setData(sessionManager.computeMetricsFor(currentSession, true));
 	}
 
 	private void copyMetricsJsonToClipboard()
 	{
-		String payload = controllerHelper.buildMetricsJson();
+		String payload = MarkdownFormatter.buildMetricsJson(sessionManager);
 		StringSelection selection = new StringSelection(payload);
 		java.awt.Toolkit.getDefaultToolkit().getSystemClipboard().setContents(selection, selection);
 	}
 
 	private void copyMetricsMarkdownToClipboard()
 	{
-		String payload = controllerHelper.buildMetricsMarkdown();
+		String payload = MarkdownFormatter.buildMetricsMarkdown(
+			sessionManager.computeMetricsFor(
+				sessionManager.getCurrentSession().orElse(null), true), config);
 		StringSelection selection = new StringSelection(payload);
 		java.awt.Toolkit.getDefaultToolkit().getSystemClipboard().setContents(selection, selection);
 	}
@@ -885,50 +888,20 @@ public class PanelView extends PluginPanel
 	public void refreshActivePlayerButtons()
 	{
 		activePlayersButtonsPanel.removeAll();
-		Session current = manager.getCurrentSession().orElse(null);
+		Session current = sessionManager.getCurrentSession().orElse(null);
 		if (current != null && current.isActive())
 		{
-			for (String p : new java.util.ArrayList<>(current.getPlayers()))
+			for (String player : new ArrayList<>(current.getPlayers()))
 			{
 				JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 2));
-				JLabel name = new JLabel(p);
+				JLabel name = new JLabel(player);
 				JButton addBtn = new JButton("➕");
-				addBtn.setToolTipText("Add split amount to " + p);
+				addBtn.setToolTipText("Add split amount to " + player);
 				JButton rmBtn = new JButton("🗑");
-				rmBtn.setToolTipText("Remove " + p + " from session");
+				rmBtn.setToolTipText("Remove " + player + " from session");
 
-				addBtn.addActionListener(e -> {
-					long amt;
-					Object val = activeKillAmountField.getValue();
-					try
-					{
-						amt = val == null ? Long.parseLong(activeKillAmountField.getText()) : ((Number) val).longValue();
-					}
-					catch (Exception ex)
-					{
-						javax.swing.JOptionPane.showMessageDialog(null, "Invalid amount.", "Error", javax.swing.JOptionPane.ERROR_MESSAGE);
-						return;
-					}
-					if (manager.addKill(p, amt))
-					{
-						activeKillAmountField.setText("");
-						Utils.requestUiRefresh().run();
-					}
-					else
-					{
-						javax.swing.JOptionPane.showMessageDialog(null, "Failed to add split. Is player in session?", "Error", javax.swing.JOptionPane.ERROR_MESSAGE);
-					}
-				});
-				rmBtn.addActionListener(e -> {
-					if (manager.removePlayerFromSession(p))
-					{
-						Utils.requestUiRefresh().run();
-					}
-					else
-					{
-						javax.swing.JOptionPane.showMessageDialog(null, "Failed to remove player from session.", "Error", javax.swing.JOptionPane.ERROR_MESSAGE);
-					}
-				});
+				addBtn.addActionListener(e -> actions.altPlayerManageAddPlayer(player));
+				rmBtn.addActionListener(e -> actions.altPlayerManageRemovePlayer(player));
 
 				row.add(addBtn);
 				row.add(rmBtn);

@@ -1,9 +1,10 @@
 package com.splitmanager.views.components.table;
 
+import com.splitmanager.ManagerPanel;
 import com.splitmanager.ManagerSession;
-import static com.splitmanager.utils.Utils.requestUiRefresh;
 import static com.splitmanager.utils.Utils.toast;
 import java.awt.Component;
+import javax.inject.Inject;
 import javax.swing.DefaultCellEditor;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
@@ -17,6 +18,8 @@ public class RemoveButtonEditor extends DefaultCellEditor
 	private final JButton button = new JButton("X");
 	private int row = -1;
 
+	@Inject
+	private ManagerPanel managerPanel;
 
 	/**
 	 * Create the editor and wire the remove behavior.
@@ -36,7 +39,7 @@ public class RemoveButtonEditor extends DefaultCellEditor
 				String player = (String) metricsTable.getModel().getValueAt(row, 0);
 				if (manager.removePlayerFromSession(player))
 				{
-					requestUiRefresh().run();
+					managerPanel.refreshAllView();
 				}
 				else
 				{

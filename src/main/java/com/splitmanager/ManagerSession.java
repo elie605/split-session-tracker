@@ -2,16 +2,11 @@ package com.splitmanager;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.google.gson.JsonDeserializationContext;
-import com.google.gson.JsonDeserializer;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonPrimitive;
-import com.google.gson.JsonSerializationContext;
-import com.google.gson.JsonSerializer;
 import com.splitmanager.models.Kill;
 import com.splitmanager.models.PendingValue;
+import com.splitmanager.models.PlayerMetrics;
 import com.splitmanager.models.Session;
-import java.lang.reflect.Type;
+import com.splitmanager.utils.InstantTypeAdapter;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -26,23 +21,22 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
+import javax.inject.Inject;
+import javax.inject.Singleton;
 import lombok.Getter;
 
 /**
  * Manages sessions, persistence, and all the logic for roster changes,
  * child sessions, and live split calculations.
  */
+@Singleton
 public class ManagerSession
 {
-	private final PluginConfig config;
 	private final Gson gson;
-
 	private final Map<String, Session> sessions = new LinkedHashMap<>();
-	private final Set<String> knownPlayers = new LinkedHashSet<>();
-	// Transient waitlist of detected values from chat
-	private final java.util.List<PendingValue> pendingValues = new java.util.ArrayList<>();
-	// Alt/main mapping (alt name -> main name)
-	private final Map<String, String> altToMain = new LinkedHashMap<>();
+	private final List<PendingValue> pendingValues = new ArrayList<>();
+	private final ManagerKnownPlayers playerManager;
+	private final PluginConfig config;
 	private String currentSessionId;
 	@Getter
 	private boolean historyLoaded;
@@ -53,16 +47,15 @@ public class ManagerSession
 	 *
 	 * @param config backing configuration/store used to load and save state
 	 */
-	public ManagerSession(PluginConfig config)
+	@Inject
+	public ManagerSession(PluginConfig config, ManagerKnownPlayers playerManager)
 	{
 		this.config = config;
-		// Create a custom type adapter for Instant
+		this.playerManager = playerManager;
 		this.gson = new GsonBuilder()
 			.registerTypeAdapter(Instant.class, new InstantTypeAdapter())
 			.create();
 	}
-
-	// Custom type adapter for Instant to avoid reflection issues
 
 	/**
 	 * Utility: convert null to empty string for config storage.
@@ -80,47 +73,31 @@ public class ManagerSession
 		return s == null || s.isEmpty() ? null : s;
 	}
 
+	// TODO add export all/ or specific session to json
+
 	/**
-	 * Load sessions, known players, alt mappings, and current state from PluginConfig.
+	 * Loads configuration data into the application's runtime structures.
+	 * <p>
+	 * This method performs the following operations:
+	 * <p>
+	 * 1. Clears the list of known players and repopulates it from a CSV string
+	 * retrieved from the configuration. Each player is trimmed of extraneous
+	 * whitespace before being added to the collection.
+	 * <p>
+	 * 2. Clears the mapping of alternate accounts to main accounts and repopulates
+	 * it from a JSON structure retrieved from the configuration. The JSON is
+	 * parsed into a Map using GSON. If the parsing fails or the structure is
+	 * invalid, the operation is gracefully ignored.
+	 * <p>
+	 * 3. Clears the session map and populates it with sessions retrieved from a
+	 * JSON array in the configuration. Each session is parsed and added to
+	 * the map by its ID.
+	 * <p>
+	 * 4. Updates the current session ID and sets whether the history has been
+	 * loaded from the configuration.
 	 */
 	public void loadFromConfig()
 	{
-		// peeps
-		knownPlayers.clear();
-		String csv = config.knownPlayersCsv();
-		if (csv != null && !csv.isEmpty())
-		{
-			for (String p : csv.split(","))
-			{
-				String t = p.trim();
-				if (!t.isEmpty())
-				{
-					knownPlayers.add(t);
-				}
-			}
-		}
-		// alts mapping
-		altToMain.clear();
-		String altsJson = config.altsJson();
-		if (altsJson != null && !altsJson.isEmpty())
-		{
-			try
-			{
-				java.lang.reflect.Type mapType = new com.google.gson.reflect.TypeToken<Map<String, String>>()
-				{
-				}.getType();
-				Map<String, String> m = gson.fromJson(altsJson, mapType);
-				if (m != null)
-				{
-					altToMain.putAll(m);
-				}
-			}
-			catch (Exception ignored)
-			{
-			}
-		}
-
-		// sessions
 		sessions.clear();
 		String json = config.sessionsJson();
 		if (json != null && !json.isEmpty())
@@ -139,23 +116,11 @@ public class ManagerSession
 		historyLoaded = config.historyLoaded();
 	}
 
-	// TODO add export all/ or specific session to json
-
 	/**
 	 * Persist sessions, current state, known players, and alt mappings to PluginConfig.
 	 */
 	public void saveToConfig()
 	{
-		config.knownPlayersCsv(String.join(",", knownPlayers));
-		// save alt mapping
-		try
-		{
-			config.altsJson(gson.toJson(altToMain));
-		}
-		catch (Exception e)
-		{
-			// ignore
-		}
 		Session[] arr = sessions.values().toArray(new Session[0]);
 		config.sessionsJson(gson.toJson(arr));
 		config.currentSessionId(nullToEmpty(currentSessionId));
@@ -183,26 +148,11 @@ public class ManagerSession
 	}
 
 	/**
-	 * Returns only main accounts (known players that are not linked as alts).
-	 */
-
-	/**
 	 * @return unmodifiable set of all known player names (mains and alts).
 	 */
 	public Set<String> getKnownPlayers()
 	{
-		return Collections.unmodifiableSet(knownPlayers);
-	}
-
-	/**
-	 * @return unmodifiable set of known players that are mains (exclude names mapped as alts).
-	 */
-	public Set<String> getKnownMains()
-	{
-		LinkedHashSet<String> mains = knownPlayers.stream()
-			.filter(p -> !isAlt(p))
-			.collect(Collectors.toCollection(LinkedHashSet::new));
-		return Collections.unmodifiableSet(mains);
+		return Collections.unmodifiableSet(playerManager.getKnownMains());
 	}
 
 	/**
@@ -212,52 +162,17 @@ public class ManagerSession
 	 */
 	public Set<String> getNonActivePlayers()
 	{
-		// Only mains should be offered for adding to session
 		Session curr = getCurrentSession().orElse(null);
-		java.util.Set<String> mains = getKnownMains();
+		java.util.Set<String> mains = playerManager.getKnownMains();
+
 		if (curr == null || !curr.isActive())
 		{
 			return java.util.Collections.unmodifiableSet(mains);
 		}
+
 		return mains.stream()
 			.filter(p -> !curr.getPlayers().contains(p))
 			.collect(Collectors.toCollection(LinkedHashSet::new));
-	}
-
-	/**
-	 * Add a player name to the known-players list.
-	 *
-	 * @param name display name
-	 * @return true if added
-	 */
-	public boolean addKnownPlayer(String name)
-	{
-		boolean added = knownPlayers.add(name.trim());
-		if (added)
-		{
-			saveToConfig();
-		}
-		return added;
-	}
-
-	//TODO make sure this make sense to be option and fix it: Whyy is this optional??/
-
-	public boolean removeKnownPlayer(String name)
-	{
-		String n = name == null ? null : name.trim();
-		if (n == null || n.isEmpty())
-		{
-			return false;
-		}
-		boolean rem = knownPlayers.remove(n);
-		// Clean up alt/main mappings involving this name
-		// Remove if this name is an alt
-		altToMain.remove(n);
-		// Remove any entries where this name is the main
-		altToMain.entrySet().removeIf(e -> e.getValue().equalsIgnoreCase(n));
-		// still persist mapping cleanup
-		saveToConfig();
-		return rem;
 	}
 
 	/**
@@ -404,7 +319,7 @@ public class ManagerSession
 			return false;
 		}
 
-		String mainPlayer = getMainName(player == null ? null : player.trim());
+		String mainPlayer = playerManager.getMainName(player == null ? null : player.trim());
 		if (mainPlayer == null || mainPlayer.isBlank())
 		{
 			return false;
@@ -489,8 +404,6 @@ public class ManagerSession
 		return true;
 	}
 
-	// ===== Pending values (waitlist) =====
-
 	/**
 	 * Record a kill value for a player in the active session. The player is resolved to its main
 	 * and must be on the active roster. No-op in history mode.
@@ -511,7 +424,7 @@ public class ManagerSession
 			return false;
 		}
 
-		String mainPlayer = getMainName(player == null ? null : player.trim());
+		String mainPlayer = playerManager.getMainName(player == null ? null : player.trim());
 		if (mainPlayer == null || mainPlayer.isBlank())
 		{
 			return false;
@@ -529,9 +442,9 @@ public class ManagerSession
 	/**
 	 * Read-only view of the queued pending values detected from chat.
 	 */
-	public java.util.List<PendingValue> getPendingValues()
+	public List<PendingValue> getPendingValues()
 	{
-		return java.util.Collections.unmodifiableList(pendingValues);
+		return Collections.unmodifiableList(pendingValues);
 	}
 
 	/**
@@ -549,14 +462,14 @@ public class ManagerSession
 		}
 		// Normalize suggested player to main for all downstream uses
 		String suggested = pv.getSuggestedPlayer();
-		String resolved = getMainName(suggested);
+		String resolved = playerManager.getMainName(suggested);
 		pv.setSuggestedPlayer(resolved);
 		// Auto-add unknown suggested MAIN to known list
 		if (resolved != null && !resolved.isBlank())
 		{
-			if (!knownPlayers.contains(resolved))
+			if (!playerManager.getKnownPlayers().contains(resolved))
 			{
-				knownPlayers.add(resolved);
+				playerManager.getKnownPlayers().add(resolved);
 				saveToConfig();
 			}
 		}
@@ -589,10 +502,6 @@ public class ManagerSession
 		return pendingValues.removeIf(p -> p.getId().equals(id));
 	}
 
-
-	//TODO maybe create known player controller
-	// ===== Alt/main mapping =====
-
 	/**
 	 * Apply a pending value to a specific player and remove it from the queue.
 	 * The player is resolved to its main; the underlying addKill() enforces roster rules.
@@ -608,179 +517,13 @@ public class ManagerSession
 		{
 			return false;
 		}
-		String target = getMainName(player);
+		String target = playerManager.getMainName(player);
 		boolean ok = addKill(target, pv.getValue());
 		if (ok)
 		{
 			pendingValues.remove(pv);
 		}
 		return ok;
-	}
-
-	/**
-	 * Resolve a display name to its main account by following the alt->main mapping.
-	 * If the name is not an alt, returns the original trimmed name. Protects against cycles.
-	 *
-	 * @param name main or alt name
-	 * @return resolved main name (or the input trimmed if not an alt)
-	 */
-	public String getMainName(String name)
-	{
-		if (name == null)
-		{
-			return null;
-		}
-		String n = name.trim();
-		String visited = null;
-		// resolve chain up to a few steps to avoid cycles
-		for (int i = 0; i < 5; i++)
-		{
-			String m = altToMain.get(n);
-			if (m == null || m.equalsIgnoreCase(n))
-			{
-				return n;
-			}
-			if (visited != null && visited.equalsIgnoreCase(m))
-			{
-				break;
-			}
-			visited = n;
-			n = m;
-		}
-		return n;
-	}
-
-	/**
-	 * @param name player name
-	 * @return true if the given name is present as a key in the alt->main mapping
-	 */
-	public boolean isAlt(String name)
-	{
-		if (name == null)
-		{
-			return false;
-		}
-		return altToMain.containsKey(name.trim());
-	}
-
-	/**
-	 * List all alts currently linked to the given main.
-	 *
-	 * @param main main account name
-	 * @return sorted list of alt names linked to this main (case-insensitive compare)
-	 */
-	public java.util.List<String> getAltsOf(String main)
-	{
-		if (main == null || main.isBlank())
-		{
-			return java.util.List.of();
-		}
-		String m = main.trim();
-		java.util.List<String> out = new java.util.ArrayList<>();
-		for (Map.Entry<String, String> e : altToMain.entrySet())
-		{
-			if (e.getValue() != null && e.getValue().equalsIgnoreCase(m))
-			{
-				out.add(e.getKey());
-			}
-		}
-		out.sort(String::compareToIgnoreCase);
-		return out;
-	}
-
-	/**
-	 * Validate whether an alt may be linked to a main.
-	 * Rules:
-	 * - alt and main must be non-empty and not equal (case-insensitive)
-	 * - the chosen main cannot itself be an alt
-	 * - the alt cannot already point to a different main
-	 * - the alt cannot be someone else's main (prevents cycles)
-	 *
-	 * @return true if the link is allowed
-	 */
-	public boolean canLinkAltToMain(String alt, String main)
-	{
-		if (alt == null || main == null)
-		{
-			return false;
-		}
-		String a = alt.trim();
-		String m = main.trim();
-		if (a.isEmpty() || m.isEmpty())
-		{
-			return false;
-		}
-		if (a.equalsIgnoreCase(m))
-		{
-			return false; // cannot link self
-		}
-		// main cannot be an alt
-		if (altToMain.containsKey(m))
-		{
-			return false;
-		}
-		// alt cannot already have a different main
-		if (altToMain.containsKey(a) && !altToMain.get(a).equalsIgnoreCase(m))
-		{
-			return false;
-		}
-		// alt cannot be a main of others (prevents main being alt through this change)
-		for (Map.Entry<String, String> e : altToMain.entrySet())
-		{
-			if (e.getValue() != null && e.getValue().equalsIgnoreCase(a))
-			{
-				return false;
-			}
-		}
-		return true;
-	}
-
-	/**
-	 * Attempt to persist an alt->main link, enforcing the validation from canLinkAltToMain().
-	 * Adds both names to the known list on success.
-	 *
-	 * @return true if the mapping either already existed (same) or was created
-	 */
-	public boolean trySetAltMain(String alt, String main)
-	{
-		if (!canLinkAltToMain(alt, main))
-		{
-			return false;
-		}
-		String a = alt.trim();
-		String m = main.trim();
-		// no-op if already linked
-		if (altToMain.containsKey(a) && altToMain.get(a).equalsIgnoreCase(m))
-		{
-			return true;
-		}
-		altToMain.put(a, m);
-		knownPlayers.add(a);
-		knownPlayers.add(m);
-		saveToConfig();
-		return true;
-	}
-
-	/**
-	 * Unlink the given alt from its main.
-	 *
-	 * @param alt the alt name to unlink
-	 * @return true if an existing mapping was removed
-	 */
-	public boolean unlinkAlt(String alt)
-	{
-		if (alt == null || alt.trim().isEmpty())
-		{
-			return false;
-		}
-		String a = alt.trim();
-		if (!altToMain.containsKey(a))
-		{
-			return false;
-		}
-		altToMain.remove(a);
-		saveToConfig();
-		return true;
 	}
 
 	/**
@@ -798,9 +541,9 @@ public class ManagerSession
 	 */
 	public boolean sessionHasPlayer(@Nonnull String player, Session session)
 	{
-		if (isAlt(player))
+		if (playerManager.isAlt(player))
 		{
-			player = getMainName(player);
+			player = playerManager.getMainName(player);
 		}
 
 		String finalPlayer = player;
@@ -808,6 +551,13 @@ public class ManagerSession
 		return session.getPlayers().stream().anyMatch(e ->
 			e.equals(Objects.requireNonNull(finalPlayer)));
 	}
+
+	public void init()
+	{
+		loadFromConfig();
+	}
+
+	//TODO make this not recalc everything if it does
 
 	/**
 	 * Compute metrics for the given session's thread (mother + children) including only currently active players.
@@ -819,8 +569,6 @@ public class ManagerSession
 	{
 		return computeMetricsFor(s, false);
 	}
-
-	//TODO make this not recalc everything if it does
 
 	/**
 	 * Compute metrics for the given session's thread (mother + children).
@@ -863,7 +611,7 @@ public class ManagerSession
 		LinkedHashSet<String> includedPlayers = new LinkedHashSet<>();
 		if (includeNonActivePlayers)
 		{
-			includedPlayers.addAll(knownPlayers);
+			includedPlayers.addAll(playerManager.getKnownPlayers());
 			for (Session part : thread)
 			{
 				includedPlayers.addAll(part.getPlayers());
@@ -959,7 +707,6 @@ public class ManagerSession
 		return out;
 	}
 
-
 	/**
 	 * Generate a random unique id for sessions.
 	 */
@@ -968,44 +715,5 @@ public class ManagerSession
 		return UUID.randomUUID().toString();
 	}
 
-	/**
-	 * Gson adapter for java.time.Instant (ISO-8601 text), avoiding reflective access issues
-	 * on older JVMs/contexts. Stored as Instant.toString(), parsed with Instant.parse().
-	 */
-	private static class InstantTypeAdapter implements JsonSerializer<Instant>, JsonDeserializer<Instant>
-	{
-		@Override
-		public JsonElement serialize(Instant src, Type typeOfSrc, JsonSerializationContext context)
-		{
-			return new JsonPrimitive(src.toString());
-		}
 
-		@Override
-		public Instant deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context)
-		{
-			return Instant.parse(json.getAsString());
-		}
-	}
-
-	/**
-	 * Aggregate row to display per-player totals and split deltas for a session thread.
-	 * total = sum of that player's kills across all sessions in the thread.
-	 * split = sum over each session in the thread of (playerTotalInThatSession - avgOfThatSessionRoster).
-	 * activePlayer indicates whether the player is on the provided session's current roster.
-	 */
-	public static class PlayerMetrics
-	{
-		public final String player;
-		public final Long total;
-		public final Long split;
-		public final boolean activePlayer;
-
-		public PlayerMetrics(String player, Long total, Long split, boolean activePlayer)
-		{
-			this.player = player;
-			this.total = total;
-			this.split = split;
-			this.activePlayer = activePlayer;
-		}
-	}
 }

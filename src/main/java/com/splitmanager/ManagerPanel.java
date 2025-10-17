@@ -1,33 +1,41 @@
 package com.splitmanager;
 
+
 import com.splitmanager.controllers.PanelController;
 import com.splitmanager.views.PanelView;
+import javax.inject.Inject;
+import javax.inject.Singleton;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import net.runelite.client.ui.PluginPanel;
 
 /**
  * Composition root: builds Model, View, Controller and wires them together.
  * No UI logic or event handling lives here anymore.
  */
 @Slf4j
-public class ManagerPanel extends PluginPanel
+@Singleton
+public class ManagerPanel
 {
 
 	private PanelController controller;
-	private ManagerSession manager;
-	private PluginConfig config;
+	private final ManagerSession manager;
+	private final PluginConfig config;
+	private final ManagerKnownPlayers playerManager;
+	@Getter
+	private PanelView view;
 
 	/**
 	 * Construct a new plugin panel and bootstrap its MVC components.
 	 *
-	 * @param manager session/state manager for split tracking
-	 * @param config  plugin configuration
+	 * @param sessionManager session/state sessionManager for split tracking
+	 * @param config         plugin configuration
 	 */
-	public ManagerPanel(ManagerSession manager, PluginConfig config)
+	@Inject
+	public ManagerPanel(ManagerSession sessionManager, PluginConfig config, ManagerKnownPlayers playerManager)
 	{
-		this.manager = manager;
+		this.manager = sessionManager;
 		this.config = config;
-		startPanel();
+		this.playerManager = playerManager;
 	}
 
 	/**
@@ -43,12 +51,9 @@ public class ManagerPanel extends PluginPanel
 	 */
 	private void startPanel()
 	{
-		PanelView view = new PanelView(manager, config);
-		controller = new PanelController(manager, config, view);
+		view = new PanelView(manager, config, playerManager);
+		controller = new PanelController(manager, config, view, playerManager, this);
 		view.bindActions(controller);
-		add(view);
-
-		// initial sync
 		controller.refreshAllView();
 	}
 
@@ -57,7 +62,12 @@ public class ManagerPanel extends PluginPanel
 	 */
 	public void restart()
 	{
-		removeAll();
+		view.removeAll();
+		startPanel();
+	}
+
+	public void init()
+	{
 		startPanel();
 	}
 }

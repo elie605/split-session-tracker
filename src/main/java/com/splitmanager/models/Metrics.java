@@ -1,6 +1,5 @@
 package com.splitmanager.models;
 
-import com.splitmanager.ManagerSession;
 import com.splitmanager.utils.Formats;
 import java.util.Comparator;
 import java.util.List;
@@ -9,7 +8,7 @@ import javax.swing.table.AbstractTableModel;
 
 public final class Metrics extends AbstractTableModel
 {
-	private List<ManagerSession.PlayerMetrics> rows = List.of();
+	private List<PlayerMetrics> rows = List.of();
 	private boolean hideTotalColumn = false;
 
 	public void setHideTotalColumn(boolean hide)
@@ -26,7 +25,7 @@ public final class Metrics extends AbstractTableModel
 		return hideTotalColumn;
 	}
 
-	public void setData(List<ManagerSession.PlayerMetrics> rows)
+	public void setData(List<PlayerMetrics> rows)
 	{
 		// Sort: active first, inactive at bottom; stable within groups
 		this.rows = rows.stream()

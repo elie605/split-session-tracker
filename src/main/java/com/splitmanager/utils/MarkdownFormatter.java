@@ -1,10 +1,13 @@
 package com.splitmanager.utils;
 
+import com.splitmanager.ManagerSession;
 import com.splitmanager.PluginConfig;
 import com.splitmanager.models.PlayerMetrics;
+import com.splitmanager.models.Session;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.List;
+import net.runelite.client.account.SessionManager;
 
 /**
  * Handles formatting player metrics into markdown tables and other text formats.
@@ -152,7 +155,7 @@ public class MarkdownFormatter
 		}
 	}
 
-	public static String padRight(String s, int width)
+	private static String padRight(String s, int width)
 	{
 		if (s == null)
 		{
@@ -165,7 +168,7 @@ public class MarkdownFormatter
 		return s + " ".repeat(width - s.length());
 	}
 
-	public static String padLeft(String s, int width)
+	private static String padLeft(String s, int width)
 	{
 		if (s == null)
 		{
@@ -174,12 +177,45 @@ public class MarkdownFormatter
 		return " ".repeat(Math.max(0, width - s.length())) + s;
 	}
 
-	public static String repeat(int count)
+	private static String repeat(int count)
 	{
 		if (count <= 0)
 		{
 			return "";
 		}
 		return "-".repeat(count);
+	}
+
+	/**
+	 * Builds a JSON representation of the player metrics for the current session.
+	 * The method retrieves the current session and computes metrics for each player in that session.
+	 * The metrics are then formatted as a JSON array, where each entry contains the player's name,
+	 * total count, split count, and active player status.
+	 *
+	 * @return A JSON string representing the computed player metrics for the current session.
+	 * Returns an empty JSON array "[]" if no session is active or there are no metrics.
+	 */
+	public static String buildMetricsJson(ManagerSession sessionManager)
+	{
+		Session currentSession = sessionManager.getCurrentSession().orElse(null);
+		List<PlayerMetrics> data = sessionManager.computeMetricsFor(currentSession, true);
+		StringBuilder sb = new StringBuilder();
+
+		sb.append("[");
+		for (int i = 0; i < data.size(); i++)
+		{
+			PlayerMetrics pm = data.get(i);
+			sb.append("{\"player\":\"").append(pm.player).append("\",")
+				.append("\"total\":").append(pm.total).append(",")
+				.append("\"split\":").append(pm.split).append(",")
+				.append("\"active\":").append(pm.activePlayer).append("}");
+			if (i < data.size() - 1)
+			{
+				sb.append(",");
+			}
+		}
+		sb.append("]");
+
+		return sb.toString();
 	}
 }

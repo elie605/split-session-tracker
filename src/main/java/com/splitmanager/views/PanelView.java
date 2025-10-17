@@ -13,11 +13,14 @@ import com.splitmanager.models.Transfer;
 import com.splitmanager.models.WaitlistTable;
 import com.splitmanager.utils.Formats;
 import static com.splitmanager.utils.Formats.OsrsAmountFormatter.toSuffixString;
+import com.splitmanager.utils.MarkdownFormatter;
+import com.splitmanager.utils.PaymentProcessor;
 import static com.splitmanager.utils.Utils.toast;
 import com.splitmanager.views.components.DropdownRip;
 import com.splitmanager.views.components.table.RemoveButtonEditor;
 import java.awt.BorderLayout;
 import java.awt.Color;
+import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
@@ -27,8 +30,15 @@ import java.awt.GridLayout;
 import java.awt.Insets;
 import java.awt.datatransfer.StringSelection;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.function.Supplier;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
+import javax.swing.BoxLayout;
 import javax.swing.DefaultCellEditor;
 import javax.swing.DefaultComboBoxModel;
 import javax.swing.DefaultListModel;
@@ -98,9 +108,8 @@ public class PanelView extends PluginPanel
 	private final Insets inset = new Insets(3, 3, 3, 3);
 	private final Dimension lm = new Dimension(0, 140);
 	private final Dimension ll = new Dimension(0, 280);
-	private final PanelController controllerHelper = null;
 	private PanelActions actions;
-	private JTable recentSplitsTable;
+	private final JTable recentSplitsTable;
 
 	public PanelView(ManagerSession sessionManager, PluginConfig config, ManagerKnownPlayers playerManager)
 	{
@@ -112,9 +121,9 @@ public class PanelView extends PluginPanel
 		recentSplitsTable = makeRecentSplitsTable(recentSplitsModel);
 
 		JPanel top = new JPanel();
-		top.setLayout(new javax.swing.BoxLayout(top, javax.swing.BoxLayout.Y_AXIS));
+		top.setLayout(new BoxLayout(top, BoxLayout.Y_AXIS));
 
-		java.util.Map<String, java.util.function.Supplier<java.awt.Component>> sections = new java.util.LinkedHashMap<>();
+		Map<String, Supplier<Component>> sections = new LinkedHashMap<>();
 		if (config.useActivePlayerManagement())
 		{
 			sections.put("activeplayermgmt", this::generateActivePlayerManagement);
@@ -127,14 +136,14 @@ public class PanelView extends PluginPanel
 		sections.put("settlement", this::generateMetrics);
 		sections.put("knownplayers", this::generateKnownPlayersManagement);
 
-		java.util.Set<String> added = new java.util.LinkedHashSet<>();
+		Set<String> added = new LinkedHashSet<>();
 		String orderCsv = config.sectionOrderCsv();
 		if (orderCsv != null && !orderCsv.isBlank())
 		{
 			for (String key : orderCsv.split(","))
 			{
 				String k = key.trim().toLowerCase();
-				java.util.function.Supplier<java.awt.Component> sup = sections.get(k);
+				Supplier<Component> sup = sections.get(k);
 				if (sup != null)
 				{
 					top.add(sup.get());
@@ -151,6 +160,7 @@ public class PanelView extends PluginPanel
 				top.add(Box.createVerticalStrut(3));
 			}
 		}
+
 		add(top, BorderLayout.NORTH);
 	}
 
@@ -168,15 +178,12 @@ public class PanelView extends PluginPanel
 	{
 		this.actions = actions;
 
-		// Session start/stop
 		btnStart.addActionListener(e -> actions.startSession());
 		btnStop.addActionListener(e -> actions.stopSession());
 
-		// Session player mgmt
 		btnAddToSession.addActionListener(e ->
 			actions.addPlayerToSession((String) notInCurrentSessionPlayerDropdown.getSelectedItem()));
 
-		// Known players
 		btnAddPlayer.addActionListener(e ->
 			actions.addKnownPlayer(newPlayerField.getText()));
 		btnRemovePlayer.addActionListener(e ->
@@ -188,7 +195,6 @@ public class PanelView extends PluginPanel
 			}
 		});
 
-		// Alts
 		btnAddAlt.addActionListener(e ->
 			actions.addAltToMain((String) knownPlayersDropdown.getSelectedItem(),
 				(String) addAltDropdown.getSelectedItem()));
@@ -196,7 +202,6 @@ public class PanelView extends PluginPanel
 			actions.removeSelectedAlt((String) knownPlayersDropdown.getSelectedItem(),
 				altsList.getSelectedValue()));
 
-		// Splits
 		btnAddKill.addActionListener(e -> {
 			String player = (String) currentSessionPlayerDropdown.getSelectedItem();
 			long amt;
@@ -213,7 +218,6 @@ public class PanelView extends PluginPanel
 			actions.addKill(player, amt);
 		});
 
-		// Waitlist
 		btnWaitlistAdd.addActionListener(e -> actions.applySelectedPendingValue(waitlistTable.getSelectedRow()));
 		btnWaitlistDelete.addActionListener(e -> actions.deleteSelectedPendingValue(waitlistTable.getSelectedRow()));
 	}
@@ -596,19 +600,14 @@ public class PanelView extends PluginPanel
 		gbc.insets = new Insets(3, 0, 0, 0);
 		p.add(btns, gbc);
 
-		waitlistTableModel.addTableModelListener(new TableModelListener()
-		{
-			@Override
-			public void tableChanged(javax.swing.event.TableModelEvent e)
+		waitlistTableModel.addTableModelListener(e -> {
+			if (waitlistTable.getRowCount() > 0)
 			{
-				if (waitlistTable.getRowCount() > 0)
-				{
-					waitlistTable.getSelectionModel().setSelectionInterval(0, 0);
-				}
-				else
-				{
-					waitlistTable.clearSelection();
-				}
+				waitlistTable.getSelectionModel().setSelectionInterval(0, 0);
+			}
+			else
+			{
+				waitlistTable.clearSelection();
 			}
 		});
 		if (waitlistTable.getRowCount() > 0)
@@ -765,8 +764,8 @@ public class PanelView extends PluginPanel
 		if (direct)
 		{
 			Session currentSession = sessionManager.getCurrentSession().orElse(null);
-			java.util.List<PlayerMetrics> data = sessionManager.computeMetricsFor(currentSession, true);
-			java.util.List<Transfer> transfers = controllerHelper.computeDirectPaymentsStructured(data);
+			List<PlayerMetrics> data = sessionManager.computeMetricsFor(currentSession, true);
+			List<Transfer> transfers = PaymentProcessor.computeDirectPaymentsStructured(data);
 
 			if (transfers != null && !transfers.isEmpty())
 			{
@@ -831,14 +830,16 @@ public class PanelView extends PluginPanel
 
 	private void copyMetricsJsonToClipboard()
 	{
-		String payload = controllerHelper.buildMetricsJson();
+		String payload = MarkdownFormatter.buildMetricsJson(sessionManager);
 		StringSelection selection = new StringSelection(payload);
 		java.awt.Toolkit.getDefaultToolkit().getSystemClipboard().setContents(selection, selection);
 	}
 
 	private void copyMetricsMarkdownToClipboard()
 	{
-		String payload = controllerHelper.buildMetricsMarkdown();
+		String payload = MarkdownFormatter.buildMetricsMarkdown(
+			sessionManager.computeMetricsFor(
+				sessionManager.getCurrentSession().orElse(null), true), config);
 		StringSelection selection = new StringSelection(payload);
 		java.awt.Toolkit.getDefaultToolkit().getSystemClipboard().setContents(selection, selection);
 	}
@@ -899,12 +900,8 @@ public class PanelView extends PluginPanel
 				JButton rmBtn = new JButton("🗑");
 				rmBtn.setToolTipText("Remove " + player + " from session");
 
-				addBtn.addActionListener(e -> {
-					actions.altPlayerManageAddPlayer(player);
-				});
-				rmBtn.addActionListener(e -> {
-					actions.altPlayerManageRemovePlayer(player);
-				});
+				addBtn.addActionListener(e -> actions.altPlayerManageAddPlayer(player));
+				rmBtn.addActionListener(e -> actions.altPlayerManageRemovePlayer(player));
 
 				row.add(addBtn);
 				row.add(rmBtn);

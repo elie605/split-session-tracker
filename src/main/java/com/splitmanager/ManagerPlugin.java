@@ -93,7 +93,7 @@ public class ManagerPlugin extends Plugin
 			.tooltip("Auto Split Manager")
 			.icon(placeholderIcon)
 			.priority(5)
-			.panel(panelManager)
+			.panel(panelManager.getView())
 			.build();
 		clientToolbar.addNavigation(navButton);
 	}
@@ -124,13 +124,12 @@ public class ManagerPlugin extends Plugin
 
 		panel = null;
 	}
-
-	@Provides
 	/**
 	 * Provide injectable configuration instance.
 	 * @param configManager RuneLite config manager
 	 * @return plugin config
 	 */
+	@Provides
 	PluginConfig provideConfig(ConfigManager configManager)
 	{
 		return configManager.getConfig(PluginConfig.class);
@@ -177,11 +176,11 @@ public class ManagerPlugin extends Plugin
 	}
 
 
-	@Subscribe
 	/**
 	 * React to plugin configuration changes that require a panel refresh/restart.
 	 * @param e config change event
 	 */
+	@Subscribe
 	public void onConfigChanged(ConfigChanged e)
 	{
 		if ("Split Manager".equals(e.getGroup()) && "directPayments".equals(e.getKey()))
@@ -204,12 +203,12 @@ public class ManagerPlugin extends Plugin
 		}
 	}
 
-	@Subscribe
 	/**
 	 * Parse chat messages to detect values and enqueue PendingValue suggestions.
 	 * @param event chat message event
 	 * @throws ParseException when number parsing fails
 	 */
+	@Subscribe
 	public void onChatMessage(ChatMessage event) throws ParseException
 	{
 
@@ -369,10 +368,10 @@ public class ManagerPlugin extends Plugin
 		}
 
 		//LEAVE/KICK Chat
-		if (isSystemish && java.util.regex.Pattern
-			.compile("(?i)^\\s*(?:you\\s+(?:have\\s+)?left\\s+(?:the\\s+)?(?:chat-)?channel\\.?|you\\s+(?:are|aren't|are\\s+not)\\s+currently\\s+in\\s+(?:a|the|your)\\s+(?:chat-)?channel\\.?|you\\s+have\\s+been\\s+kicked\\s+from\\s+the\\s+channel\\.?)\\s*$")
-			.matcher(plain)
-			.find())
+		if (java.util.regex.Pattern
+					.compile("(?i)^\\s*(?:you\\s+(?:have\\s+)?left\\s+(?:the\\s+)?(?:chat-)?channel\\.?|you\\s+(?:are|aren't|are\\s+not)\\s+currently\\s+in\\s+(?:a|the|your)\\s+(?:chat-)?channel\\.?|you\\s+have\\s+been\\s+kicked\\s+from\\s+the\\s+channel\\.?)\\s*$")
+					.matcher(plain)
+					.find())
 		{
 			chatExplicitKnown = true;
 			chatExplicitOn = false;
@@ -382,10 +381,10 @@ public class ManagerPlugin extends Plugin
 
 
 		//JOIN Chat
-		if (isSystemish && java.util.regex.Pattern
-			.compile("(?i)^\\s*now\\s+talking\\s+in\\s+(?:the\\s+)?(?:chat-)?channel\\.?\\s*$")
-			.matcher(plain)
-			.find())
+		if (java.util.regex.Pattern
+					.compile("(?i)^\\s*now\\s+talking\\s+in\\s+(?:the\\s+)?(?:chat-)?channel\\.?\\s*$")
+					.matcher(plain)
+					.find())
 		{
 			chatExplicitKnown = true;
 			chatExplicitOn = true;
@@ -421,12 +420,12 @@ public class ManagerPlugin extends Plugin
 	}
 
 
-	@Subscribe
 	/**
 	 * Track context (in game) menu openings to add an option to add/remove players from session.
 	 * This Triggers when you right click a player in the friends/clan chat.
 	 * @param event menu entry added event
 	 */
+	@Subscribe
 	public void onMenuEntryAdded(MenuEntryAdded event)
 	{
 		int componentId = event.getActionParam1();

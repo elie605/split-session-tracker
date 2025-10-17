@@ -5,20 +5,24 @@ import com.splitmanager.controllers.PanelController;
 import com.splitmanager.views.PanelView;
 import javax.inject.Inject;
 import javax.inject.Singleton;
-import net.runelite.client.ui.PluginPanel;
+import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Composition root: builds Model, View, Controller and wires them together.
  * No UI logic or event handling lives here anymore.
  */
+@Slf4j
 @Singleton
-public class ManagerPanel extends PluginPanel
+public class ManagerPanel
 {
 
 	private PanelController controller;
-	private ManagerSession manager;
-	private PluginConfig config;
-	private ManagerKnownPlayers playerManager;
+	private final ManagerSession manager;
+	private final PluginConfig config;
+	private final ManagerKnownPlayers playerManager;
+	@Getter
+	private PanelView view;
 
 	/**
 	 * Construct a new plugin panel and bootstrap its MVC components.
@@ -34,11 +38,6 @@ public class ManagerPanel extends PluginPanel
 		this.playerManager = playerManager;
 	}
 
-	public void start()
-	{
-		startPanel();
-	}
-
 	/**
 	 * Refresh all view sections via the controller.
 	 */
@@ -52,11 +51,9 @@ public class ManagerPanel extends PluginPanel
 	 */
 	private void startPanel()
 	{
-		PanelView view = new PanelView(manager, config, playerManager);
+		view = new PanelView(manager, config, playerManager);
 		controller = new PanelController(manager, config, view, playerManager, this);
 		view.bindActions(controller);
-		add(view);
-
 		controller.refreshAllView();
 	}
 
@@ -65,7 +62,7 @@ public class ManagerPanel extends PluginPanel
 	 */
 	public void restart()
 	{
-		removeAll();
+		view.removeAll();
 		startPanel();
 	}
 

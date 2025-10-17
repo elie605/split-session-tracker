@@ -323,7 +323,8 @@ public class PanelController implements PanelActions
 	}
 
 	@Override
-	public void altPlayerManageAddPlayer(String player){
+	public void altPlayerManageAddPlayer(String player)
+	{
 		long amt;
 		Object val = view.getActiveKillAmountField().getValue();
 		try
@@ -347,7 +348,8 @@ public class PanelController implements PanelActions
 	}
 
 	@Override
-	public void altPlayerManageRemovePlayer(String player){
+	public void altPlayerManageRemovePlayer(String player)
+	{
 		if (sessionManager.removePlayerFromSession(player))
 		{
 			managerPanel.refreshAllView();
@@ -535,55 +537,5 @@ public class PanelController implements PanelActions
 		{
 			altsModel.addElement(alt);
 		}
-	}
-
-	/**
-	 * Builds a JSON representation of the player metrics for the current session.
-	 * The method retrieves the current session and computes metrics for each player in that session.
-	 * The metrics are then formatted as a JSON array, where each entry contains the player's name,
-	 * total count, split count, and active player status.
-	 *
-	 * @return A JSON string representing the computed player metrics for the current session.
-	 * Returns an empty JSON array "[]" if no session is active or there are no metrics.
-	 */
-	public String buildMetricsJson()
-	{
-		Session currentSession = sessionManager.getCurrentSession().orElse(null);
-		List<PlayerMetrics> data = sessionManager.computeMetricsFor(currentSession, true);
-		StringBuilder sb = new StringBuilder();
-
-		sb.append("[");
-		for (int i = 0; i < data.size(); i++)
-		{
-			PlayerMetrics pm = data.get(i);
-			sb.append("{\"player\":\"").append(pm.player).append("\",")
-				.append("\"total\":").append(pm.total).append(",")
-				.append("\"split\":").append(pm.split).append(",")
-				.append("\"active\":").append(pm.activePlayer).append("}");
-			if (i < data.size() - 1)
-			{
-				sb.append(",");
-			}
-		}
-		sb.append("]");
-
-		return sb.toString();
-	}
-
-	public String buildMetricsMarkdown()
-	{
-		List<PlayerMetrics> data =
-			sessionManager.computeMetricsFor(sessionManager.getCurrentSession().orElse(null), true);
-		return MarkdownFormatter.buildMetricsMarkdown(data, config);
-	}
-
-	public List<String> computeDirectPayments(List<PlayerMetrics> data)
-	{
-		return PaymentProcessor.computeDirectPayments(data);
-	}
-
-	public List<Transfer> computeDirectPaymentsStructured(List<PlayerMetrics> data)
-	{
-		return PaymentProcessor.computeDirectPaymentsStructured(data);
 	}
 }

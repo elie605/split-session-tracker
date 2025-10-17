@@ -1,24 +1,22 @@
 package com.splitmanager.controllers;
 
-import com.splitmanager.ManagerKnownPlayers;
-import com.splitmanager.ManagerPanel;
-import com.splitmanager.ManagerSession;
+import com.splitmanager.utils.Formats;
 import com.splitmanager.PluginConfig;
+import com.splitmanager.ManagerSession;
 import com.splitmanager.models.Metrics;
 import com.splitmanager.models.PendingValue;
 import com.splitmanager.models.Session;
 import com.splitmanager.models.Transfer;
 import com.splitmanager.models.WaitlistTable;
-import com.splitmanager.utils.MarkdownFormatter;
-import com.splitmanager.utils.PaymentProcessor;
-import static com.splitmanager.utils.Utils.toast;
 import com.splitmanager.views.PanelView;
+import com.splitmanager.utils.Utils;
+
+import javax.swing.*;
+import java.text.DecimalFormat;
+import java.util.ArrayList;
 import java.util.List;
-import javax.swing.DefaultCellEditor;
-import javax.swing.DefaultComboBoxModel;
-import javax.swing.DefaultListModel;
-import javax.swing.JComboBox;
-import javax.swing.JOptionPane;
+
+import static com.splitmanager.utils.Utils.toast;
 
 //Testing push again
 

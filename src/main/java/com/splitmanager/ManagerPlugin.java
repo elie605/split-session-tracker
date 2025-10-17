@@ -83,7 +83,8 @@ public class ManagerPlugin extends Plugin
 		sessionManager.init();
 		panelManager.init();
 
-		panelManager.refreshAllView();
+		panel = new ManagerPanel(sessionManager, config);
+		panel.refreshAllView();
 
 		// TODO create an icon
 		// Use a transparent placeholder icon so the panel shows in the side menu without bundling an image.
@@ -126,8 +127,8 @@ public class ManagerPlugin extends Plugin
 			chatOverlay = null;
 		}
 
-		panelManager = null;
-	}
+        panel = null;
+    }
 
 	@Provides
 	/**

@@ -75,15 +75,6 @@ A RuneLite plugin for automatically managing and tracking splits in group activi
 The plugin supports linking alt accounts to main accounts, ensuring that values are properly attributed regardless of
 which character is active. All alts are automatically resolved to their main accounts when calculating splits.
 
-## Usage Tips
-
-1. Start a new session when beginning group activities
-2. Add all participating players to the session
-3. Enable chat detection to automatically queue split values
-4. Approve values from the waitlist or manually add splits
-5. View settlement calculations when it's time to distribute funds
-6. Save or export session data for record keeping
-
 ## Contribute
 
 This plugin is under active development. Contributions, bug reports, and feature requests are welcome.

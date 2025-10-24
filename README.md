@@ -1,41 +1,69 @@
-
 # Auto Split Manager
 
 A RuneLite plugin for automatically managing and tracking splits in group activities.
 
 ## Features
 
-- **Session Management**: Create, track, and archive split sessions with roster changes
-- **Automatic Value Detection**: Detect values from chat channels (Clan/Friends Chat) and queue them
-- **Player Management**: Maintain roster of active players with support for alt accounts
-- **Split Calculation**: Calculate fair splits based on session participation
-- **Settlement Guidance**: View detailed metrics to settle payments between players
-- **Customizable UI**: Collapsible sections with configurable panel order
+- **Automatic Value Detection**: Detect drop values from chat channels (Clan/Friends Chat) and queue them
+    - **Detects PvM drops**: Detects drop values from PvM drop messages
+    - **Detects PvP loot**: Detects loot values from PvP loot messages
+    - **Detects player !add**: Detects values from player `!add` commands in Clan/Friends chat
+    - [] TODO -> **Detects through item drop name**: Detects values from through item drop names
+- **Player Management**: Keep track of current participating players with support for alt accounts
+- **Split Calculation**: Automatically calculates fair splits based on session participation
+- **Settlement Guidance**: View metrics to settle payments between players
 
 ## How It Works
 
-The plugin tracks split sessions, allowing you to add and remove players as your group changes. It automatically detects values from:
+### Step 1: Start a session
+- Using the plugin panel, start a new session
 
-- PvM drop messages
-- PvP loot messages
-- Player `!add` commands in chat
+### Step 2: Add players to your known player list
+- **Option A**: Go to your Chat/Friends/Clan channel, right-click a player and select `Add to session`
+- **Option B**: In the plugin panel's `Known player info` section, type a player's name in the text box
 
-These values can be manually approved or automatically applied to players who are already in your active session.
+### Step 3: Add players to your current session
+- **Option A**: If you used Step 2 Option A, the player is already added to the session
+- **Option B**: In the `Add players to session` section, select the player from the dropdown and click `Add to session`
+
+### Step 4: Add splits to the session
+- **Manual method**: In the `Add split to session` section, select a player, enter an amount (e.g. 300k, 3.4m, 1.23b), and click 'Add'
+- **Semi-automatic method**:
+    1. In settings under `Chat Detection Settings`, enable `Chat detection` and disable `Auto-apply when in session`
+    2. When drops are announced in Chat, they'll appear in the `Detected values` section
+    3. Select the item and click `Add` (or `Del` to remove)
+- **Fully automatic method**:
+    1. In settings under `Chat Detection Settings`, enable both `Chat detection` and `Auto-apply when in session`
+    2. Drops will be automatically added for players in the session
+
+### Step 5: Manage players in the session
+- **Option A**: Right-click a player in Chat/Friends/Clan channel and select `Remove from session`
+- **Option B**: In the plugin panel's `Settlement` section, click the `X` next to a player's name
+
+### Step 6: View settlements
+- Settlement calculations appear automatically in the plugin panel under the `Settlement` section
+
+### Step 7: Stop the session
+- Click the Stop button in the plugin panel when finished
 
 ## Configuration Options
 
 ### General Settings
+
 - **Active player management**: Show section with per-player buttons for adding splits/removing players
 - **Show toasts**: Enable confirmation/info popups in the panel
-- **Allow negative values**: Permit entering negative kill values for adjustments (This is an alternative to removing splits)
+- **Allow negative values**: Permit entering negative kill values for adjustments (This is an alternative to removing
+  splits)
 - **Panel section order**: Customize the order of UI sections in the panel
 
 ### Settlement Settings
+
 - **Copy for Discord**: Format Markdown tables with proper spacing for Discord
 - **Direct payments**: Toggle between direct player payments or using a middleman/bank
 - **Flip settlement sign**: Change perspective of settlement values (+ means bank pays player vs. player pays bank)
 
 ### Chat Detection Settings
+
 - **Enable chat detection**: Master toggle for detecting values from chat
 - **Detect in Clan/Friends Chat**: Choose which chat channels to monitor
 - **Detect PvM/PvP values**: Toggle automatic detection of drop and loot messages
@@ -44,7 +72,8 @@ These values can be manually approved or automatically applied to players who ar
 
 ## Alt Account Management
 
-The plugin supports linking alt accounts to main accounts, ensuring that values are properly attributed regardless of which character is active. All alts are automatically resolved to their main accounts when calculating splits.
+The plugin supports linking alt accounts to main accounts, ensuring that values are properly attributed regardless of
+which character is active. All alts are automatically resolved to their main accounts when calculating splits.
 
 ## Usage Tips
 

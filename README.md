@@ -8,7 +8,7 @@ A RuneLite plugin for automatically managing and tracking splits in group activi
     - **Detects PvM drops**: Detects drop values from PvM drop messages
     - **Detects PvP loot**: Detects loot values from PvP loot messages
     - **Detects player !add**: Detects values from player `!add` commands in Clan/Friends chat
-    - [] TODO -> **Detects through item drop name**: Detects values from through item drop names
+    - [ ] TODO -> **Detects through item drop name**: Detects values from through item drop names
 - **Player Management**: Keep track of current participating players with support for alt accounts
 - **Split Calculation**: Automatically calculates fair splits based on session participation
 - **Settlement Guidance**: View metrics to settle payments between players

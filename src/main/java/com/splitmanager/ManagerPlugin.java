@@ -39,9 +39,9 @@ import net.runelite.client.util.Text;
 
 @Slf4j
 @PluginDescriptor(
-	name = "Auto Split Manager",
-	description = "Automatic split manager for group sessions. Tracks sessions, roster changes, chat-detected values, editable recent splits, and settlement metrics (copy JSON). Collapsible sections and configurable panel order.",
-	enabledByDefault = true
+	name="Auto Split Manager",
+	description="Automatically track and manage splits for group PvM/PvP. Features include: chat detection of drops, player roster management with alt support, split calculations, session tracking, settlement metrics, and configurable UI. JSON export available for sharing and backup.",
+	tags= {"splits","loot","pvm","pvp","tracker","clan","group"}
 )
 /**
  * Main RuneLite plugin entry point for Auto Split Manager.

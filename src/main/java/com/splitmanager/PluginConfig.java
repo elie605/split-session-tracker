@@ -7,7 +7,9 @@ import net.runelite.client.config.ConfigSection;
 
 
 /**
- * Stores persistent data and JSON blobs via ConfigManager.
+ * The PluginConfig interface defines a configuration for the Split Manager plugin.
+ * It provides persistent storage of various user and system-defined settings. Additionally, this interface
+ * manages settings related to settlement, chat detection, and session handling.
  */
 @ConfigGroup(PluginConfig.GROUP)
 public interface PluginConfig extends Config
@@ -53,6 +55,11 @@ public interface PluginConfig extends Config
 		return false;
 	}
 
+	/**
+	 * Retrieves the JSON string representation of serialized sessions.
+	 *
+	 * @return a JSON string representing the serialized sessions, or an empty string if no sessions are serialized
+	 */
 	@ConfigItem(
 		keyName = KEY_SESSIONS_JSON,
 		name = "Sessions JSON",
@@ -64,6 +71,11 @@ public interface PluginConfig extends Config
 		return "";
 	}
 
+	/**
+	 * Sets the JSON string representation of serialized sessions.
+	 *
+	 * @param value a JSON string representing the serialized sessions
+	 */
 	@ConfigItem(
 		keyName = KEY_SESSIONS_JSON,
 		name = "Sessions JSON",
@@ -72,6 +84,11 @@ public interface PluginConfig extends Config
 	)
 	void sessionsJson(String value);
 
+	/**
+	 * Retrieves the identifier of the current active session.
+	 *
+	 * @return the current session ID as a string, or an empty string if no session is active
+	 */
 	@ConfigItem(
 		keyName = KEY_CURRENT_SESSION_ID,
 		name = "Current Session Id",
@@ -83,6 +100,11 @@ public interface PluginConfig extends Config
 		return "";
 	}
 
+	/**
+	 * Sets the identifier of the current active session.
+	 *
+	 * @param value the current session ID to set as a string
+	 */
 	@ConfigItem(
 		keyName = KEY_CURRENT_SESSION_ID,
 		name = "Current Session Id",
@@ -91,6 +113,11 @@ public interface PluginConfig extends Config
 	)
 	void currentSessionId(String value);
 
+	/**
+	 * Determines if the UI is in a read-only state due to a selected historical session being loaded.
+	 *
+	 * @return true if the UI is read-only and the historical session is loaded, false otherwise
+	 */
 	@ConfigItem(
 		keyName = KEY_HISTORY_LOADED,
 		name = "History Loaded",
@@ -102,8 +129,12 @@ public interface PluginConfig extends Config
 		return false;
 	}
 
-	// Visible, user-facing config
 
+	/**
+	 * Sets whether the UI is in a read-only state due to a selected historical session being loaded.
+	 *
+	 * @param value true to set the UI to read-only and indicate that the historical session is loaded, false to disable it
+	 */
 	@ConfigItem(
 		keyName = KEY_HISTORY_LOADED,
 		name = "History Loaded",
@@ -112,6 +143,12 @@ public interface PluginConfig extends Config
 	)
 	void historyLoaded(boolean value);
 
+	/**
+	 * Retrieves a comma-separated string of known players.
+	 *
+	 * @return a string containing the known players separated by commas,
+	 *         or an empty string if no players are defined
+	 */
 	@ConfigItem(
 		keyName = KEY_PEOPLE_CSV,
 		name = "Players",
@@ -123,6 +160,11 @@ public interface PluginConfig extends Config
 		return "";
 	}
 
+	/**
+	 * Sets a comma-separated string of known players.
+	 *
+	 * @param value a string containing the known players separated by commas
+	 */
 	@ConfigItem(
 		keyName = KEY_PEOPLE_CSV,
 		name = "Players",
@@ -144,6 +186,13 @@ public interface PluginConfig extends Config
 		return true;
 	}
 
+	/**
+	 * Determines whether the Markdown table should be wrapped in triple backticks (` ``` `)
+	 * and columns padded for monospaced display when copying the table for Discord.
+	 *
+	 * @return true if the table should be formatted for Discord with Markdown wrapping
+	 * and monospaced column padding; false otherwise.
+	 */
 	// Markdown / copy settings
 	@ConfigItem(
 		keyName = "copyForDiscord",
@@ -156,6 +205,13 @@ public interface PluginConfig extends Config
 		return true;
 	}
 
+	/**
+	 * Determines whether direct payments between players are enabled, bypassing a middleman or bank.
+	 * If enabled, the settlement guidance assumes players directly settle payments with one another.
+	 * If disabled, a middleman or bank is used for settling payments.
+	 *
+	 * @return true if direct payments are enabled, false if middleman mode is used.
+	 */
 	@ConfigItem(
 		keyName = "directPayments",
 		name = "Direct payments (no middleman)",
@@ -189,6 +245,13 @@ public interface PluginConfig extends Config
 		return true;
 	}
 
+	/**
+	 * Determines whether chat detection is enabled.
+	 * This method checks if values from clan or friends chat should be detected
+	 * and queued in a waitlist as specified by the configuration.
+	 *
+	 * @return true if chat detection is enabled; false otherwise
+	 */
 	@ConfigItem(
 		keyName = "enableChatDetection",
 		name = "Enable chat detection",
@@ -200,6 +263,11 @@ public interface PluginConfig extends Config
 		return false;
 	}
 
+	/**
+	 * Determines whether the detection of values should be enabled in the clan chat.
+	 *
+	 * @return true if detection in the clan chat is enabled, otherwise false.
+	 */
 	@ConfigItem(
 		keyName = "detectInClanChat",
 		name = "Detect in Clan Chat",
@@ -211,6 +279,11 @@ public interface PluginConfig extends Config
 		return true;
 	}
 
+	/**
+	 * Determines whether the system should listen for values in the friends chat.
+	 *
+	 * @return true if listening for values in friends chat is enabled; false otherwise.
+	 */
 	@ConfigItem(
 		keyName = "detectInFriendsChat",
 		name = "Detect in Friends Chat",
@@ -222,6 +295,13 @@ public interface PluginConfig extends Config
 		return true;
 	}
 
+	/**
+	 * Determines whether the detection of PvM (Player vs Monster) values
+	 * from drop messages is enabled. When enabled, values related to
+	 * PvM drops are queued for further processing.
+	 *
+	 * @return true if PvM value detection is enabled, false otherwise
+	 */
 	@ConfigItem(
 		keyName = "detectPvmValues",
 		name = "Detect PvM values",
@@ -233,6 +313,13 @@ public interface PluginConfig extends Config
 		return true;
 	}
 
+	/**
+	 * Determines if the detection of PvP values from loot messages should
+	 * be enabled. When enabled, it queues the values detected from PvP
+	 * loot messages for further processing.
+	 *
+	 * @return true if PvP value detection is enabled, false otherwise
+	 */
 	@ConfigItem(
 		keyName = "detectPvpValues",
 		name = "Detect PvP values",
@@ -244,6 +331,12 @@ public interface PluginConfig extends Config
 		return true;
 	}
 
+	/**
+	 * Enables or disables the detection of player values when they send a command
+	 * using the format !add {value}.
+	 *
+	 * @return true if the detection of player values is enabled, false otherwise
+	 */
 	@ConfigItem(
 		keyName = "detectPlayerValues",
 		name = "Detect player !add",
@@ -255,6 +348,12 @@ public interface PluginConfig extends Config
 		return true;
 	}
 
+	/**
+	 * Determines if the system should automatically apply when the suggested player
+	 * (or their main account) is already in the active session, bypassing the waitlist.
+	 *
+	 * @return true if auto-apply is enabled when the player is in session; false otherwise
+	 */
 	@ConfigItem(
 		keyName = "autoApplyWhenInSession",
 		name = "Auto-apply when in session",
@@ -266,7 +365,14 @@ public interface PluginConfig extends Config
 		return false;
 	}
 
-	// Panel order (optional, CSV of section keys)
+	/**
+	 * Retrieves the default section order as a comma-separated values string.
+	 * The order specifies the arrangement of various sections such as session,
+	 * session players, add split, recent splits, detected values, settlement,
+	 * and known players.
+	 *
+	 * @return A string containing the comma-separated default order of the sections.
+	 */
 	@ConfigItem(
 		keyName = "sectionOrderCsv",
 		name = "Panel section order",
@@ -277,6 +383,12 @@ public interface PluginConfig extends Config
 		return "session,sessionPlayers,addSplit,recentSplits,detectedValues,settlement,knownPlayers";
 	}
 
+	/**
+	 * Sets the order of panel sections based on the provided comma-separated values.
+	 *
+	 * @param value a comma-separated string defining the order of sections.
+	 *              Accepted values: session, sessionPlayers, addSplit, recentSplits, detectedValues, settlement, knownPlayers.
+	 */
 	@ConfigItem(
 		keyName = "sectionOrderCsv",
 		name = "Panel section order",
@@ -284,6 +396,14 @@ public interface PluginConfig extends Config
 	)
 	void sectionOrderCsv(String value);
 
+	/**
+	 * Indicates whether to flip the sign of settlement values for display purposes.
+	 * When disabled, a positive value indicates that the bank pays the player.
+	 * When enabled, a positive value indicates that the player pays the bank. This setting
+	 * applies only in middleman mode and does not affect the actual transaction values.
+	 *
+	 * @return true if settlement sign flipping is enabled, false otherwise.
+	 */
 	@ConfigItem(
 		keyName = "flipSettlementSign",
 		name = "Flip settlement sign (perspective)",
@@ -294,6 +414,12 @@ public interface PluginConfig extends Config
 		return false;
 	}
 
+	/**
+	 * Retrieves a JSON-formatted string that represents the mapping of alternate accounts (alts) to their main account names.
+	 * This configuration item is hidden and intended for internal use.
+	 *
+	 * @return a JSON string containing the alt-to-main name mapping. Defaults to an empty string if not configured.
+	 */
 	@ConfigItem(
 		keyName = KEY_ALTS_JSON,
 		name = "Alts JSON",
@@ -305,6 +431,11 @@ public interface PluginConfig extends Config
 		return "";
 	}
 
+	/**
+	 * Sets the JSON string representing an alt-to-main name mapping.
+	 *
+	 * @param value a JSON string defining the mapping from alternate accounts to main accounts
+	 */
 	@ConfigItem(
 		keyName = KEY_ALTS_JSON,
 		name = "Alts JSON",

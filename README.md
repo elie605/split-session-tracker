@@ -1,39 +1,80 @@
-// TODO this is outdated : )
-# WORK IN PROGRESS
 # Auto Split Manager
 
-Auto Split Manager is an automatic split manager for RuneLite that helps small groups run fair and transparent group sessions.
-It tracks your session roster, captures loot values from chat, and computes how to settle up at the end.
+A RuneLite plugin for automatically managing and tracking splits in group activities.
 
-What does the Automatic loot splitter do?
-- It aggregates per-player loot (K) across the session thread (mother + children sessions).
-- For each session segment, it computes the roster average and each player’s delta from that average.
-- Settlement shows, per player, how much they are up or down relative to the average, so you can pay or be paid to even out.
-- Example: -100k means you owe that amount to the player; +100k means the player owes you that money.
+## Features
 
-Features
-- Session management: start/stop; automatic child sessions on roster changes
-- Roster management: add/remove known mains; alt→main linking
-- Detected values (waitlist): parses PvM, PvP, and !add messages; always selects top entry
-- One‑click apply from waitlist when the player is already in session (optional)
-- Recent splits: dedicated, collapsible section with editable player and amount cells
-- Settlement metrics: titled section with description; copy-to-clipboard (JSON) button
-- Collapsible sections and configurable panel order (CSV in settings)
+- **Automatic Value Detection**: Detect drop values from chat channels (Clan/Friends Chat) and queue them
+    - **Detects PvM drops**: Detects drop values from PvM drop messages
+    - **Detects PvP loot**: Detects loot values from PvP loot messages
+    - **Detects player !add**: Detects values from player `!add` commands in Clan/Friends chat
+    - [ ] TODO -> **Detects through item drop name**: Detects values from through item drop names
+- **Player Management**: Keep track of current participating players with support for alt accounts
+- **Split Calculation**: Automatically calculates fair splits based on session participation
+- **Settlement Guidance**: View metrics to settle payments between players
 
-Settings highlights
-- Toggle chat detection channels (Clan/Friends)
-- Enable PvM/PvP parsing and player-submitted !add values
-- Auto-apply when in session
-- Panel section ordering (CSV)
+## How It Works
 
-TODO
-- [ ] Export sessions to JSON (all or per-session)
-- [ ] History editing (modify past sessions)
-- [ ] Notifications/toasts for key actions
+### Step 1: Start a session
+- Using the plugin panel, start a new session
 
-Getting started
-1) Add known players (mains). Optionally link alts to mains.
-2) Start a session and add players to the roster.
-3) Add splits manually or let chat detection queue values in the Detected values section.
-4) Review and edit Recent splits if needed; Settlement updates automatically.
-5) Use Settlement to reconcile: negative means you owe; positive means they owe you.
+### Step 2: Add players to your known player list
+- **Option A**: Go to your Chat/Friends/Clan channel, right-click a player and select `Add to session`
+- **Option B**: In the plugin panel's `Known player info` section, type a player's name in the text box
+
+### Step 3: Add players to your current session
+- **Option A**: If you used Step 2 Option A, the player is already added to the session
+- **Option B**: In the `Add players to session` section, select the player from the dropdown and click `Add to session`
+
+### Step 4: Add splits to the session
+- **Manual method**: In the `Add split to session` section, select a player, enter an amount (e.g. 300k, 3.4m, 1.23b), and click 'Add'
+- **Semi-automatic method**:
+    1. In settings under `Chat Detection Settings`, enable `Chat detection` and disable `Auto-apply when in session`
+    2. When drops are announced in Chat, they'll appear in the `Detected values` section
+    3. Select the item and click `Add` (or `Del` to remove)
+- **Fully automatic method**:
+    1. In settings under `Chat Detection Settings`, enable both `Chat detection` and `Auto-apply when in session`
+    2. Drops will be automatically added for players in the session
+
+### Step 5: Manage players in the session
+- **Option A**: Right-click a player in Chat/Friends/Clan channel and select `Remove from session`
+- **Option B**: In the plugin panel's `Settlement` section, click the `X` next to a player's name
+
+### Step 6: View settlements
+- Settlement calculations appear automatically in the plugin panel under the `Settlement` section
+
+### Step 7: Stop the session
+- Click the Stop button in the plugin panel when finished
+
+## Configuration Options
+
+### General Settings
+
+- **Active player management**: Show section with per-player buttons for adding splits/removing players
+- **Show toasts**: Enable confirmation/info popups in the panel
+- **Allow negative values**: Permit entering negative kill values for adjustments (This is an alternative to removing
+  splits)
+- **Panel section order**: Customize the order of UI sections in the panel
+
+### Settlement Settings
+
+- **Copy for Discord**: Format Markdown tables with proper spacing for Discord
+- **Direct payments**: Toggle between direct player payments or using a middleman/bank
+- **Flip settlement sign**: Change perspective of settlement values (+ means bank pays player vs. player pays bank)
+
+### Chat Detection Settings
+
+- **Enable chat detection**: Master toggle for detecting values from chat
+- **Detect in Clan/Friends Chat**: Choose which chat channels to monitor
+- **Detect PvM/PvP values**: Toggle automatic detection of drop and loot messages
+- **Detect player !add**: Allow players to queue values via chat commands
+- **Auto-apply when in session**: Automatically apply detected values for players already in session
+
+## Alt Account Management
+
+The plugin supports linking alt accounts to main accounts, ensuring that values are properly attributed regardless of
+which character is active. All alts are automatically resolved to their main accounts when calculating splits.
+
+## Contribute
+
+This plugin is under active development. Contributions, bug reports, and feature requests are welcome.

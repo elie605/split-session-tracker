@@ -2,6 +2,7 @@ package com.splitmanager;
 
 import com.splitmanager.controllers.PanelController;
 import com.splitmanager.views.PanelView;
+import com.splitmanager.views.PopoutView;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import lombok.Getter;
@@ -57,20 +58,15 @@ public class ManagerPanel
 	 */
 	private void startPanel()
 	{
-		view.setLayout(new BorderLayout());
-
-		view.removeAll();
-
-		PanelView view = new PanelView(manager, config, playerManager);
+		view = new PanelView(manager, config, playerManager);
 		controller = new PanelController(manager, config, view, playerManager, this);
 		view.bindActions(controller);
-		view.add(view, BorderLayout.CENTER);
 
 		popOutBtn = new JButton("Pop Out");
 		popOutBtn.addActionListener(e -> togglePopOutWindow());
 		JPanel topBar = new JPanel(new FlowLayout(FlowLayout.RIGHT, 5, 5));
 		topBar.add(popOutBtn);
-		view.add(topBar, BorderLayout.NORTH);
+		view.add(topBar, BorderLayout.NORTH,0);
 
 		controller.refreshAllView();
 		view.revalidate();
@@ -91,7 +87,7 @@ public class ManagerPanel
 			view.repaint();
 		}
 
-		PanelView view = new PanelView(manager, config, playerManager);
+		PopoutView view = new PopoutView(manager, config, playerManager);
 		PanelController ctrl = new PanelController(manager, config, view, playerManager, this);
 
 		view.bindActions(ctrl);

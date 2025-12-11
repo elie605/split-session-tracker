@@ -7,6 +7,7 @@ import java.text.ParseException;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.regex.Pattern;
+import javax.annotation.Nonnull;
 import javax.swing.JFormattedTextField;
 
 public class Formats
@@ -29,7 +30,7 @@ public class Formats
 	public static final class OsrsAmountFormatter extends JFormattedTextField.AbstractFormatter
 	{
 		private static final Pattern P =
-			Pattern.compile("(?i)^\\s*([0-9]+(?:\\.[0-9]+)?)\\s*([kmb])?\\s*$");
+			Pattern.compile("(?i)^\\s*([0-9]+(?:\\.[0-9]+)?)\\s*([kmb]| coins)?\\s*$");
 
 		private static BigDecimal getBigDecimal(BigDecimal number, char suffix) throws ParseException
 		{
@@ -42,16 +43,17 @@ public class Formats
 			switch (suffix)
 			{
 				case 'k':
-					multiplierK = 1L;            // thousands
+					multiplierK = 1_000L;
 					break;
 				case 'm':
-					multiplierK = 1_000L;        // millions -> K
+					multiplierK = 1_000_000L;
 					break;
 				case 'b':
-					multiplierK = 1_000_000L;    // billions -> K
+					multiplierK = 1_000_000_000L;
 					break;
 				default:
 					multiplierK = 1L;
+					break;
 			}
 
 			return number.multiply(BigDecimal.valueOf(multiplierK));
@@ -70,33 +72,36 @@ public class Formats
 		 */
 		public static String toSuffixString(long amountK, char suffix)
 		{
-			char s = Character.toLowerCase(suffix);
+			DecimalFormat localDF = DF;
+			String s = String.valueOf(Character.toLowerCase(suffix));
 			long divK; // how many K per target unit
 			switch (s)
 			{
-				case 'k':
-					divK = 1L;
-					break;              // 1 K per K
-				case 'm':
+				case "k":
 					divK = 1_000L;
-					break;          // 1,000 K per M
-				case 'b':
+					break;              // 1 K per K
+				case "m":
 					divK = 1_000_000L;
+					break;          // 1,000 K per M
+				case "b":
+					divK = 1_000_000_000L;
+					localDF = DF_3DP;
 					break;      // 1,000,000 K per B
 				default:
 					divK = 1L;
-					s = 'k';            // fallback to K
-			}
+					s = "gp";
+					break;
+				}
 
 			// Use BigDecimal to avoid precision issues for large numbers
 			BigDecimal val = BigDecimal.valueOf(amountK)
 				.divide(BigDecimal.valueOf(divK));
 
 			// Format with up to 3 decimals, trimming trailing zeros
-			String num = DF_3DP.format(val);
+			String num = localDF.format(val);
 
 			// Uppercase the suffix in output
-			return num + Character.toUpperCase(s);
+			return num + s.toUpperCase();
 		}
 
 		/**
@@ -112,12 +117,8 @@ public class Formats
 		}
 
 		@Override
-		public Object stringToValue(String text) throws ParseException
+		public Object stringToValue(@Nonnull String text) throws ParseException
 		{
-			if (text == null)
-			{
-				return null;
-			}
 			String s = text.replace(",", "").trim(); // ignore commas
 			if (s.isEmpty())
 			{
@@ -131,11 +132,12 @@ public class Formats
 			}
 
 			BigDecimal number = new BigDecimal(m.group(1));
-			char suffix = (m.group(2) == null) ? 'k' : Character.toLowerCase(m.group(2).charAt(0));
+			char suffix = (m.group(2) == null) ? ' ' : Character.toLowerCase(m.group(2).charAt(0));
 
-			BigDecimal kVal = getBigDecimal(number, suffix);
-			// normalize to whole K (floor)
-			return kVal.setScale(0, RoundingMode.FLOOR).longValueExact();
+			// Convert to raw coins
+			BigDecimal coinsValue = getBigDecimal(number, suffix);
+			// Return the exact long value (no normalization to K units)
+			return coinsValue.setScale(0, RoundingMode.FLOOR).longValueExact();
 		}
 
 		@Override

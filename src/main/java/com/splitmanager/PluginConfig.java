@@ -1,5 +1,6 @@
 package com.splitmanager;
 
+import lombok.Getter;
 import net.runelite.client.config.Config;
 import net.runelite.client.config.ConfigGroup;
 import net.runelite.client.config.ConfigItem;
@@ -21,6 +22,41 @@ public interface PluginConfig extends Config
 	String KEY_HISTORY_LOADED = "historyLoaded";
 	String KEY_PEOPLE_CSV = "PlayersCsv";
 
+	// Define an enum for your dropdown options
+	@Getter
+	enum ValueMultiplier
+	{
+		COINS("None, 1 = 1gp", " coins"),
+		THOUSAND("k, aka a thousand", "k"),
+		MILLION("m, aka a million", "m"),
+		BILLION("b, aka a billion", "b");
+
+		private final String description;
+		private final String value;
+
+		ValueMultiplier(String description, String value)
+		{
+			this.description = description;
+			this.value = value;
+		}
+
+		@Override
+		public String toString()
+		{
+			return description;
+		}
+	}
+
+	@ConfigItem(
+		keyName = "defaultValueMultiplier",
+		name = "Default value multiplier",
+		description = "The default multiplier that is used upon adding split values"
+	)
+	default ValueMultiplier defaultValueMultiplier()
+	{
+		return ValueMultiplier.THOUSAND;
+	}
+
 	//TODO Create a new configitem that allows the user to submit any forms on enter, e.g. 1) user fills in split amount 2) presses enter 3) The same function as button press is called
 	@ConfigSection(
 		name = "Settlement",
@@ -38,19 +74,12 @@ public interface PluginConfig extends Config
 	// Alt/main mapping persistence (hidden JSON)
 	String KEY_ALTS_JSON = "altsJson";
 
-	//TODO implement this
-	//TODO implement this SIGHHHH I have claimed this
-	//Added a weird thingy in Auto Split Manager -> Turn Chat Detection ON -> see top left corner for box
-	//Automatically detect if Chat Channel is turned on, if not, warn player
-	//Important because changing worlds may automatically turn Chat off
-	//Option is a pop up, preferably in Canvas, alternatively closable pop up on the side
 	@ConfigItem(
 		keyName = "WarnNotInFC",
 		name = "Warning not in FC",
-		description = "Give a warning on OSRS canvas that you are not in a FC, usefull if you have !add on",
-		hidden = true
+		description = "Give a warning on OSRS canvas that you are not in a FC, usefull if you have !add on"
 	)
-	default Boolean warnNotFC()
+	default boolean warnNotFC()
 	{
 		return false;
 	}
@@ -238,11 +267,12 @@ public interface PluginConfig extends Config
 	@ConfigItem(
 		keyName = "allowNegativeKills",
 		name = "Allow negative kill values",
-		description = "Permit entering negative kill values (e.g., adjustments)"
+		description = "Permit entering negative kill values (e.g., adjustments)",
+		hidden = true
 	)
 	default boolean allowNegativeKills()
 	{
-		return true;
+		return false;
 	}
 
 	/**

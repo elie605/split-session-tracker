@@ -24,6 +24,7 @@ import javax.annotation.Nonnull;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import lombok.Getter;
+import net.runelite.client.plugins.PluginManager;
 
 /**
  * Manages sessions, persistence, and all the logic for roster changes,
@@ -38,6 +39,7 @@ public class ManagerSession
 	private final ManagerKnownPlayers playerManager;
 	private final PluginConfig config;
 	private String currentSessionId;
+	private ManagerPlugin pluginManager;
 	@Getter
 	private boolean historyLoaded;
 
@@ -48,13 +50,14 @@ public class ManagerSession
 	 * @param config backing configuration/store used to load and save state
 	 */
 	@Inject
-	public ManagerSession(PluginConfig config, ManagerKnownPlayers playerManager)
+	public ManagerSession(PluginConfig config, ManagerKnownPlayers playerManager, ManagerPlugin pluginManager)
 	{
 		this.config = config;
 		this.playerManager = playerManager;
 		this.gson = new GsonBuilder()
 			.registerTypeAdapter(Instant.class, new InstantTypeAdapter())
 			.create();
+		this.pluginManager = pluginManager;
 	}
 
 	/**
@@ -260,6 +263,7 @@ public class ManagerSession
 
 		currentSessionId = child.getId();
 		saveToConfig();
+		pluginManager.updateChatWarningStatus();
 		return Optional.of(child);
 	}
 
@@ -295,6 +299,7 @@ public class ManagerSession
 
 		currentSessionId = null;
 		saveToConfig();
+		pluginManager.updateChatWarningStatus();
 		return true;
 	}
 
@@ -412,29 +417,30 @@ public class ManagerSession
 	 * @param amount value in coins (may be negative if allowed by config)
 	 * @return true if recorded
 	 */
-	public boolean addKill(String player, Long amount)
+	public boolean addKill(@Nonnull String player, @Nonnull Long amount)
 	{
 		if (historyLoaded)
 		{
 			return false; //TODO support altering history
 		}
-		Session curr = getCurrentSession().orElse(null);
-		if (curr == null || !curr.isActive())
+
+		Session currentSession = getCurrentSession().orElse(null);
+		if (currentSession == null || !currentSession.isActive())
 		{
 			return false;
 		}
 
-		String mainPlayer = playerManager.getMainName(player == null ? null : player.trim());
+		String mainPlayer = playerManager.getMainName(player.trim());
 		if (mainPlayer == null || mainPlayer.isBlank())
 		{
 			return false;
 		}
-		if (curr.getPlayers().stream().noneMatch(p -> p.equalsIgnoreCase(mainPlayer)))
+		if (currentSession.getPlayers().stream().noneMatch(p -> p.equalsIgnoreCase(mainPlayer)))
 		{
 			return false;
 		}
 
-		curr.getKills().add(new Kill(curr.getId(), mainPlayer, amount, Instant.now()));
+		currentSession.getKills().add(new Kill(currentSession.getId(), mainPlayer, amount, Instant.now()));
 		saveToConfig();
 		return true;
 	}
@@ -452,43 +458,39 @@ public class ManagerSession
 	 * the value may be auto-applied (when the player is currently in session), in which case this
 	 * method records a kill and does not queue. A small cap prevents unbounded growth.
 	 *
-	 * @param pv pending value payload; null is ignored
+	 * @param pendingValue pending value payload; null is ignored
 	 */
-	public void addPendingValue(PendingValue pv)
+	public void addPendingValue(@Nonnull PendingValue pendingValue)
 	{
-		if (pv == null)
+		// Normalize suggestedPlayer player to main for all downstream uses
+		String suggestedPlayer = pendingValue.getSuggestedPlayer();
+		String resolvedPlayer = playerManager.getMainName(suggestedPlayer);
+
+		pendingValue.setSuggestedPlayer(resolvedPlayer);
+
+		if (!playerManager.getKnownPlayers().contains(resolvedPlayer))
 		{
-			return;
+			playerManager.getKnownPlayers().add(resolvedPlayer);
+			saveToConfig();
 		}
-		// Normalize suggested player to main for all downstream uses
-		String suggested = pv.getSuggestedPlayer();
-		String resolved = playerManager.getMainName(suggested);
-		pv.setSuggestedPlayer(resolved);
-		// Auto-add unknown suggested MAIN to known list
-		if (resolved != null && !resolved.isBlank())
-		{
-			if (!playerManager.getKnownPlayers().contains(resolved))
-			{
-				playerManager.getKnownPlayers().add(resolved);
-				saveToConfig();
-			}
-		}
+
 		// Auto-apply if configured and player already in session
-		if (config.autoApplyWhenInSession() && hasActiveSession() && resolved != null && !resolved.isBlank())
+		if (config.autoApplyWhenInSession() && hasActiveSession())
 		{
-			Session curr = getCurrentSession().orElse(null);
-			if (curr != null && curr.getPlayers().stream().anyMatch(p -> p.equalsIgnoreCase(resolved)))
+			Session currentSession = getCurrentSession().orElse(null);
+			if (currentSession != null && currentSession.getPlayers().stream().anyMatch(p -> p.equalsIgnoreCase(resolvedPlayer)))
 			{
-				addKill(resolved, pv.getValue());
+				addKill(resolvedPlayer, pendingValue.getValue());
 				return; // do not queue
 			}
 		}
+
 		// Limit size to avoid unbounded growth
 		if (pendingValues.size() > 100)
 		{
 			pendingValues.remove(0);
 		}
-		pendingValues.add(pv);
+		pendingValues.add(pendingValue);
 	}
 
 	/**

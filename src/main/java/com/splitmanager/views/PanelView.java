@@ -783,7 +783,7 @@ public class PanelView extends PluginPanel
 				{
 					String payerShort = shortenName(t.getFrom(), 7);
 					String payeeShort = shortenName(t.getTo(), 7);
-					String amountStr = toSuffixString(Math.abs(t.getAmount()), 'k');
+					String amountStr = toSuffixString(Math.abs(t.getAmount()), config.defaultValueMultiplier().getValue());
 					String display = payerShort + " -> " + payeeShort + ": " + amountStr;
 					txModel.addRow(new Object[]{display});
 				}

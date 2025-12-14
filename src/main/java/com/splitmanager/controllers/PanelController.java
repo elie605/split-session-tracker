@@ -70,10 +70,9 @@ public class PanelController implements PanelActions
 			toast(view, "Cannot stop while history loaded.");
 			return;
 		}
-		if (sessionManager.stopSession())
+		if (sessionManager.stopSession(view))
 		{
 			managerPanel.refreshAllView();
-			toast(view, "Session stopped.");
 		}
 		else
 		{

@@ -7,6 +7,7 @@ import com.splitmanager.models.PendingValue;
 import com.splitmanager.models.PlayerMetrics;
 import com.splitmanager.models.Session;
 import com.splitmanager.utils.InstantTypeAdapter;
+import com.splitmanager.views.PanelView;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -23,6 +24,7 @@ import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 import javax.inject.Inject;
 import javax.inject.Singleton;
+import javax.swing.JOptionPane;
 import lombok.Getter;
 import net.runelite.client.plugins.PluginManager;
 
@@ -40,6 +42,7 @@ public class ManagerSession
 	private final PluginConfig config;
 	private String currentSessionId;
 	private ManagerPlugin pluginManager;
+	// TODO implement in newer versions
 	@Getter
 	private boolean historyLoaded;
 
@@ -116,7 +119,6 @@ public class ManagerSession
 		}
 
 		currentSessionId = emptyToNull(config.currentSessionId());
-		historyLoaded = config.historyLoaded();
 	}
 
 	/**
@@ -127,7 +129,6 @@ public class ManagerSession
 		Session[] arr = sessions.values().toArray(new Session[0]);
 		config.sessionsJson(gson.toJson(arr));
 		config.currentSessionId(nullToEmpty(currentSessionId));
-		config.historyLoaded(historyLoaded);
 	}
 
 	/**
@@ -273,7 +274,7 @@ public class ManagerSession
 	 *
 	 * @return true if an active session was stopped
 	 */
-	public boolean stopSession()
+	public boolean stopSession(PanelView view)
 	{
 		if (historyLoaded)
 		{
@@ -285,6 +286,16 @@ public class ManagerSession
 		{
 			return false;
 		}
+
+		if (
+			JOptionPane.showConfirmDialog(view,
+				"Are you sure you want to stop the session")
+				!= 0
+		)
+		{
+			return false;
+		}
+
 		curr.setEnd(Instant.now());
 
 		// If child has a mother which is active, end mother too.

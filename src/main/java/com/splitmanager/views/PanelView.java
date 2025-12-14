@@ -123,43 +123,20 @@ public class PanelView extends PluginPanel
 		JPanel top = new JPanel();
 		top.setLayout(new BoxLayout(top, BoxLayout.Y_AXIS));
 
-		Map<String, Supplier<Component>> sections = new LinkedHashMap<>();
-		if (config.useActivePlayerManagement())
-		{
-			sections.put("activeplayermgmt", this::generateActivePlayerManagement);
-		}
-		sections.put("session", this::generateSessionPanel);
-		sections.put("sessionplayers", this::generateSessionPlayerManagement);
-		sections.put("addsplit", this::generateAddSplit);
-		sections.put("recentsplits", this::generateRecentSplitsPanel);
-		sections.put("detectedvalues", this::generateWaitlistPanelCollapsible);
-		sections.put("settlement", this::generateMetrics);
-		sections.put("knownplayers", this::generateKnownPlayersManagement);
-
-		Set<String> added = new LinkedHashSet<>();
-		String orderCsv = config.sectionOrderCsv();
-		if (orderCsv != null && !orderCsv.isBlank())
-		{
-			for (String key : orderCsv.split(","))
-			{
-				String k = key.trim().toLowerCase();
-				Supplier<Component> sup = sections.get(k);
-				if (sup != null)
-				{
-					top.add(sup.get());
-					top.add(Box.createVerticalStrut(3));
-					added.add(k);
-				}
-			}
-		}
-		for (var e : sections.entrySet())
-		{
-			if (!added.contains(e.getKey()))
-			{
-				top.add(e.getValue().get());
-				top.add(Box.createVerticalStrut(3));
-			}
-		}
+		top.add(generateSessionPanel());
+		top.add(Box.createVerticalStrut(3));
+		top.add(generateSessionPlayerManagement());
+		top.add(Box.createVerticalStrut(3));
+		top.add(generateAddSplit());
+		top.add(Box.createVerticalStrut(3));
+		top.add(generateRecentSplitsPanel());
+		top.add(Box.createVerticalStrut(3));
+		top.add(generateWaitlistPanelCollapsible());
+		top.add(Box.createVerticalStrut(3));
+		top.add(generateMetrics());
+		top.add(Box.createVerticalStrut(3));
+		top.add(generateKnownPlayersManagement());
+		top.add(Box.createVerticalStrut(3));
 
 		add(top, BorderLayout.NORTH);
 	}
@@ -541,7 +518,7 @@ public class PanelView extends PluginPanel
 		gbc.anchor = GridBagConstraints.CENTER;
 		PlayersPanel.add(altButtonsRow, gbc);
 
-		return new DropdownRip("Known player info", PlayersPanel);
+		return new DropdownRip("Known player info", PlayersPanel, false);
 	}
 
 	private JPanel generateSessionPanel()
@@ -621,14 +598,14 @@ public class PanelView extends PluginPanel
 	{
 		JPanel content = new JPanel(new BorderLayout());
 		content.add(generateWaitlistPanel(), BorderLayout.CENTER);
-		return new DropdownRip("Detected values", content);
+		return new DropdownRip("Detected values", content, false);
 	}
 
 	private JComponent generateRecentSplitsPanel()
 	{
 		JScrollPane scroller = new JScrollPane(recentSplitsTable);
 		scroller.setPreferredSize(new Dimension(0, 140));
-		return new DropdownRip("Recent splits", scroller);
+		return new DropdownRip("Recent splits", scroller, false);
 	}
 
 	private JComponent generateMetrics()
@@ -842,47 +819,6 @@ public class PanelView extends PluginPanel
 				sessionManager.getCurrentSession().orElse(null), true), config);
 		StringSelection selection = new StringSelection(payload);
 		java.awt.Toolkit.getDefaultToolkit().getSystemClipboard().setContents(selection, selection);
-	}
-
-	private JPanel generateActivePlayerManagement()
-	{
-		JPanel panel = new JPanel();
-		panel.setLayout(new GridBagLayout());
-		GridBagConstraints gbc = new GridBagConstraints();
-		gbc.insets = new Insets(3, 3, 3, 3);
-		gbc.anchor = GridBagConstraints.WEST;
-		gbc.fill = GridBagConstraints.HORIZONTAL;
-
-		JLabel amountLabel = new JLabel("Amount:");
-		amountLabel.setPreferredSize(dl);
-
-		gbc.gridx = 0;
-		gbc.gridy = 0;
-		gbc.weightx = 0;
-		gbc.fill = GridBagConstraints.NONE;
-		gbc.anchor = GridBagConstraints.EAST;
-		panel.add(amountLabel, gbc);
-
-		gbc.gridx = 1;
-		gbc.gridy = 0;
-		gbc.weightx = 1.0;
-		gbc.fill = GridBagConstraints.HORIZONTAL;
-		gbc.anchor = GridBagConstraints.WEST;
-		panel.add(activeKillAmountField, gbc);
-
-		JScrollPane scroller = new JScrollPane(activePlayersButtonsPanel);
-		scroller.setBorder(null);
-		scroller.setPreferredSize(ll);
-		gbc.gridx = 0;
-		gbc.gridy = 1;
-		gbc.gridwidth = 2;
-		gbc.weightx = 1.0;
-		gbc.weighty = 1.0;
-		gbc.fill = GridBagConstraints.BOTH;
-		panel.add(scroller, gbc);
-
-		refreshActivePlayerButtons();
-		return new DropdownRip("Active player management", panel);
 	}
 
 	public void refreshActivePlayerButtons()

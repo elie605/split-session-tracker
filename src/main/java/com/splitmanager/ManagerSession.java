@@ -750,11 +750,11 @@ public class ManagerSession
 			String motherId = (curr.getMotherId() == null) ? curr.getId() : curr.getMotherId();
 			// If cached, return it
 			List<Kill> cached = motherKillsCache.get(motherId);
-   if (cached != null)
+	   if (cached != null)
 			{
 				return Collections.unmodifiableList(cached);
 			}
-			// Build once and cache
+			// Build once, sort by time ascending (oldest first), and cache
 			List<Kill> built = new ArrayList<>();
 			for (Session session : sessions.values())
 			{
@@ -763,6 +763,7 @@ public class ManagerSession
 					built.addAll(session.getKills());
 				}
 			}
+			built.sort(Comparator.comparing(Kill::getAt, Comparator.nullsLast(Comparator.naturalOrder())));
 			motherKillsCache.put(motherId, built);
 			return built;
 		}

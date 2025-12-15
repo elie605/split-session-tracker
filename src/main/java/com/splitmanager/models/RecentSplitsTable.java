@@ -5,7 +5,9 @@ import com.splitmanager.ManagerPlugin;
 import com.splitmanager.PluginConfig;
 import com.splitmanager.utils.Formats;
 import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public final class RecentSplitsTable extends javax.swing.table.AbstractTableModel
 {
 	private static final String[] COLS = {"Time", "Player", "Amount"};
@@ -92,31 +94,12 @@ public final class RecentSplitsTable extends javax.swing.table.AbstractTableMode
 		{ // amount (K)
 			try
 			{
-				String valueStr = (String) aValue;
-
-				// Check if the value has no unit (k, m, b) and append the default
-				java.util.regex.Pattern unitPattern = java.util.regex.Pattern.compile("(?i)^\\s*([0-9][0-9,]*(?:\\.[0-9]+)?)\\s*([kmb])?\\s*$");
-				java.util.regex.Matcher matcher = unitPattern.matcher(valueStr);
-
-				if (matcher.matches()) {
-					String numberTxt = matcher.group(1);
-					String unitTxt = matcher.group(2);
-
-					if (unitTxt == null) {
-						// No unit specified, append the default multiplier
-						valueStr = numberTxt + config.defaultValueMultiplier().getValue();
-					}
-				}
-
-				Object k = new Formats.OsrsAmountFormatter().stringToValue(valueStr);
-				if (k == null)
-				{
-					return;
-				}
-				e.kill.setAmount((Long) k);
+				Long k = Formats.OsrsAmountFormatter.stringAmountToLongAmount((String) aValue,config);
+				e.kill.setAmount(k);
 			}
 			catch (Exception ignored)
 			{
+				log.warn("Invalid amount: {}", aValue);
 			}
 		}
 		fireTableRowsUpdated(rowIndex, rowIndex);
@@ -133,7 +116,7 @@ public final class RecentSplitsTable extends javax.swing.table.AbstractTableMode
 		{
 			timeStr = TIME_FMT.format(java.time.ZonedDateTime.ofInstant(k.getAt(), SYS_TZ));
 		}
-		// newest on top
+		// newest on top (insert at index 0)
 		rows.add(0, new Row(k, timeStr));
 		fireTableDataChanged();
 	}
@@ -147,8 +130,8 @@ public final class RecentSplitsTable extends javax.swing.table.AbstractTableMode
 			return;
 		}
 		int n = kills.size();
-		// Iterate from newest to oldest
-		for (int i = n - 1; i >= 0; i--)
+		// Iterate from oldest to newest
+		for (int i = 0; i < n; i++)
 		{
 			Kill k = kills.get(i);
 			addEntry(k);

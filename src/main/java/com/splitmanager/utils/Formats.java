@@ -1,5 +1,6 @@
 package com.splitmanager.utils;
 
+import com.splitmanager.PluginConfig;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.text.DecimalFormat;
@@ -8,8 +9,11 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.regex.Pattern;
 import javax.annotation.Nonnull;
+import javax.inject.Inject;
 import javax.swing.JFormattedTextField;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public class Formats
 {
 	private static final DateTimeFormatter TS = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
@@ -114,6 +118,35 @@ public class Formats
 				return toSuffixString(amountK, 'k');
 			}
 			return toSuffixString(amountK, suffix.charAt(0));
+		}
+
+		public static long stringAmountToLongAmount(String amount, PluginConfig config) throws ParseException
+		{
+			String valueStr = amount;
+
+			log.debug("Parsing amount: {}", valueStr);
+			// Check if the value has no unit (k, m, b) and append the default
+			java.util.regex.Pattern unitPattern = java.util.regex.Pattern.compile("(?i)^\\s*([0-9][0-9,]*(?:\\.[0-9]+)?)\\s*([kmb])?\\s*$");
+			java.util.regex.Matcher matcher = unitPattern.matcher(valueStr);
+
+			if (matcher.matches()) {
+				String numberTxt = matcher.group(1);
+				String unitTxt = matcher.group(2);
+				log.debug("Number: {}, Unit: {}", numberTxt, unitTxt);
+
+				if (unitTxt == null) {
+					// No unit specified, append the default multiplier
+					valueStr = numberTxt + config.defaultValueMultiplier().getValue();
+				}
+				log.debug("Final value: {}", valueStr);
+			}
+
+			log.debug("Parsed amount: {}", valueStr);
+			Object k = new Formats.OsrsAmountFormatter().stringToValue(valueStr);
+			if (k == null) {
+				throw new ParseException("Invalid amount", 0);
+			}
+			return (Long) k;
 		}
 
 		@Override

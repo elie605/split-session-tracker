@@ -8,6 +8,7 @@ import com.splitmanager.models.Metrics;
 import com.splitmanager.models.PendingValue;
 import com.splitmanager.models.Session;
 import com.splitmanager.models.WaitlistTable;
+import com.splitmanager.utils.Formats;
 import com.splitmanager.utils.MarkdownFormatter;
 import static com.splitmanager.utils.Utils.toast;
 import com.splitmanager.views.PanelView;
@@ -20,6 +21,7 @@ import javax.swing.DefaultListModel;
 import javax.swing.JComboBox;
 import javax.swing.JOptionPane;
 import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 
 //Testing push again
 
@@ -27,6 +29,7 @@ import lombok.Setter;
  * MVC Controller: non-UI logic + event handling. The View calls into this via PanelActions.
  * Keeps string/markdown/transfer computations here and pushes UI refreshes through the View.
  */
+@Slf4j
 public class PanelController implements PanelActions
 {
 	private final ManagerSession sessionManager;
@@ -35,6 +38,7 @@ public class PanelController implements PanelActions
 	private PanelView view;
 	private final ManagerKnownPlayers playerManager;
 	private final ManagerPanel managerPanel;
+	private Formats.OsrsAmountFormatter formats = new Formats.OsrsAmountFormatter();
 
 	public PanelController(ManagerSession sessionManager, PluginConfig config, ManagerKnownPlayers playerManager, ManagerPanel managerPanel)
 	{
@@ -175,17 +179,18 @@ public class PanelController implements PanelActions
 	{
 		String player = (String) view.getCurrentSessionPlayerDropdown().getSelectedItem();
 		long amt;
-		Object val = view.getKillAmountField().getValue();
+		String val = view.getKillAmountField().getValue().toString();
 		try
 		{
-			amt = val == null ? Long.parseLong(view.getKillAmountField().getText()) : ((Number) val).longValue();
+			log.debug("Adding kill for1  {} with amount {}", player, val);
+			amt = Formats.OsrsAmountFormatter.stringAmountToLongAmount(val,config);
+			log.debug("Adding kill for2  {} with amount {}", player, amt);
+			addKill(player, amt);
 		}
 		catch (Exception ex)
 		{
 			toast(view, "Invalid amount.");
-			return;
 		}
-		addKill(player, amt);
 	}
 
 	@Override

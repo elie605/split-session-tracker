@@ -207,26 +207,7 @@ public class PanelView extends PluginPanel
 				altsList.getSelectedValue()));
 
 		btnAddKill.addActionListener(e -> {
-			if (actions != null)
-			{
-				actions.addKillFromInputs();
-			}
-			else
-			{
-				String player = (String) currentSessionPlayerDropdown.getSelectedItem();
-				long amt;
-				Object val = killAmountField.getValue();
-				try
-				{
-					amt = val == null ? Long.parseLong(killAmountField.getText()) : ((Number) val).longValue();
-				}
-				catch (Exception ex)
-				{
-					toast(this, "Invalid amount.");
-					return;
-				}
-				actions.addKill(player, amt);
-			}
+			actions.addKillFromInputs();
 		});
 
 		btnWaitlistAdd.addActionListener(e -> actions.applySelectedPendingValue(waitlistTable.getSelectedRow()));
@@ -447,9 +428,9 @@ public class PanelView extends PluginPanel
 	private List<String> getTourSteps()
 	{
 		List<String> steps = new ArrayList<>();
-		steps.add("Start a session using the Start button.");
-		steps.add("Add a new player: type a name in the text field and click Add Player.");
+		steps.add("Scroll down and add a new player: type a name in the text field and click Add Player.");
 		steps.add("Optional: The 'Known alts' dropdown lets you link an alt account to a selected known player.");
+		steps.add("Start a session using the Start button.");
 		steps.add("Add players to the session: use the 'Not in session' dropdown, click Add. Tip: add 2 players to see splits.");
 		steps.add("Record a split: use the 'Player' dropdown, enter an amount, then click Add.");
 		steps.add("You can remove a player from settlement by clicking the 'x' button in the Settlement table.");
@@ -471,15 +452,15 @@ public class PanelView extends PluginPanel
 		{
 			case 0:
 				// Start session
-				highlight(btnStart);
+				highlight(newPlayerField);
 				break;
 			case 1:
 				// Add new player via text field
-				highlight(newPlayerField);
+				highlight(addAltDropdown);
 				break;
 			case 2:
 				// Known alts dropdown to link alts
-				highlight(addAltDropdown);
+				highlight(btnStart);
 				break;
 			case 3:
 				// Add players to session using 'Not in session' dropdown

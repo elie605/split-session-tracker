@@ -26,7 +26,6 @@ import javax.inject.Inject;
 import javax.inject.Singleton;
 import javax.swing.JOptionPane;
 import lombok.Getter;
-import net.runelite.client.plugins.PluginManager;
 
 /**
  * Manages sessions, persistence, and all the logic for roster changes,
@@ -719,6 +718,39 @@ public class ManagerSession
 		}
 		return out;
 	}
+
+
+	/**
+	 * Get all kills from all sessions that share the same mother session as the current session.
+	 *
+	 * @return a list containing all kill records from sessions with the same mother
+	 */
+	public List<Kill> getAllKills()
+	{
+		List<Kill> allKills = new ArrayList<>();
+		Session curr = getCurrentSession().orElse(null);
+
+		if (curr == null) {
+			return allKills; // Return empty list if no current session
+		}
+
+		// Get the mother ID of the current session
+		String motherId = curr.getMotherId();
+		if (motherId == null) {
+			// If current session is itself a mother session, use its ID
+			motherId = curr.getId();
+		}
+
+		// Collect kills from all sessions with the same mother
+		for (Session session : sessions.values()) {
+			if (motherId.equals(session.getMotherId()) || motherId.equals(session.getId())) {
+				allKills.addAll(session.getKills());
+			}
+		}
+
+		return allKills;
+	}
+
 
 	/**
 	 * Generate a random unique id for sessions.

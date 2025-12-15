@@ -1,6 +1,9 @@
 package com.splitmanager.models;
 
 
+import com.splitmanager.ManagerPlugin;
+import com.splitmanager.PluginConfig;
+import com.splitmanager.utils.Formats;
 import lombok.Setter;
 
 public final class RecentSplitsTable extends javax.swing.table.AbstractTableModel
@@ -14,6 +17,13 @@ public final class RecentSplitsTable extends javax.swing.table.AbstractTableMode
 	private final java.util.List<Row> rows = new java.util.ArrayList<>(10);
 	@Setter
 	private Listener listener;
+
+	private final PluginConfig config;
+
+	public RecentSplitsTable(PluginConfig config)
+	{
+		this.config = config;
+	}
 
 	@Override
 	public int getRowCount()
@@ -38,7 +48,7 @@ public final class RecentSplitsTable extends javax.swing.table.AbstractTableMode
 			case 1:
 				return e.kill.getPlayer();
 			case 2:
-				return (e.kill.getAmount() + "K");
+				return Formats.OsrsAmountFormatter.toSuffixString(e.kill.getAmount(), 'k');
 			default:
 				return "";
 		}
@@ -82,14 +92,28 @@ public final class RecentSplitsTable extends javax.swing.table.AbstractTableMode
 		{ // amount (K)
 			try
 			{
-				String s = aValue == null ? "" : aValue.toString().trim().toLowerCase();
-				if (s.endsWith("k"))
-				{
-					s = s.substring(0, s.length() - 1);
+				String valueStr = (String) aValue;
+
+				// Check if the value has no unit (k, m, b) and append the default
+				java.util.regex.Pattern unitPattern = java.util.regex.Pattern.compile("(?i)^\\s*([0-9][0-9,]*(?:\\.[0-9]+)?)\\s*([kmb])?\\s*$");
+				java.util.regex.Matcher matcher = unitPattern.matcher(valueStr);
+
+				if (matcher.matches()) {
+					String numberTxt = matcher.group(1);
+					String unitTxt = matcher.group(2);
+
+					if (unitTxt == null) {
+						// No unit specified, append the default multiplier
+						valueStr = numberTxt + config.defaultValueMultiplier().getValue();
+					}
 				}
-				s = s.replace(",", "");
-				long k = Long.parseLong(s);
-				e.kill.setAmount(k);
+
+				Object k = new Formats.OsrsAmountFormatter().stringToValue(valueStr);
+				if (k == null)
+				{
+					return;
+				}
+				e.kill.setAmount((Long) k);
 			}
 			catch (Exception ignored)
 			{

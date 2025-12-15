@@ -1,6 +1,5 @@
 package com.splitmanager.utils;
 
-import com.splitmanager.PluginConfig;
 import java.awt.Color;
 import java.awt.Dimension;
 import lombok.Getter;

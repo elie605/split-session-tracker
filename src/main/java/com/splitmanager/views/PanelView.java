@@ -30,12 +30,7 @@ import java.awt.GridLayout;
 import java.awt.Insets;
 import java.awt.datatransfer.StringSelection;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.function.Supplier;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
@@ -52,10 +47,12 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JSeparator;
 import javax.swing.JTable;
+import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import javax.swing.ListSelectionModel;
 import javax.swing.SwingConstants;
-import javax.swing.event.TableModelListener;
+import javax.swing.Timer;
+import javax.swing.border.Border;
 import javax.swing.text.DefaultFormatterFactory;
 import lombok.Getter;
 import net.runelite.client.ui.PluginPanel;
@@ -77,7 +74,7 @@ public class PanelView extends PluginPanel
 	private final JFormattedTextField killAmountField = makeOsrsField();
 	private final JFormattedTextField activeKillAmountField = makeOsrsField();
 	private final JTable metricsTable = new JTable(new Metrics());
-	private final RecentSplitsTable recentSplitsModel = new RecentSplitsTable();
+	private final RecentSplitsTable recentSplitsModel;
 	private final WaitlistTable waitlistTableModel = new WaitlistTable();
 	private final JTable waitlistTable = new JTable(waitlistTableModel);
 	private final JButton btnWaitlistAdd = new JButton("Add");
@@ -108,20 +105,50 @@ public class PanelView extends PluginPanel
 	private final Insets inset = new Insets(3, 3, 3, 3);
 	private final Dimension lm = new Dimension(0, 140);
 	private final Dimension ll = new Dimension(0, 280);
-	private PanelActions actions;
 	private final JTable recentSplitsTable;
+	private PanelActions actions;
+	// Tutorial UI
+	private JPanel tutorialPanel;
+	private JTextArea tutorialText;
+	private JButton btnTourStart;
+	private JButton btnTourPrev;
+	private JButton btnTourNext;
+	private JButton btnTourEnd;
+	private boolean tourRunning = false;
+	private int tourStep = 0;
+	private Timer rainbowTimer;
+	private JComponent highlighted;
+	private Border originalBorder;
 
-	public PanelView(ManagerSession sessionManager, PluginConfig config, ManagerKnownPlayers playerManager)
+	// References to copy buttons so we can highlight them in the tour
+	private JButton btnCopyJson;
+	private JButton btnCopyMd;
+	private DropdownRip detectedValuesDropdown;
+
+	public PanelView(ManagerSession sessionManager, PluginConfig config, ManagerKnownPlayers playerManager, PanelController controller)
 	{
 		this.sessionManager = sessionManager;
 		this.config = config;
 		this.playerManager = playerManager;
+		bindActions(controller);
 
-		recentSplitsModel.setListener(this::refreshMetrics);
+		recentSplitsModel = new RecentSplitsTable(config);
+		recentSplitsModel.setListener(() -> {
+			if (actions != null)
+			{
+				actions.recomputeMetrics();
+			}
+			else
+			{
+				refreshMetrics();
+			}
+		});
 		recentSplitsTable = makeRecentSplitsTable(recentSplitsModel);
 
 		JPanel top = new JPanel();
 		top.setLayout(new BoxLayout(top, BoxLayout.Y_AXIS));
+
+		top.add(generateTutorialPanel());
 
 		top.add(generateSessionPanel());
 		top.add(Box.createVerticalStrut(3));
@@ -180,19 +207,26 @@ public class PanelView extends PluginPanel
 				altsList.getSelectedValue()));
 
 		btnAddKill.addActionListener(e -> {
-			String player = (String) currentSessionPlayerDropdown.getSelectedItem();
-			long amt;
-			Object val = killAmountField.getValue();
-			try
+			if (actions != null)
 			{
-				amt = val == null ? Long.parseLong(killAmountField.getText()) : ((Number) val).longValue();
+				actions.addKillFromInputs();
 			}
-			catch (Exception ex)
+			else
 			{
-				toast(this, "Invalid amount.");
-				return;
+				String player = (String) currentSessionPlayerDropdown.getSelectedItem();
+				long amt;
+				Object val = killAmountField.getValue();
+				try
+				{
+					amt = val == null ? Long.parseLong(killAmountField.getText()) : ((Number) val).longValue();
+				}
+				catch (Exception ex)
+				{
+					toast(this, "Invalid amount.");
+					return;
+				}
+				actions.addKill(player, amt);
 			}
-			actions.addKill(player, amt);
 		});
 
 		btnWaitlistAdd.addActionListener(e -> actions.applySelectedPendingValue(waitlistTable.getSelectedRow()));
@@ -207,6 +241,322 @@ public class PanelView extends PluginPanel
 		f.setFocusLostBehavior(JFormattedTextField.COMMIT_OR_REVERT);
 		f.setToolTipText("Enter amount like 10k, 1.1m, or 1b (K = thousands)");
 		return f;
+	}
+
+	private JPanel generateTutorialPanel()
+	{
+		if (tutorialPanel != null)
+		{
+			return tutorialPanel;
+		}
+
+		tutorialPanel = new JPanel(new BorderLayout());
+		tutorialPanel.setBorder(BorderFactory.createCompoundBorder(
+			BorderFactory.createLineBorder(Color.GRAY),
+			BorderFactory.createEmptyBorder(6, 6, 6, 6)));
+
+		JPanel left = new JPanel();
+		left.setLayout(new BoxLayout(left, BoxLayout.Y_AXIS));
+		tutorialText = new JTextArea("Welcome! Click Start tour to begin a quick walkthrough.");
+		tutorialText.setLineWrap(true);
+		tutorialText.setWrapStyleWord(true);
+		tutorialText.setEditable(false);
+		tutorialText.setFont(tutorialText.getFont().deriveFont(Font.BOLD));
+		tutorialText.setAlignmentX(Component.LEFT_ALIGNMENT);
+		JLabel hint = new JLabel("   Tip: You can disable this tour in settings");
+		hint.setFont(hint.getFont().deriveFont(Font.PLAIN, 11f));
+		hint.setAlignmentX(Component.LEFT_ALIGNMENT);
+		left.add(tutorialText);
+		left.add(Box.createVerticalStrut(3));
+		left.add(hint);
+
+		JPanel right = new JPanel();
+		right.setLayout(new BoxLayout(right, BoxLayout.Y_AXIS));
+		btnTourStart = new JButton("Start tour");
+		btnTourPrev = new JButton("Previous");
+		btnTourNext = new JButton("Next");
+		btnTourEnd = new JButton("End");
+
+		Dimension small = new Dimension(90, 22);
+		btnTourStart.setPreferredSize(small);
+		btnTourPrev.setPreferredSize(small);
+		btnTourNext.setPreferredSize(small);
+		btnTourEnd.setPreferredSize(small);
+
+		// Create button rows with proper alignment
+		JPanel buttonRow1 = new JPanel(new FlowLayout(FlowLayout.RIGHT, 5, 5));
+		buttonRow1.add(btnTourStart);
+
+		JPanel buttonRow2 = new JPanel(new FlowLayout(FlowLayout.RIGHT, 5, 0));
+		buttonRow2.add(btnTourPrev);
+		buttonRow2.add(btnTourNext);
+
+		right.add(buttonRow1);
+		right.add(buttonRow2);
+
+		// Route through controller for MVC
+		btnTourStart.addActionListener(e -> {
+			if (actions != null)
+			{
+				actions.tourStart();
+			}
+			else
+			{
+				startTour();
+			}
+		});
+		btnTourPrev.addActionListener(e -> {
+			if (actions != null)
+			{
+				actions.tourPrev();
+			}
+			else
+			{
+				prevTourStep();
+			}
+		});
+		btnTourNext.addActionListener(e -> {
+			if (actions != null)
+			{
+				actions.tourNext();
+			}
+			else
+			{
+				nextTourStep();
+			}
+		});
+		btnTourEnd.addActionListener(e -> {
+			if (actions != null)
+			{
+				actions.tourEnd();
+			}
+			else
+			{
+				endTourAndDisable();
+			}
+		});
+
+		tutorialPanel.add(left, BorderLayout.CENTER);
+		tutorialPanel.add(right, BorderLayout.SOUTH);
+
+		updateTutorialUI();
+		return tutorialPanel;
+	}
+
+	public void startTour()
+	{
+		tourRunning = true;
+		tourStep = 0;
+		updateTutorialUI();
+		highlightTargetForStep();
+	}
+
+	public void endTour()
+	{
+		// do not auto-disable config here; controller decides
+		tourRunning = false;
+		gotoStep(0);
+		clearHighlight();
+		updateTutorialUI();
+	}
+
+	public void endTourAndDisable()
+	{
+		// Delegate disabling to controller for MVC; fallback to local end
+		if (actions != null)
+		{
+			actions.tourEnd();
+			return;
+		}
+		// Fallback when no controller bound
+		tourRunning = false;
+		gotoStep(0);
+		clearHighlight();
+		try
+		{
+			config.enableTour(false);
+		}
+		catch (Throwable ignored)
+		{
+		}
+		updateTutorialUI();
+	}
+
+	public void nextTourStep()
+	{
+		gotoStep(tourStep + 1);
+	}
+
+	public void prevTourStep()
+	{
+		gotoStep(tourStep - 1);
+	}
+
+	public void gotoStep(int step)
+	{
+		int max = getTourSteps().size() - 1;
+		if (step < 0)
+		{
+			step = 0;
+		}
+		if (step > max)
+		{
+			endTourAndDisable();
+			return;
+		}
+		tourStep = step;
+		updateTutorialUI();
+		highlightTargetForStep();
+	}
+
+	private void updateTutorialUI()
+	{
+		boolean enabled = config.enableTour();
+		boolean show = enabled || tourRunning;
+		if (tutorialPanel != null)
+		{
+			tutorialPanel.setVisible(show);
+		}
+		if (tutorialText != null)
+		{
+			List<String> steps = getTourSteps();
+			int max = steps.size();
+			String msg = tourRunning ? ("Step " + (tourStep + 1) + "/" + max + ": " + steps.get(tourStep))
+				: "Welcome! Click Start tour to begin a quick walkthrough.";
+			tutorialText.setText(msg);
+		}
+		boolean inTour = tourRunning;
+		if (btnTourStart != null)
+		{
+			btnTourStart.setVisible(!inTour);
+		}
+		if (btnTourPrev != null)
+		{
+			btnTourPrev.setVisible(inTour);
+		}
+		if (btnTourNext != null)
+		{
+			btnTourNext.setVisible(inTour);
+		}
+		if (btnTourEnd != null)
+		{
+			btnTourEnd.setVisible(inTour);
+		}
+	}
+
+	private List<String> getTourSteps()
+	{
+		List<String> steps = new ArrayList<>();
+		steps.add("Start a session using the Start button.");
+		steps.add("Add a new player: type a name in the text field and click Add Player.");
+		steps.add("Optional: The 'Known alts' dropdown lets you link an alt account to a selected known player.");
+		steps.add("Add players to the session: use the 'Not in session' dropdown, click Add. Tip: add 2 players to see splits.");
+		steps.add("Record a split: use the 'Player' dropdown, enter an amount, then click Add.");
+		steps.add("You can remove a player from settlement by clicking the 'x' button in the Settlement table.");
+		steps.add("Share results: use the Copy MD button (great for Discord) or Copy JSON if you need raw data.");
+		steps.add("Detected values: expand the 'Detected values' section. '!add' in clan chat will queue amounts here. See Settings > Chat detection to configure.");
+		steps.add("Review the Recent Splits table.");
+		steps.add("Stop the session when you are done.");
+		return steps;
+	}
+
+	private void highlightTargetForStep()
+	{
+		clearHighlight();
+		if (!tourRunning)
+		{
+			return;
+		}
+		switch (tourStep)
+		{
+			case 0:
+				// Start session
+				highlight(btnStart);
+				break;
+			case 1:
+				// Add new player via text field
+				highlight(newPlayerField);
+				break;
+			case 2:
+				// Known alts dropdown to link alts
+				highlight(addAltDropdown);
+				break;
+			case 3:
+				// Add players to session using 'Not in session' dropdown
+				highlight(notInCurrentSessionPlayerDropdown);
+				break;
+			case 4:
+				// Record split: Player dropdown (and amount field exists near)
+				highlight(currentSessionPlayerDropdown);
+				break;
+			case 5:
+				// Show settlement table where 'x' removes a player
+				highlight(metricsTable);
+				break;
+			case 6:
+				// Copy buttons for sharing results
+				highlight(btnCopyMd != null ? btnCopyMd : metricsTable);
+				break;
+			case 7:
+				// Detected values dropdown / table
+				highlight(detectedValuesDropdown);
+				break;
+			case 8:
+				// Recent splits table review
+				highlight(recentSplitsTable);
+				break;
+			case 9:
+				// Stop session
+				highlight(btnStop);
+				break;
+			default:
+				clearHighlight();
+		}
+	}
+
+	private void highlight(JComponent c)
+	{
+		if (c == null)
+		{
+			return;
+		}
+		clearHighlight();
+		highlighted = c;
+		originalBorder = c.getBorder();
+		final float[] hue = {0f};
+		if (rainbowTimer != null)
+		{
+			rainbowTimer.stop();
+		}
+		rainbowTimer = new Timer(80, e -> {
+			hue[0] += 0.02f;
+			if (hue[0] > 1f)
+			{
+				hue[0] = 0f;
+			}
+			Color color = Color.getHSBColor(hue[0], 1f, 1f);
+			Border rb = BorderFactory.createLineBorder(color, 3);
+			Border pad = BorderFactory.createEmptyBorder(2, 2, 2, 2);
+			c.setBorder(BorderFactory.createCompoundBorder(rb, pad));
+			c.repaint();
+		});
+		rainbowTimer.start();
+	}
+
+	private void clearHighlight()
+	{
+		if (rainbowTimer != null)
+		{
+			rainbowTimer.stop();
+			rainbowTimer = null;
+		}
+		if (highlighted != null)
+		{
+			highlighted.setBorder(originalBorder);
+			highlighted.repaint();
+			highlighted = null;
+			originalBorder = null;
+		}
 	}
 
 	private JTable makeRecentSplitsTable(RecentSplitsTable model)
@@ -518,7 +868,7 @@ public class PanelView extends PluginPanel
 		gbc.anchor = GridBagConstraints.CENTER;
 		PlayersPanel.add(altButtonsRow, gbc);
 
-		return new DropdownRip("Known player info", PlayersPanel, false);
+		return new DropdownRip("Known player info", PlayersPanel, config.enableTour());
 	}
 
 	private JPanel generateSessionPanel()
@@ -598,14 +948,15 @@ public class PanelView extends PluginPanel
 	{
 		JPanel content = new JPanel(new BorderLayout());
 		content.add(generateWaitlistPanel(), BorderLayout.CENTER);
-		return new DropdownRip("Detected values", content, false);
+		detectedValuesDropdown = new DropdownRip("Detected values", content, config.enableTour());
+		return detectedValuesDropdown;
 	}
 
 	private JComponent generateRecentSplitsPanel()
 	{
 		JScrollPane scroller = new JScrollPane(recentSplitsTable);
 		scroller.setPreferredSize(new Dimension(0, 140));
-		return new DropdownRip("Recent splits", scroller, false);
+		return new DropdownRip("Recent splits", scroller, config.enableTour());
 	}
 
 	private JComponent generateMetrics()
@@ -620,16 +971,37 @@ public class PanelView extends PluginPanel
 			: (config.flipSettlementSign()
 			? "Middleman mode (flipped): positive Split means you pay the bank; negative means the bank pays you."
 			: "Middleman mode: negative Split means you pay the bank; positive means the bank pays you.");
-		JLabel desc = new JLabel(explanation);
+		JTextArea desc = new JTextArea(explanation);
+		desc.setEditable(false);
+		desc.setLineWrap(true);
+		desc.setWrapStyleWord(true);
 
 		JPanel header = new JPanel(new BorderLayout());
 		header.add(title, BorderLayout.NORTH);
 		header.add(desc, BorderLayout.CENTER);
 
-		JButton copyBtn = new JButton("Copy JSON");
-		copyBtn.addActionListener(e -> copyMetricsJsonToClipboard());
-		JButton copyMdBtn = new JButton("Copy MD");
-		copyMdBtn.addActionListener(e -> copyMetricsMarkdownToClipboard());
+		btnCopyJson = new JButton("Copy JSON");
+		btnCopyJson.addActionListener(e -> {
+			if (actions != null)
+			{
+				actions.copyMetricsJson();
+			}
+			else
+			{
+				copyMetricsJsonToClipboard();
+			}
+		});
+		btnCopyMd = new JButton("Copy MD");
+		btnCopyMd.addActionListener(e -> {
+			if (actions != null)
+			{
+				actions.copyMetricsMarkdown();
+			}
+			else
+			{
+				copyMetricsMarkdownToClipboard();
+			}
+		});
 
 		wrapper.add(header, BorderLayout.NORTH);
 
@@ -708,8 +1080,8 @@ public class PanelView extends PluginPanel
 				{
 					disp = -raw;
 				}
-				java.text.DecimalFormat df = Formats.getDecimalFormat();
-				java.awt.Component c = super.getTableCellRendererComponent(table, df.format(disp), isSelected, hasFocus, row, column);
+				java.awt.Component c = super.getTableCellRendererComponent(table,
+					Formats.OsrsAmountFormatter.toSuffixString(disp, 'k'), isSelected, hasFocus, row, column);
 				if (!isSelected)
 				{
 					c.setForeground(active ? table.getForeground() : java.awt.Color.GRAY);
@@ -731,7 +1103,7 @@ public class PanelView extends PluginPanel
 		{
 			int actionIdx = metricsTable.getColumnModel().getColumnIndex("X");
 			metricsTable.getColumnModel().getColumn(actionIdx)
-				.setCellEditor(new RemoveButtonEditor(this, sessionManager, metricsTable));
+				.setCellEditor(new RemoveButtonEditor(this, sessionManager, metricsTable, actions));
 		}
 		catch (IllegalArgumentException ignored)
 		{
@@ -792,8 +1164,8 @@ public class PanelView extends PluginPanel
 		wrapper.add(centerContent, BorderLayout.CENTER);
 
 		JPanel btns = new JPanel(new GridLayout(1, 2, 6, 0));
-		btns.add(copyBtn);
-		btns.add(copyMdBtn);
+		btns.add(btnCopyJson);
+		btns.add(btnCopyMd);
 		wrapper.add(btns, BorderLayout.SOUTH);
 
 		return new DropdownRip("Settlement information", wrapper);

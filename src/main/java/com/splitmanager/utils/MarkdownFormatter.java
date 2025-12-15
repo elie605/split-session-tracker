@@ -7,7 +7,6 @@ import com.splitmanager.models.Session;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.List;
-import net.runelite.client.account.SessionManager;
 
 /**
  * Handles formatting player metrics into markdown tables and other text formats.

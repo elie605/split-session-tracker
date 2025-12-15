@@ -6,6 +6,7 @@ import com.splitmanager.views.PanelView;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import lombok.Getter;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -17,11 +18,12 @@ import lombok.extern.slf4j.Slf4j;
 public class ManagerPanel
 {
 
-	private PanelController controller;
 	private final ManagerSession manager;
 	private final PluginConfig config;
 	private final ManagerKnownPlayers playerManager;
+	private PanelController controller;
 	@Getter
+	@Setter
 	private PanelView view;
 
 	/**
@@ -51,9 +53,9 @@ public class ManagerPanel
 	 */
 	private void startPanel()
 	{
-		view = new PanelView(manager, config, playerManager);
-		controller = new PanelController(manager, config, view, playerManager, this);
-		view.bindActions(controller);
+		controller = new PanelController(manager, config, playerManager, this);
+		view = new PanelView(manager, config, playerManager,controller);
+		controller.setView(view);
 		controller.refreshAllView();
 	}
 

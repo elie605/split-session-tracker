@@ -5,6 +5,7 @@ import com.splitmanager.models.PendingValue;
 import com.splitmanager.models.Session;
 import com.splitmanager.utils.ChatStatusOverlay;
 import com.splitmanager.utils.Formats;
+import com.splitmanager.views.PanelView;
 import java.awt.image.BufferedImage;
 import java.text.ParseException;
 import java.util.Arrays;
@@ -13,8 +14,6 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
-import net.runelite.api.FriendsChatManager;
-import net.runelite.api.FriendsChatMember;
 import net.runelite.api.MenuAction;
 import net.runelite.api.Player;
 import net.runelite.api.clan.ClanChannel;
@@ -22,7 +21,6 @@ import net.runelite.api.clan.ClanChannelMember;
 import net.runelite.api.events.ChatMessage;
 import net.runelite.api.events.ClanChannelChanged;
 import net.runelite.api.events.FriendsChatChanged;
-import net.runelite.api.events.GameTick;
 import net.runelite.api.events.MenuEntryAdded;
 import net.runelite.api.events.WorldChanged;
 import net.runelite.api.gameval.InterfaceID;
@@ -55,6 +53,7 @@ public class ManagerPlugin extends Plugin
 	private Client client;
 	@Inject
 	private ClientToolbar clientToolbar;
+	@Getter
 	@Inject
 	private PluginConfig config;
 	@Inject
@@ -68,6 +67,7 @@ public class ManagerPlugin extends Plugin
 	private ManagerSession sessionManager;
 	@Inject
 	private ManagerKnownPlayers playerManager;
+	private PanelView view;
 
 
 	@Override
@@ -82,16 +82,23 @@ public class ManagerPlugin extends Plugin
 
 		// TODO create an icon
 		// Use a transparent placeholder icon so the panel shows in the side menu without bundling an image.
-		BufferedImage placeholderIcon = new BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB);
+		// Create a 16x16 red X icon
+		BufferedImage redXIcon = new BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB);
+		java.awt.Graphics2D g = redXIcon.createGraphics();
+		g.setColor(java.awt.Color.RED);
+		g.setStroke(new java.awt.BasicStroke(2));
+		g.drawLine(3, 3, 12, 12);
+		g.drawLine(12, 3, 3, 12);
+		g.dispose();
 
 		chatOverlay = new ChatStatusOverlay();
 		overlayManager.add(chatOverlay);
-		updateChatWarningStatus();
+		view = panelManager.getView();
 		navButton = NavigationButton.builder()
 			.tooltip("Auto Split Manager")
-			.icon(placeholderIcon)
+			.icon(redXIcon)
 			.priority(5)
-			.panel(panelManager.getView())
+			.panel(view)
 			.build();
 		clientToolbar.addNavigation(navButton);
 	}
@@ -110,7 +117,6 @@ public class ManagerPlugin extends Plugin
 		}
 		if (sessionManager != null)
 		{
-			//TODO It might be smart to save data during runtime.
 			sessionManager.saveToConfig();
 		}
 
@@ -168,11 +174,29 @@ public class ManagerPlugin extends Plugin
 		{
 			case "directPayments":
 				log.info("Direct payments changed, refreshing panel");
-				panelManager.restart();
+				restartViewFix();
 				break;
 			case "WarnNotInFC":
 				updateChatWarningStatus();
 				break;
+			case "enableTour":
+				restartViewFix();
+				break;
+		}
+	}
+
+	private void restartViewFix(){
+		panelManager.restart();
+		view = panelManager.getView();
+		if (navButton != null) {
+			clientToolbar.removeNavigation(navButton);
+			navButton = NavigationButton.builder()
+				.tooltip("Auto Split Manager")
+				.icon(navButton.getIcon())
+				.priority(5)
+				.panel(view)
+				.build();
+			clientToolbar.addNavigation(navButton);
 		}
 	}
 

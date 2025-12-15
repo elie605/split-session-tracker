@@ -45,6 +45,11 @@ public interface PanelActions
 	void addKill(String player, long amount);
 
 	/**
+	 * Read current inputs from the view and record a kill.
+	 */
+	void addKillFromInputs();
+
+	/**
 	 * Link an alt to a main account.
 	 *
 	 * @param main main player
@@ -86,7 +91,31 @@ public interface PanelActions
 	 */
 	void refreshAllView(); // idempotent, safe to call after model mutations
 
+	/**
+	 * Recompute and apply metrics for current session.
+	 */
+	void recomputeMetrics();
+
 	void altPlayerManageAddPlayer(String player);
 
 	void altPlayerManageRemovePlayer(String player);
+
+	/**
+	 * Copy metrics to clipboard in JSON.
+	 */
+	void copyMetricsJson();
+
+	/**
+	 * Copy metrics to clipboard in Markdown.
+	 */
+	void copyMetricsMarkdown();
+
+	// Tutorial controls to keep MVC separation
+	void tourStart();
+
+	void tourPrev();
+
+	void tourNext();
+
+	void tourEnd();
 }

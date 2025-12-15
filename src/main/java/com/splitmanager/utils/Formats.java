@@ -91,7 +91,7 @@ public class Formats
 					divK = 1L;
 					s = "gp";
 					break;
-				}
+			}
 
 			// Use BigDecimal to avoid precision issues for large numbers
 			BigDecimal val = BigDecimal.valueOf(amountK)

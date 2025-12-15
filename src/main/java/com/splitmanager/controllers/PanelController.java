@@ -6,20 +6,20 @@ import com.splitmanager.ManagerSession;
 import com.splitmanager.PluginConfig;
 import com.splitmanager.models.Metrics;
 import com.splitmanager.models.PendingValue;
-import com.splitmanager.models.PlayerMetrics;
 import com.splitmanager.models.Session;
-import com.splitmanager.models.Transfer;
 import com.splitmanager.models.WaitlistTable;
 import com.splitmanager.utils.MarkdownFormatter;
-import com.splitmanager.utils.PaymentProcessor;
 import static com.splitmanager.utils.Utils.toast;
 import com.splitmanager.views.PanelView;
+import java.awt.Toolkit;
+import java.awt.datatransfer.StringSelection;
 import java.util.List;
 import javax.swing.DefaultCellEditor;
 import javax.swing.DefaultComboBoxModel;
 import javax.swing.DefaultListModel;
 import javax.swing.JComboBox;
 import javax.swing.JOptionPane;
+import lombok.Setter;
 
 //Testing push again
 
@@ -31,16 +31,16 @@ public class PanelController implements PanelActions
 {
 	private final ManagerSession sessionManager;
 	private final PluginConfig config;
-	private final PanelView view;
+	@Setter
+	private PanelView view;
 	private final ManagerKnownPlayers playerManager;
 	private final ManagerPanel managerPanel;
 
-	public PanelController(ManagerSession sessionManager, PluginConfig config, PanelView view, ManagerKnownPlayers playerManager, ManagerPanel managerPanel)
+	public PanelController(ManagerSession sessionManager, PluginConfig config, ManagerKnownPlayers playerManager, ManagerPanel managerPanel)
 	{
 		this.sessionManager = sessionManager;
 		this.playerManager = playerManager;
 		this.config = config;
-		this.view = view;
 		this.managerPanel = managerPanel;
 	}
 
@@ -171,8 +171,31 @@ public class PanelController implements PanelActions
 	}
 
 	@Override
+	public void addKillFromInputs()
+	{
+		String player = (String) view.getCurrentSessionPlayerDropdown().getSelectedItem();
+		long amt;
+		Object val = view.getKillAmountField().getValue();
+		try
+		{
+			amt = val == null ? Long.parseLong(view.getKillAmountField().getText()) : ((Number) val).longValue();
+		}
+		catch (Exception ex)
+		{
+			toast(view, "Invalid amount.");
+			return;
+		}
+		addKill(player, amt);
+	}
+
+	@Override
 	public void addAltToMain(String main, String alt)
 	{
+		if (sessionManager.hasActiveSession())
+		{
+			toast(view,"Cannot add/remove alts while session is active. Stop session first.");
+			return;
+		}
 		if (main == null || alt == null)
 		{
 			toast(view, "Select a player and an alt to add.");
@@ -198,7 +221,11 @@ public class PanelController implements PanelActions
 	@Override
 	public void removeSelectedAlt(String selectedMain, String selectedEntry)
 	{
-		//TODO TEST me, selectedEntry should be a alt?
+		if (sessionManager.hasActiveSession())
+		{
+			toast(view,"Cannot add/remove alts while session is active. Stop session first.");
+			return;
+		}
 		if (selectedMain == null || selectedMain.isBlank())
 		{
 			toast(view, "Select a player in Known list.");
@@ -316,9 +343,25 @@ public class PanelController implements PanelActions
 	public void refreshAllView()
 	{
 		refreshKnownPlayers();
+		recomputeMetrics();
 		refreshSessionData();
 		refreshWaitlist();
 		refreshButtonStates();
+	}
+
+	@Override
+	public void recomputeMetrics()
+	{
+		Session current = sessionManager.getCurrentSession().orElse(null);
+		if (current != null)
+		{
+			((Metrics) view.getMetricsTable().getModel()).setData(sessionManager.computeMetricsFor(current, true));
+			view.getRecentSplitsModel().setFromKills(sessionManager.getAllKills());
+		}
+		else
+		{
+			view.getRecentSplitsModel().clear();
+		}
 	}
 
 	@Override
@@ -359,6 +402,55 @@ public class PanelController implements PanelActions
 		}
 	}
 
+	@Override
+	public void copyMetricsJson()
+	{
+		String payload = MarkdownFormatter.buildMetricsJson(sessionManager);
+		StringSelection selection = new StringSelection(payload);
+		Toolkit.getDefaultToolkit().getSystemClipboard().setContents(selection, selection);
+	}
+
+	@Override
+	public void copyMetricsMarkdown()
+	{
+		String payload = MarkdownFormatter.buildMetricsMarkdown(
+			sessionManager.computeMetricsFor(
+				sessionManager.getCurrentSession().orElse(null), true), config);
+		StringSelection selection = new StringSelection(payload);
+		Toolkit.getDefaultToolkit().getSystemClipboard().setContents(selection, selection);
+	}
+
+	// Tutorial control implementations to keep view passive
+	@Override
+	public void tourStart()
+	{
+		view.startTour();
+	}
+
+	@Override
+	public void tourPrev()
+	{
+		view.prevTourStep();
+	}
+
+	@Override
+	public void tourNext()
+	{
+		view.nextTourStep();
+	}
+
+	@Override
+	public void tourEnd()
+	{
+		try
+		{
+			config.enableTour(false);
+		}
+		catch (Throwable ignored)
+		{
+		}
+		view.endTour();
+	}
 
 	/**
 	 * Refreshes the list of known players and updates corresponding UI components.
@@ -406,7 +498,7 @@ public class PanelController implements PanelActions
 		{
 			((Metrics) view.getMetricsTable().getModel())
 				.setData(sessionManager.computeMetricsFor(current, true));
-			view.getRecentSplitsModel().setFromKills(current.getKills());
+			view.getRecentSplitsModel().setFromKills(sessionManager.getAllKills());
 		}
 		else
 		{

@@ -21,42 +21,6 @@ public interface PluginConfig extends Config
 	String KEY_CURRENT_SESSION_ID = "currentSessionId";
 	String KEY_HISTORY_LOADED = "historyLoaded";
 	String KEY_PEOPLE_CSV = "PlayersCsv";
-
-	// Define an enum for your dropdown options
-	@Getter
-	enum ValueMultiplier
-	{
-		COINS("None, 1 = 1gp", " coins"),
-		THOUSAND("k, aka a thousand", "k"),
-		MILLION("m, aka a million", "m"),
-		BILLION("b, aka a billion", "b");
-
-		private final String description;
-		private final String value;
-
-		ValueMultiplier(String description, String value)
-		{
-			this.description = description;
-			this.value = value;
-		}
-
-		@Override
-		public String toString()
-		{
-			return description;
-		}
-	}
-
-	@ConfigItem(
-		keyName = "defaultValueMultiplier",
-		name = "Default value multiplier",
-		description = "The default multiplier that is used upon adding split values"
-	)
-	default ValueMultiplier defaultValueMultiplier()
-	{
-		return ValueMultiplier.THOUSAND;
-	}
-
 	//TODO Create a new configitem that allows the user to submit any forms on enter, e.g. 1) user fills in split amount 2) presses enter 3) The same function as button press is called
 	@ConfigSection(
 		name = "Settlement",
@@ -73,6 +37,34 @@ public interface PluginConfig extends Config
 	String chatDetectionSection = "Chat detection";
 	// Alt/main mapping persistence (hidden JSON)
 	String KEY_ALTS_JSON = "altsJson";
+
+	@ConfigItem(
+		keyName = "defaultValueMultiplier",
+		name = "Default value multiplier",
+		description = "The default multiplier that is used upon adding split values"
+	)
+	default ValueMultiplier defaultValueMultiplier()
+	{
+		return ValueMultiplier.THOUSAND;
+	}
+
+	@ConfigItem(
+		keyName = "enableTour",
+		name = "Enable tour",
+		description = "Show a guided step-by-step tutorial panel at the top of the plugin UI"
+	)
+	default boolean enableTour()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "enableTour",
+		name = "Enable tour",
+		description = "Show a guided step-by-step tutorial panel at the top of the plugin UI",
+		hidden = true
+	)
+	void enableTour(boolean value);
 
 	@ConfigItem(
 		keyName = "WarnNotInFC",
@@ -143,12 +135,11 @@ public interface PluginConfig extends Config
 	)
 	void currentSessionId(String value);
 
-
 	/**
 	 * Retrieves a comma-separated string of known players.
 	 *
 	 * @return a string containing the known players separated by commas,
-	 *         or an empty string if no players are defined
+	 * or an empty string if no players are defined
 	 */
 	@ConfigItem(
 		keyName = KEY_PEOPLE_CSV,
@@ -379,4 +370,29 @@ public interface PluginConfig extends Config
 		hidden = true
 	)
 	void altsJson(String value);
+
+	// Define an enum for your dropdown options
+	@Getter
+	enum ValueMultiplier
+	{
+		COINS("None, 1 = 1gp", " coins"),
+		THOUSAND("k, aka a thousand", "k"),
+		MILLION("m, aka a million", "m"),
+		BILLION("b, aka a billion", "b");
+
+		private final String description;
+		private final String value;
+
+		ValueMultiplier(String description, String value)
+		{
+			this.description = description;
+			this.value = value;
+		}
+
+		@Override
+		public String toString()
+		{
+			return description;
+		}
+	}
 }

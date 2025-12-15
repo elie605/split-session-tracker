@@ -2,6 +2,7 @@ package com.splitmanager.views.components.table;
 
 import com.splitmanager.ManagerPanel;
 import com.splitmanager.ManagerSession;
+import com.splitmanager.controllers.PanelActions;
 import static com.splitmanager.utils.Utils.toast;
 import java.awt.Component;
 import javax.inject.Inject;
@@ -27,8 +28,9 @@ public class RemoveButtonEditor extends DefaultCellEditor
 	 * @param parent       parent component for toasts
 	 * @param manager      session manager
 	 * @param metricsTable table with player rows
+	 * @param actions
 	 */
-	public RemoveButtonEditor(Component parent, ManagerSession manager, JTable metricsTable)
+	public RemoveButtonEditor(Component parent, ManagerSession manager, JTable metricsTable, PanelActions actions)
 	{
 		super(new JCheckBox());
 
@@ -39,7 +41,7 @@ public class RemoveButtonEditor extends DefaultCellEditor
 				String player = (String) metricsTable.getModel().getValueAt(row, 0);
 				if (manager.removePlayerFromSession(player))
 				{
-					managerPanel.refreshAllView();
+					actions.refreshAllView();
 				}
 				else
 				{

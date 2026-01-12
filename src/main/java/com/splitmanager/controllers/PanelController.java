@@ -46,7 +46,7 @@ public class PanelController implements PanelActions
 		this.playerManager = playerManager;
 		this.config = config;
 		this.managerPanel = managerPanel;
-		this.formats = new Formats.OsrsAmountFormatter(config);
+		this.formats = new Formats.OsrsAmountFormatter();
 	}
 
 	@Override
@@ -184,8 +184,10 @@ public class PanelController implements PanelActions
 		try
 		{
 			log.debug("Adding kill for1  {} with amount {}", player, val);
-			amt = Formats.OsrsAmountFormatter.stringAmountToLongAmount(val,config);
-			log.debug("Adding kill for2  {} with amount {}", player, amt);
+			//amt = Formats.OsrsAmountFormatter.stringAmountToLongAmount(val,config);
+			//log.debug("Adding kill for2  {} with amount {}", player, amt);
+			amt = Long.parseLong(val);
+			log.debug("Adding kill for3  {} with amount {}", player, amt);
 			// amt = Long.parseLong(val); TODO?????
 			addKill(player, amt);
 		}

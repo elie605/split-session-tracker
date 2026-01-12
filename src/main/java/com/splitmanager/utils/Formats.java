@@ -9,8 +9,8 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.regex.Pattern;
 import javax.annotation.Nonnull;
-import javax.inject.Inject;
 import javax.swing.JFormattedTextField;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -31,24 +31,17 @@ public class Formats
 		return DF;
 	}
 
-		public static final class OsrsAmountFormatter extends JFormattedTextField.AbstractFormatter
-		{
-			private static final Pattern P =
-				Pattern.compile("(?i)^\\s*([0-9]+(?:\\.[0-9]+)?)\\s*([kmb]| coins)?\\s*$");
-			private final PluginConfig config;
+	@Setter
+	private static PluginConfig config;
 
-			public OsrsAmountFormatter()
-			{
-				this.config = null;
-			}
-
-			public OsrsAmountFormatter(PluginConfig config)
-			{
-				this.config = config;
-			}
+	public static final class OsrsAmountFormatter extends JFormattedTextField.AbstractFormatter
+	{
+		private static final Pattern P =
+			Pattern.compile("(?i)^\\s*([0-9]+(?:\\.[0-9]+)?)\\s*([kmb]| coins)?\\s*$");
 
 		private static BigDecimal getBigDecimal(BigDecimal number, char suffix) throws ParseException
 		{
+			log.debug("Converting {} to BigDecimal, with {}", number, suffix);
 			if (number.signum() < 0)
 			{
 				throw new ParseException("Negative not allowed", 0);
@@ -134,27 +127,30 @@ public class Formats
 		public static long stringAmountToLongAmount(String amount, PluginConfig config) throws ParseException
 		{
 			String valueStr = amount;
-			
+
 			log.debug("Parsing amount: {}", valueStr);
 			// Check if the value has no unit (k, m, b) and append the default
 			java.util.regex.Pattern unitPattern = java.util.regex.Pattern.compile("(?i)^\\s*([0-9][0-9,]*(?:\\.[0-9]+)?)\\s*([kmb])?\\s*$");
 			java.util.regex.Matcher matcher = unitPattern.matcher(valueStr);
-			
-			if (matcher.matches()) {
+
+			if (matcher.matches())
+			{
 				String numberTxt = matcher.group(1);
 				String unitTxt = matcher.group(2);
 				log.debug("Number: {}, Unit: {}", numberTxt, unitTxt);
-				
-				if (unitTxt == null && config != null) {
+
+				if (unitTxt == null && config != null)
+				{
 					// No unit specified, append the default multiplier
 					valueStr = numberTxt + config.defaultValueMultiplier().getValue();
 				}
 				log.debug("Final value: {}", valueStr);
 			}
-			
+
 			log.debug("Parsed amount: {}", valueStr);
-			Object k = new Formats.OsrsAmountFormatter(config).stringToValue(valueStr);
-			if (k == null) {
+			Object k = new Formats.OsrsAmountFormatter().stringToValue(valueStr);
+			if (k == null)
+			{
 				throw new ParseException("Invalid amount", 0);
 			}
 			return (Long) k;
@@ -163,32 +159,41 @@ public class Formats
 		@Override
 		public Object stringToValue(@Nonnull String text) throws ParseException
 		{
+			log.debug("Parsing bujiamount: {}", text);
 			String s = text.replace(",", "").trim(); // ignore commas
 			if (s.isEmpty())
 			{
 				return null;
 			}
-			
+
 			java.util.regex.Matcher m = P.matcher(s);
 			if (!m.matches())
 			{
 				throw new ParseException("Invalid amount", 0);
 			}
-			
+
 			BigDecimal number = new BigDecimal(m.group(1));
 			Character suffixCh = (m.group(2) == null) ? null : Character.toLowerCase(m.group(2).charAt(0));
 			// If no suffix provided by user, fall back to config default if available
 			char suffix;
-			if (suffixCh == null && this.config != null)
+			if (config == null)
 			{
-				String def = this.config.defaultValueMultiplier().getValue();
+				log.debug("No config available, falling back to global config");
+			}
+			if (suffixCh == null)
+			{
+				log.debug("No suffix provided, falling back to config default");
+				String def = config.defaultValueMultiplier().getValue();
 				suffix = def != null && !def.isEmpty() ? Character.toLowerCase(def.charAt(0)) : ' ';
 			}
 			else
 			{
+				log.debug("Suffix provided: {}", suffixCh);
 				suffix = (suffixCh == null) ? ' ' : suffixCh;
 			}
-			
+
+			log.debug("Parsed amo00unt: {}{}", number, suffix);
+
 			// Convert to raw coins
 			BigDecimal coinsValue = getBigDecimal(number, suffix);
 			// Return the exact long value (no normalization to K units)

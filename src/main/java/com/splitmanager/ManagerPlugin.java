@@ -76,6 +76,7 @@ public class ManagerPlugin extends Plugin
 	 */
 	protected void startUp()
 	{
+		Formats.setConfig(config);
 		playerManager.init();
 		sessionManager.init();
 		panelManager.init();
@@ -221,7 +222,7 @@ public class ManagerPlugin extends Plugin
 			return;
 		}
 
-		Formats.OsrsAmountFormatter f = new Formats.OsrsAmountFormatter(config);
+		Formats.OsrsAmountFormatter f = new Formats.OsrsAmountFormatter();
 		ChatMessageType type = event.getType();
 		String tname = type.name();
 
@@ -250,7 +251,7 @@ public class ManagerPlugin extends Plugin
 			if (m.find())
 			{
 				String player = m.group(1);
-				Long value = (Long) f.stringToValue(m.group(2));
+				Long value = (Long) f.stringToValue(m.group(2)+" coins");
 				queuePending(PendingValue.Type.PVM, isClan ? "Clan" : "Friends", msg, value, player);
 				return;
 			}
@@ -263,7 +264,7 @@ public class ManagerPlugin extends Plugin
 			if (m.find())
 			{
 				String player = m.group(1);
-				Long value = (Long) f.stringToValue(m.group(3));
+				Long value = (Long) f.stringToValue(m.group(3)+" coins");
 				queuePending(PendingValue.Type.PVP, isClan ? "Clan" : "Friends", msg, value, player);
 				return;
 			}

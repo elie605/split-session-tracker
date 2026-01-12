@@ -16,7 +16,6 @@ import com.splitmanager.utils.Formats;
 import static com.splitmanager.utils.Formats.OsrsAmountFormatter.toSuffixString;
 import com.splitmanager.utils.MarkdownFormatter;
 import com.splitmanager.utils.PaymentProcessor;
-import static com.splitmanager.utils.Utils.toast;
 import com.splitmanager.views.components.DropdownRip;
 import com.splitmanager.views.components.table.RemoveButtonEditor;
 import java.awt.BorderLayout;
@@ -75,7 +74,7 @@ public class PanelView extends PluginPanel
 	private final JTextField newPlayerField = new JTextField();
 	private final JLabel historyLabel = new JLabel("History: OFF");
 	private final JFormattedTextField killAmountField = makeOsrsField();
-	private final JFormattedTextField activeKillAmountField = makeOsrsField();
+	private final JFormattedTextField activeKillAmountField = makeOsrsField(); // TODO Remove this?
 	private final JTable metricsTable = new JTable(new Metrics());
 	private final RecentSplitsTable recentSplitsModel;
 	private final WaitlistTable waitlistTableModel = new WaitlistTable();
@@ -221,7 +220,7 @@ public class PanelView extends PluginPanel
 	private JFormattedTextField makeOsrsField()
 	{
 		JFormattedTextField f = new JFormattedTextField(
-			new DefaultFormatterFactory(new Formats.OsrsAmountFormatter(config)));
+			new DefaultFormatterFactory(new Formats.OsrsAmountFormatter()));
 		f.setColumns(14);
 		f.setFocusLostBehavior(JFormattedTextField.COMMIT_OR_REVERT);
 		f.setToolTipText("Enter amount like 10k, 1.1m, or 1b (K = thousands)");
@@ -591,7 +590,7 @@ public class PanelView extends PluginPanel
 		t.getColumnModel().getColumn(1).setCellEditor(playerEditor);
 
 		// Amount editor (existing)
-		JFormattedTextField amtField = new JFormattedTextField(new DefaultFormatterFactory(new Formats.OsrsAmountFormatter(config)));
+		JFormattedTextField amtField = new JFormattedTextField(new DefaultFormatterFactory(new Formats.OsrsAmountFormatter()));
 		amtField.setBorder(null);
 		DefaultCellEditor amtEditor = new DefaultCellEditor(amtField);
 		t.getColumnModel().getColumn(2).setCellEditor(amtEditor);

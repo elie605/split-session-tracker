@@ -297,6 +297,27 @@ public class ManagerKnownPlayers
 		return added;
 	}
 
+	public boolean isKnownPlayer(@Nonnull String name)
+	{
+		return isKnownPlayer(name, false);
+	}
+
+	public boolean isKnownPlayer(@Nonnull String name, @Nonnull Boolean save)
+	{
+		if (name.trim().isEmpty()) {
+			return false;
+		}
+
+		boolean known = knownPlayers.contains(name.trim());
+
+		if (save && !known) {
+			addKnownPlayer(name.trim());
+			return true;
+		}
+
+		return known;
+	}
+
 	public boolean removeKnownPlayer(String name)
 	{
 		String n = name == null ? null : name.trim();

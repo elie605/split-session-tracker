@@ -221,7 +221,7 @@ public class ManagerPlugin extends Plugin
 			return;
 		}
 
-		Formats.OsrsAmountFormatter f = new Formats.OsrsAmountFormatter();
+		Formats.OsrsAmountFormatter f = new Formats.OsrsAmountFormatter(config);
 		ChatMessageType type = event.getType();
 		String tname = type.name();
 
@@ -440,18 +440,40 @@ public class ManagerPlugin extends Plugin
 		{
 			currentSession = sessionManager.getCurrentSession().orElse(null);
 		}
-		if (currentSession == null)
-		{
-			return;
-		}
-
 		if (!(groupId == InterfaceID.FRIENDS || groupId == InterfaceID.CHATCHANNEL_CURRENT
 			|| componentId == InterfaceID.ClansSidepanel.PLAYERLIST || componentId == InterfaceID.ClansGuestSidepanel.PLAYERLIST))
 		{
 			return;
 		}
-
 		String playername = Text.removeTags(event.getTarget());
+
+		if (currentSession == null)
+		{
+			String removeFromSession = "Add to known players";
+
+			if (playerManager.isKnownPlayer(playername))
+			{
+				return;
+			}
+			// TODO Fix bug: For some reason this event/function triggers twice, so i have to check that the entry doesn't already exist' and i feel like i should not have to check this.
+			// This might be a janky mess but idc
+			if (Arrays.stream(client.getMenu().getMenuEntries()).anyMatch(e -> e.getOption().equals(removeFromSession)))
+			{
+				return;
+			}
+
+			client.getMenu().createMenuEntry(-1)
+				.setOption(removeFromSession)
+				.setTarget(event.getTarget())
+				.setType(MenuAction.RUNELITE)
+				.onClick(e ->
+				{
+					playerManager.addKnownPlayer(playername);
+					panelManager.refreshAllView();
+				});
+			return;
+		}
+
 
 		if (sessionManager.currentSessionHasPlayer(playername))
 		{
@@ -491,7 +513,7 @@ public class ManagerPlugin extends Plugin
 			.setType(MenuAction.RUNELITE)
 			.onClick(e ->
 			{
-				if (playerManager.addKnownPlayer(playername))
+				if (playerManager.isKnownPlayer(playername, true))
 				{
 					sessionManager.addPlayerToActive(playername);
 				}

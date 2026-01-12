@@ -38,7 +38,7 @@ public class PanelController implements PanelActions
 	private PanelView view;
 	private final ManagerKnownPlayers playerManager;
 	private final ManagerPanel managerPanel;
-	private Formats.OsrsAmountFormatter formats = new Formats.OsrsAmountFormatter();
+	private Formats.OsrsAmountFormatter formats;
 
 	public PanelController(ManagerSession sessionManager, PluginConfig config, ManagerKnownPlayers playerManager, ManagerPanel managerPanel)
 	{
@@ -46,6 +46,7 @@ public class PanelController implements PanelActions
 		this.playerManager = playerManager;
 		this.config = config;
 		this.managerPanel = managerPanel;
+		this.formats = new Formats.OsrsAmountFormatter(config);
 	}
 
 	@Override
@@ -185,6 +186,7 @@ public class PanelController implements PanelActions
 			log.debug("Adding kill for1  {} with amount {}", player, val);
 			amt = Formats.OsrsAmountFormatter.stringAmountToLongAmount(val,config);
 			log.debug("Adding kill for2  {} with amount {}", player, amt);
+			// amt = Long.parseLong(val); TODO?????
 			addKill(player, amt);
 		}
 		catch (Exception ex)
@@ -372,39 +374,13 @@ public class PanelController implements PanelActions
 	@Override
 	public void altPlayerManageAddPlayer(String player)
 	{
-		long amt;
-		Object val = view.getActiveKillAmountField().getValue();
-		try
-		{
-			amt = val == null ? Long.parseLong(view.getActiveKillAmountField().getText()) : ((Number) val).longValue();
-		}
-		catch (Exception ex)
-		{
-			javax.swing.JOptionPane.showMessageDialog(null, "Invalid amount.", "Error", javax.swing.JOptionPane.ERROR_MESSAGE);
-			return;
-		}
-		if (sessionManager.addKill(player, amt))
-		{
-			view.getActiveKillAmountField().setText("");
-			managerPanel.refreshAllView();
-		}
-		else
-		{
-			javax.swing.JOptionPane.showMessageDialog(null, "Failed to add split. Is player in session?", "Error", javax.swing.JOptionPane.ERROR_MESSAGE);
-		}
+		//TODO remove
 	}
 
 	@Override
 	public void altPlayerManageRemovePlayer(String player)
 	{
-		if (sessionManager.removePlayerFromSession(player))
-		{
-			managerPanel.refreshAllView();
-		}
-		else
-		{
-			javax.swing.JOptionPane.showMessageDialog(null, "Failed to remove player from session.", "Error", javax.swing.JOptionPane.ERROR_MESSAGE);
-		}
+		//TODO remove
 	}
 
 	@Override
@@ -540,8 +516,6 @@ public class PanelController implements PanelActions
 	 */
 	private void refreshButtonStates()
 	{
-		view.refreshActivePlayerButtons();
-
 		boolean readOnly = sessionManager.isHistoryLoaded();
 		boolean hasActiveSession = sessionManager.hasActiveSession();
 

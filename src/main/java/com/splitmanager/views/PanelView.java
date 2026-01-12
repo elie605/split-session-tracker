@@ -55,8 +55,10 @@ import javax.swing.Timer;
 import javax.swing.border.Border;
 import javax.swing.text.DefaultFormatterFactory;
 import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.ui.PluginPanel;
 
+@Slf4j
 @Getter
 /**
  * Swing-based view for the Auto Split Manager panel. Renders sections and forwards
@@ -217,7 +219,7 @@ public class PanelView extends PluginPanel
 	private JFormattedTextField makeOsrsField()
 	{
 		JFormattedTextField f = new JFormattedTextField(
-			new DefaultFormatterFactory(new Formats.OsrsAmountFormatter()));
+			new DefaultFormatterFactory(new Formats.OsrsAmountFormatter(config)));
 		f.setColumns(14);
 		f.setFocusLostBehavior(JFormattedTextField.COMMIT_OR_REVERT);
 		f.setToolTipText("Enter amount like 10k, 1.1m, or 1b (K = thousands)");
@@ -559,17 +561,21 @@ public class PanelView extends PluginPanel
 			Session curr = sessionManager.getCurrentSession().orElse(null);
 			if (curr != null && !curr.getPlayers().isEmpty())
 			{
+				log.debug("known players");
+				log.debug(curr.getPlayers().toString());
 				choices = new java.util.LinkedHashSet<>(curr.getPlayers());
 			}
 			else
 			{
+				log.debug("known mains");
+				log.debug(playerManager.getKnownMains().toString());
 				choices = new java.util.LinkedHashSet<>(playerManager.getKnownMains());
 			}
 			playerEditorCombo.setModel(new DefaultComboBoxModel<>(choices.toArray(new String[0])));
 		}
 		t.getColumnModel().getColumn(1).setCellEditor(new DefaultCellEditor(playerEditorCombo));
 
-		JFormattedTextField amtField = new JFormattedTextField(new DefaultFormatterFactory(new Formats.OsrsAmountFormatter()));
+		JFormattedTextField amtField = new JFormattedTextField(new DefaultFormatterFactory(new Formats.OsrsAmountFormatter(config)));
 		amtField.setBorder(null);
 		DefaultCellEditor amtEditor = new DefaultCellEditor(amtField);
 		t.getColumnModel().getColumn(2).setCellEditor(amtEditor);
@@ -1172,39 +1178,5 @@ public class PanelView extends PluginPanel
 				sessionManager.getCurrentSession().orElse(null), true), config);
 		StringSelection selection = new StringSelection(payload);
 		java.awt.Toolkit.getDefaultToolkit().getSystemClipboard().setContents(selection, selection);
-	}
-
-	public void refreshActivePlayerButtons()
-	{
-		activePlayersButtonsPanel.removeAll();
-		Session current = sessionManager.getCurrentSession().orElse(null);
-		if (current != null && current.isActive())
-		{
-			for (String player : new ArrayList<>(current.getPlayers()))
-			{
-				JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 2));
-				JLabel name = new JLabel(player);
-				JButton addBtn = new JButton("➕");
-				addBtn.setToolTipText("Add split amount to " + player);
-				JButton rmBtn = new JButton("🗑");
-				rmBtn.setToolTipText("Remove " + player + " from session");
-
-				addBtn.addActionListener(e -> actions.altPlayerManageAddPlayer(player));
-				rmBtn.addActionListener(e -> actions.altPlayerManageRemovePlayer(player));
-
-				row.add(addBtn);
-				row.add(rmBtn);
-				row.add(name);
-				activePlayersButtonsPanel.add(row, 0);
-			}
-		}
-		else
-		{
-			JLabel hint = new JLabel("Start a session to manage players.");
-			hint.setForeground(Color.GRAY);
-			activePlayersButtonsPanel.add(hint);
-		}
-		activePlayersButtonsPanel.revalidate();
-		activePlayersButtonsPanel.repaint();
 	}
 }

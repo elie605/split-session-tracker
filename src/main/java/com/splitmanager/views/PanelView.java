@@ -5,6 +5,7 @@ import com.splitmanager.ManagerSession;
 import com.splitmanager.PluginConfig;
 import com.splitmanager.controllers.PanelActions;
 import com.splitmanager.controllers.PanelController;
+import com.splitmanager.models.Kill;
 import com.splitmanager.models.Metrics;
 import com.splitmanager.models.PlayerMetrics;
 import com.splitmanager.models.RecentSplitsTable;
@@ -135,13 +136,14 @@ public class PanelView extends PluginPanel
 		bindActions(controller);
 
 		recentSplitsModel = new RecentSplitsTable(config);
-		recentSplitsModel.setListener(() -> {
+		recentSplitsModel.setListener(editedKill -> {
 			if (actions != null)
 			{
-				actions.recomputeMetrics();
+				actions.recomputeMetricsForSession(editedKill != null ? editedKill.getSessionId() : null);
 			}
 			else
 			{
+				// Fallback: recompute current if no controller available
 				refreshMetrics();
 			}
 		});
@@ -545,36 +547,50 @@ public class PanelView extends PluginPanel
 	private JTable makeRecentSplitsTable(RecentSplitsTable model)
 	{
 		JTable t = new JTable(model);
-		t.setFillsViewportHeight(true);
-		t.setRowHeight(22);
-		t.setShowGrid(false);
-		t.setFocusable(true);
-		t.setEnabled(true);
+		// ... existing table setup ...
 
+		// Right align Amount renderer
 		javax.swing.table.DefaultTableCellRenderer right = new javax.swing.table.DefaultTableCellRenderer();
 		right.setHorizontalAlignment(SwingConstants.RIGHT);
 		t.getColumnModel().getColumn(2).setCellRenderer(right);
 
-		JComboBox<String> playerEditorCombo = new JComboBox<>();
+		// Row-aware player editor
+		javax.swing.DefaultCellEditor playerEditor = new javax.swing.DefaultCellEditor(new JComboBox<String>())
 		{
-			java.util.Set<String> choices;
-			Session curr = sessionManager.getCurrentSession().orElse(null);
-			if (curr != null && !curr.getPlayers().isEmpty())
+			@Override
+			public java.awt.Component getTableCellEditorComponent(
+				JTable table, Object value, boolean isSelected, int row, int column)
 			{
-				log.debug("known players");
-				log.debug(curr.getPlayers().toString());
-				choices = new java.util.LinkedHashSet<>(curr.getPlayers());
-			}
-			else
-			{
-				log.debug("known mains");
-				log.debug(playerManager.getKnownMains().toString());
-				choices = new java.util.LinkedHashSet<>(playerManager.getKnownMains());
-			}
-			playerEditorCombo.setModel(new DefaultComboBoxModel<>(choices.toArray(new String[0])));
-		}
-		t.getColumnModel().getColumn(1).setCellEditor(new DefaultCellEditor(playerEditorCombo));
+				JComboBox<String> combo = (JComboBox<String>) getComponent();
 
+				// Determine players for this row's session
+				String[] choices;
+				Kill k = ((RecentSplitsTable) table.getModel()).getKillAt(row);
+				java.util.Set<String> playersForRow = new java.util.LinkedHashSet<>();
+				if (k != null && k.getSessionId() != null)
+				{
+					Session s = sessionManager.getAllSessionsNewestFirst().stream()
+						.filter(ss -> k.getSessionId().equals(ss.getId()))
+						.findFirst().orElse(null);
+					if (s != null && s.getPlayers() != null && !s.getPlayers().isEmpty())
+					{
+						playersForRow.addAll(s.getPlayers());
+					}
+				}
+				if (playersForRow.isEmpty())
+				{
+					playersForRow.addAll(playerManager.getKnownMains());
+				}
+				choices = playersForRow.toArray(new String[0]);
+
+				combo.setModel(new DefaultComboBoxModel<>(choices));
+				combo.setSelectedItem(value);
+				return combo;
+			}
+		};
+		t.getColumnModel().getColumn(1).setCellEditor(playerEditor);
+
+		// Amount editor (existing)
 		JFormattedTextField amtField = new JFormattedTextField(new DefaultFormatterFactory(new Formats.OsrsAmountFormatter(config)));
 		amtField.setBorder(null);
 		DefaultCellEditor amtEditor = new DefaultCellEditor(amtField);

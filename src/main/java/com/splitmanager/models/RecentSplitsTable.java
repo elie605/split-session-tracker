@@ -82,19 +82,19 @@ public final class RecentSplitsTable extends javax.swing.table.AbstractTableMode
 			return;
 		}
 		Row e = rows.get(rowIndex);
-		if (columnIndex == 1)
-		{ // player
+		if (columnIndex == 1) // player
+		{
 			String v = aValue == null ? null : aValue.toString();
 			if (v != null && !v.isBlank())
 			{
 				e.kill.setPlayer(v.trim());
 			}
 		}
-		else if (columnIndex == 2)
-		{ // amount (K)
+		else if (columnIndex == 2) // amount (K)
+		{
 			try
 			{
-				Long k = Formats.OsrsAmountFormatter.stringAmountToLongAmount((String) aValue,config);
+				Long k = Formats.OsrsAmountFormatter.stringAmountToLongAmount((String) aValue, config);
 				e.kill.setAmount(k);
 			}
 			catch (Exception ignored)
@@ -105,8 +105,13 @@ public final class RecentSplitsTable extends javax.swing.table.AbstractTableMode
 		fireTableRowsUpdated(rowIndex, rowIndex);
 		if (listener != null)
 		{
-			listener.onEdited();
+			listener.onEdited(e.kill); // pass the edited kill so we know its sessionId
 		}
+	}
+
+	// Optionally expose a getter to let editors query the kill of a row:
+	public Kill getKillAt(int rowIndex) {
+		return (rowIndex >= 0 && rowIndex < rows.size()) ? rows.get(rowIndex).kill : null;
 	}
 
 	private void addEntry(Kill k)
@@ -145,9 +150,8 @@ public final class RecentSplitsTable extends javax.swing.table.AbstractTableMode
 		fireTableDataChanged();
 	}
 
-	public interface Listener
-	{
-		void onEdited();
+	public interface Listener {
+		void onEdited(Kill editedKill);
 	}
 
 	private static final class Row

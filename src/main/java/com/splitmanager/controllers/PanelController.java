@@ -372,6 +372,28 @@ public class PanelController implements PanelActions
 	}
 
 	@Override
+	public void recomputeMetricsForSession(String sessionId)
+	{
+		if (sessionId == null)
+		{
+			recomputeMetrics();
+			return;
+		}
+		// Find that session (either current or one from history)
+		Session target = sessionManager.getAllSessionsNewestFirst().stream()
+			.filter(s -> sessionId.equals(s.getId()))
+			.findFirst().orElse(null);
+		if (target != null)
+		{
+			((Metrics) view.getMetricsTable().getModel()).setData(
+				sessionManager.computeMetricsFor(target, true)
+			);
+		}
+		// Keep the recent splits list up-to-date (it shows all kills)
+		view.getRecentSplitsModel().setFromKills(sessionManager.getAllKills());
+	}
+
+	@Override
 	public void altPlayerManageAddPlayer(String player)
 	{
 		//TODO remove

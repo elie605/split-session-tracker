@@ -96,6 +96,8 @@ public interface PanelActions
 	 */
 	void recomputeMetrics();
 
+	void recomputeMetricsForSession(String sessionId);
+
 	void altPlayerManageAddPlayer(String player);
 
 	void altPlayerManageRemovePlayer(String player);

@@ -179,8 +179,15 @@ public class PanelController implements PanelActions
 	public void addKillFromInputs()
 	{
 		String player = (String) view.getCurrentSessionPlayerDropdown().getSelectedItem();
+
+		Object rawValue = view.getKillAmountField().getValue();
+		if (rawValue == null) {
+			toast(view, "Please enter a valid amount.");
+			return;
+		}
+
+		String val = rawValue.toString();
 		long amt;
-		String val = view.getKillAmountField().getValue().toString();
 		try
 		{
 			log.debug("Adding kill for1  {} with amount {}", player, val);

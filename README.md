@@ -50,11 +50,9 @@ A RuneLite plugin for automatically managing and tracking splits in group activi
 
 ### General Settings
 
-- **Active player management**: Show section with per-player buttons for adding splits/removing players
-- **Show toasts**: Enable confirmation/info popups in the panel
-- **Allow negative values**: Permit entering negative kill values for adjustments (This is an alternative to removing
-  splits)
-- **Panel section order**: Customize the order of UI sections in the panel
+- **Enable tour**: Enables the tour/explanation of the plugin
+- **Enable popout**: Add/removes a button that allows the plugin to be shown in a new window
+- **Default value**: The plugin allows the user to select the default value they want to use when inputing splits, meaning that if "m, aka a million" is selected 1 is calculated as 1,000,000.
 
 ### Settlement Settings
 

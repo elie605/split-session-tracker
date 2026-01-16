@@ -4,16 +4,19 @@ import com.splitmanager.controllers.PanelController;
 import com.splitmanager.views.PanelView;
 import com.splitmanager.views.PopoutView;
 import java.awt.BorderLayout;
+import java.awt.Dimension;
 import java.awt.FlowLayout;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import javax.swing.JButton;
+import javax.swing.JFrame;
 import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.ScrollPaneConstants;
+import javax.swing.WindowConstants;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
-import javax.swing.*;
-import java.awt.*;
 
 
 /**
@@ -25,12 +28,12 @@ import java.awt.*;
 public class ManagerPanel
 {
 
-	private JFrame popoutFrame;
-	private JButton popOutBtn;
-	private PanelController controller;
 	private final ManagerSession manager;
 	private final PluginConfig config;
 	private final ManagerKnownPlayers playerManager;
+	private JFrame popoutFrame;
+	private JButton popOutBtn;
+	private PanelController controller;
 	@Getter
 	@Setter
 	private PanelView view;
@@ -63,7 +66,7 @@ public class ManagerPanel
 	private void startPanel()
 	{
 		controller = new PanelController(manager, config, playerManager, this);
-		view = new PanelView(manager, config, playerManager,controller);
+		view = new PanelView(manager, config, playerManager, controller);
 		controller.setView(view);
 
 		if (config.enablePopout())
@@ -72,7 +75,7 @@ public class ManagerPanel
 			popOutBtn.addActionListener(e -> togglePopOutWindow());
 			JPanel topBar = new JPanel(new FlowLayout(FlowLayout.RIGHT, 5, 5));
 			topBar.add(popOutBtn);
-			view.add(topBar, BorderLayout.NORTH,0);
+			view.add(topBar, BorderLayout.NORTH, 0);
 		}
 
 		controller.refreshAllView();

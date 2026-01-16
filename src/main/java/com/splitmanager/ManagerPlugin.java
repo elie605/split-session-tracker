@@ -187,10 +187,12 @@ public class ManagerPlugin extends Plugin
 		}
 	}
 
-	private void restartViewFix(){
+	private void restartViewFix()
+	{
 		panelManager.restart();
 		view = panelManager.getView();
-		if (navButton != null) {
+		if (navButton != null)
+		{
 			clientToolbar.removeNavigation(navButton);
 			navButton = NavigationButton.builder()
 				.tooltip("Auto Split Manager")
@@ -252,7 +254,7 @@ public class ManagerPlugin extends Plugin
 			if (m.find())
 			{
 				String player = m.group(1);
-				Long value = (Long) f.stringToValue(m.group(2)+" coins");
+				Long value = (Long) f.stringToValue(m.group(2) + " coins");
 				queuePending(PendingValue.Type.PVM, isClan ? "Clan" : "Friends", msg, value, player);
 				return;
 			}
@@ -265,7 +267,7 @@ public class ManagerPlugin extends Plugin
 			if (m.find())
 			{
 				String player = m.group(1);
-				Long value = (Long) f.stringToValue(m.group(3)+" coins");
+				Long value = (Long) f.stringToValue(m.group(3) + " coins");
 				queuePending(PendingValue.Type.PVP, isClan ? "Clan" : "Friends", msg, value, player);
 				return;
 			}

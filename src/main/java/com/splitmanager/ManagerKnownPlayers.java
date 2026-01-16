@@ -304,13 +304,15 @@ public class ManagerKnownPlayers
 
 	public boolean isKnownPlayer(@Nonnull String name, @Nonnull Boolean save)
 	{
-		if (name.trim().isEmpty()) {
+		if (name.trim().isEmpty())
+		{
 			return false;
 		}
 
 		boolean known = knownPlayers.contains(name.trim());
 
-		if (save && !known) {
+		if (save && !known)
+		{
 			addKnownPlayer(name.trim());
 			return true;
 		}

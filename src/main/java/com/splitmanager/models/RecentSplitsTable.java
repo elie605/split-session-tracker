@@ -1,7 +1,6 @@
 package com.splitmanager.models;
 
 
-import com.splitmanager.ManagerPlugin;
 import com.splitmanager.PluginConfig;
 import com.splitmanager.utils.Formats;
 import lombok.Setter;
@@ -17,10 +16,9 @@ public final class RecentSplitsTable extends javax.swing.table.AbstractTableMode
 			.withLocale(java.util.Locale.getDefault());
 	private static final java.time.ZoneId SYS_TZ = java.time.ZoneId.systemDefault();
 	private final java.util.List<Row> rows = new java.util.ArrayList<>(10);
+	private final PluginConfig config;
 	@Setter
 	private Listener listener;
-
-	private final PluginConfig config;
 
 	public RecentSplitsTable(PluginConfig config)
 	{
@@ -110,7 +108,8 @@ public final class RecentSplitsTable extends javax.swing.table.AbstractTableMode
 	}
 
 	// Optionally expose a getter to let editors query the kill of a row:
-	public Kill getKillAt(int rowIndex) {
+	public Kill getKillAt(int rowIndex)
+	{
 		return (rowIndex >= 0 && rowIndex < rows.size()) ? rows.get(rowIndex).kill : null;
 	}
 
@@ -150,7 +149,8 @@ public final class RecentSplitsTable extends javax.swing.table.AbstractTableMode
 		fireTableDataChanged();
 	}
 
-	public interface Listener {
+	public interface Listener
+	{
 		void onEdited(Kill editedKill);
 	}
 

@@ -34,10 +34,10 @@ public class PanelController implements PanelActions
 {
 	private final ManagerSession sessionManager;
 	private final PluginConfig config;
-	@Setter
-	private PanelView view;
 	private final ManagerKnownPlayers playerManager;
 	private final ManagerPanel managerPanel;
+	@Setter
+	private PanelView view;
 	private Formats.OsrsAmountFormatter formats;
 
 	public PanelController(ManagerSession sessionManager, PluginConfig config, ManagerKnownPlayers playerManager, ManagerPanel managerPanel)
@@ -202,7 +202,7 @@ public class PanelController implements PanelActions
 	{
 		if (sessionManager.hasActiveSession())
 		{
-			toast(view,"Cannot add/remove alts while session is active. Stop session first.");
+			toast(view, "Cannot add/remove alts while session is active. Stop session first.");
 			return;
 		}
 		if (main == null || alt == null)
@@ -232,7 +232,7 @@ public class PanelController implements PanelActions
 	{
 		if (sessionManager.hasActiveSession())
 		{
-			toast(view,"Cannot add/remove alts while session is active. Stop session first.");
+			toast(view, "Cannot add/remove alts while session is active. Stop session first.");
 			return;
 		}
 		if (selectedMain == null || selectedMain.isBlank())

@@ -20,6 +20,8 @@ public class Formats
 		.withZone(ZoneId.systemDefault());
 	private static final DecimalFormat DF = new DecimalFormat("#,##0");
 	private static final DecimalFormat DF_3DP = new DecimalFormat("#,##0.###");
+	@Setter
+	private static PluginConfig config;
 
 	public static DateTimeFormatter getDateTime()
 	{
@@ -30,9 +32,6 @@ public class Formats
 	{
 		return DF;
 	}
-
-	@Setter
-	private static PluginConfig config;
 
 	public static final class OsrsAmountFormatter extends JFormattedTextField.AbstractFormatter
 	{

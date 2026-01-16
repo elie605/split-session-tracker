@@ -67,9 +67,9 @@ public final class Metrics extends AbstractTableModel
 				case 0:
 					return r.player;
 				case 1:
-					return Formats.OsrsAmountFormatter.toSuffixString(r.total,'k');
+					return Formats.OsrsAmountFormatter.toSuffixString(r.total, 'k');
 				case 2:
-					return Formats.OsrsAmountFormatter.toSuffixString(r.split,'k');
+					return Formats.OsrsAmountFormatter.toSuffixString(r.split, 'k');
 				case 3:
 					// Show X for active players, sleeping emoji for non-active
 					return r.activePlayer ? "X" : "💤";
@@ -84,7 +84,7 @@ public final class Metrics extends AbstractTableModel
 				case 0:
 					return r.player;
 				case 1:
-					return Formats.OsrsAmountFormatter.toSuffixString(r.split,'k');
+					return Formats.OsrsAmountFormatter.toSuffixString(r.split, 'k');
 				case 2:
 					return r.activePlayer ? "X" : "💤";
 				default:

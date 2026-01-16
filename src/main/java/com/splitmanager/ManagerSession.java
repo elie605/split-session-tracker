@@ -39,10 +39,10 @@ public class ManagerSession
 	private final List<PendingValue> pendingValues = new ArrayList<>();
 	private final ManagerKnownPlayers playerManager;
 	private final PluginConfig config;
-	private String currentSessionId;
-	private ManagerPlugin pluginManager;
 	// Cache of all kills grouped by mother session id to avoid recomputing on every UI refresh
 	private final Map<String, List<Kill>> motherKillsCache = new LinkedHashMap<>();
+	private String currentSessionId;
+	private ManagerPlugin pluginManager;
 	// TODO implement in newer versions
 	@Getter
 	private boolean historyLoaded;
@@ -103,7 +103,7 @@ public class ManagerSession
 	 * 4. Updates the current session ID and sets whether the history has been
 	 * loaded from the configuration.
 	 */
- public void loadFromConfig()
+	public void loadFromConfig()
 	{
 		sessions.clear();
 		String json = config.sessionsJson();
@@ -248,7 +248,7 @@ public class ManagerSession
 	 *
 	 * @return the newly created active child session, if started
 	 */
- public Optional<Session> startSession()
+	public Optional<Session> startSession()
 	{
 		if (historyLoaded)
 		{
@@ -457,7 +457,7 @@ public class ManagerSession
 			return false;
 		}
 
-  Kill newKill = new Kill(currentSession.getId(), mainPlayer, amount, Instant.now());
+		Kill newKill = new Kill(currentSession.getId(), mainPlayer, amount, Instant.now());
 		currentSession.getKills().add(newKill);
 
 		// Update mother cache incrementally
@@ -733,40 +733,40 @@ public class ManagerSession
 	}
 
 
- /**
-		 * Get all kills from all sessions that share the same mother session as the current session.
-		 * Uses a cached list per mother to avoid recomputing on every UI update.
-		 *
-		 * @return a list containing all kill records from sessions with the same mother
-		 */
-		public List<Kill> getAllKills()
+	/**
+	 * Get all kills from all sessions that share the same mother session as the current session.
+	 * Uses a cached list per mother to avoid recomputing on every UI update.
+	 *
+	 * @return a list containing all kill records from sessions with the same mother
+	 */
+	public List<Kill> getAllKills()
+	{
+		Session curr = getCurrentSession().orElse(null);
+		if (curr == null)
 		{
-			Session curr = getCurrentSession().orElse(null);
-			if (curr == null)
-			{
-				return new ArrayList<>();
-			}
-			// Determine the mother id for this thread
-			String motherId = (curr.getMotherId() == null) ? curr.getId() : curr.getMotherId();
-			// If cached, return it
-			List<Kill> cached = motherKillsCache.get(motherId);
-	   if (cached != null)
-			{
-				return Collections.unmodifiableList(cached);
-			}
-			// Build once, sort by time ascending (oldest first), and cache
-			List<Kill> built = new ArrayList<>();
-			for (Session session : sessions.values())
-			{
-				if (motherId.equals(session.getId()) || motherId.equals(session.getMotherId()))
-				{
-					built.addAll(session.getKills());
-				}
-			}
-			built.sort(Comparator.comparing(Kill::getAt, Comparator.nullsLast(Comparator.naturalOrder())));
-			motherKillsCache.put(motherId, built);
-			return built;
+			return new ArrayList<>();
 		}
+		// Determine the mother id for this thread
+		String motherId = (curr.getMotherId() == null) ? curr.getId() : curr.getMotherId();
+		// If cached, return it
+		List<Kill> cached = motherKillsCache.get(motherId);
+		if (cached != null)
+		{
+			return Collections.unmodifiableList(cached);
+		}
+		// Build once, sort by time ascending (oldest first), and cache
+		List<Kill> built = new ArrayList<>();
+		for (Session session : sessions.values())
+		{
+			if (motherId.equals(session.getId()) || motherId.equals(session.getMotherId()))
+			{
+				built.addAll(session.getKills());
+			}
+		}
+		built.sort(Comparator.comparing(Kill::getAt, Comparator.nullsLast(Comparator.naturalOrder())));
+		motherKillsCache.put(motherId, built);
+		return built;
+	}
 
 
 	/**

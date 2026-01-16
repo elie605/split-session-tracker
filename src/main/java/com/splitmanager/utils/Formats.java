@@ -1,5 +1,6 @@
 package com.splitmanager.utils;
 
+import com.splitmanager.PluginConfig;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.text.DecimalFormat;
@@ -7,14 +8,20 @@ import java.text.ParseException;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.regex.Pattern;
+import javax.annotation.Nonnull;
 import javax.swing.JFormattedTextField;
+import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public class Formats
 {
 	private static final DateTimeFormatter TS = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
 		.withZone(ZoneId.systemDefault());
 	private static final DecimalFormat DF = new DecimalFormat("#,##0");
 	private static final DecimalFormat DF_3DP = new DecimalFormat("#,##0.###");
+	@Setter
+	private static PluginConfig config;
 
 	public static DateTimeFormatter getDateTime()
 	{
@@ -29,10 +36,11 @@ public class Formats
 	public static final class OsrsAmountFormatter extends JFormattedTextField.AbstractFormatter
 	{
 		private static final Pattern P =
-			Pattern.compile("(?i)^\\s*([0-9]+(?:\\.[0-9]+)?)\\s*([kmb])?\\s*$");
+			Pattern.compile("(?i)^\\s*([0-9]+(?:\\.[0-9]+)?)\\s*([kmb]| coins)?\\s*$");
 
 		private static BigDecimal getBigDecimal(BigDecimal number, char suffix) throws ParseException
 		{
+			log.debug("Converting {} to BigDecimal, with {}", number, suffix);
 			if (number.signum() < 0)
 			{
 				throw new ParseException("Negative not allowed", 0);
@@ -42,16 +50,17 @@ public class Formats
 			switch (suffix)
 			{
 				case 'k':
-					multiplierK = 1L;            // thousands
+					multiplierK = 1_000L;
 					break;
 				case 'm':
-					multiplierK = 1_000L;        // millions -> K
+					multiplierK = 1_000_000L;
 					break;
 				case 'b':
-					multiplierK = 1_000_000L;    // billions -> K
+					multiplierK = 1_000_000_000L;
 					break;
 				default:
 					multiplierK = 1L;
+					break;
 			}
 
 			return number.multiply(BigDecimal.valueOf(multiplierK));
@@ -70,22 +79,25 @@ public class Formats
 		 */
 		public static String toSuffixString(long amountK, char suffix)
 		{
-			char s = Character.toLowerCase(suffix);
+			DecimalFormat localDF = DF;
+			String s = String.valueOf(Character.toLowerCase(suffix));
 			long divK; // how many K per target unit
 			switch (s)
 			{
-				case 'k':
-					divK = 1L;
-					break;              // 1 K per K
-				case 'm':
+				case "k":
 					divK = 1_000L;
-					break;          // 1,000 K per M
-				case 'b':
+					break;              // 1 K per K
+				case "m":
 					divK = 1_000_000L;
+					break;          // 1,000 K per M
+				case "b":
+					divK = 1_000_000_000L;
+					localDF = DF_3DP;
 					break;      // 1,000,000 K per B
 				default:
 					divK = 1L;
-					s = 'k';            // fallback to K
+					s = "gp";
+					break;
 			}
 
 			// Use BigDecimal to avoid precision issues for large numbers
@@ -93,10 +105,10 @@ public class Formats
 				.divide(BigDecimal.valueOf(divK));
 
 			// Format with up to 3 decimals, trimming trailing zeros
-			String num = DF_3DP.format(val);
+			String num = localDF.format(val);
 
 			// Uppercase the suffix in output
-			return num + Character.toUpperCase(s);
+			return num + s.toUpperCase();
 		}
 
 		/**
@@ -111,13 +123,42 @@ public class Formats
 			return toSuffixString(amountK, suffix.charAt(0));
 		}
 
-		@Override
-		public Object stringToValue(String text) throws ParseException
+		public static long stringAmountToLongAmount(String amount, PluginConfig config) throws ParseException
 		{
-			if (text == null)
+			String valueStr = amount;
+
+			log.debug("Parsing amount: {}", valueStr);
+			// Check if the value has no unit (k, m, b) and append the default
+			java.util.regex.Pattern unitPattern = java.util.regex.Pattern.compile("(?i)^\\s*([0-9][0-9,]*(?:\\.[0-9]+)?)\\s*([kmb])?\\s*$");
+			java.util.regex.Matcher matcher = unitPattern.matcher(valueStr);
+
+			if (matcher.matches())
 			{
-				return null;
+				String numberTxt = matcher.group(1);
+				String unitTxt = matcher.group(2);
+				log.debug("Number: {}, Unit: {}", numberTxt, unitTxt);
+
+				if (unitTxt == null && config != null)
+				{
+					// No unit specified, append the default multiplier
+					valueStr = numberTxt + config.defaultValueMultiplier().getValue();
+				}
+				log.debug("Final value: {}", valueStr);
 			}
+
+			log.debug("Parsed amount: {}", valueStr);
+			Object k = new Formats.OsrsAmountFormatter().stringToValue(valueStr);
+			if (k == null)
+			{
+				throw new ParseException("Invalid amount", 0);
+			}
+			return (Long) k;
+		}
+
+		@Override
+		public Object stringToValue(@Nonnull String text) throws ParseException
+		{
+			log.debug("Parsing bujiamount: {}", text);
 			String s = text.replace(",", "").trim(); // ignore commas
 			if (s.isEmpty())
 			{
@@ -131,11 +172,31 @@ public class Formats
 			}
 
 			BigDecimal number = new BigDecimal(m.group(1));
-			char suffix = (m.group(2) == null) ? 'k' : Character.toLowerCase(m.group(2).charAt(0));
+			Character suffixCh = (m.group(2) == null) ? null : Character.toLowerCase(m.group(2).charAt(0));
+			// If no suffix provided by user, fall back to config default if available
+			char suffix;
+			if (config == null)
+			{
+				log.debug("No config available, falling back to global config");
+			}
+			if (suffixCh == null)
+			{
+				log.debug("No suffix provided, falling back to config default");
+				String def = config.defaultValueMultiplier().getValue();
+				suffix = def != null && !def.isEmpty() ? Character.toLowerCase(def.charAt(0)) : ' ';
+			}
+			else
+			{
+				log.debug("Suffix provided: {}", suffixCh);
+				suffix = (suffixCh == null) ? ' ' : suffixCh;
+			}
 
-			BigDecimal kVal = getBigDecimal(number, suffix);
-			// normalize to whole K (floor)
-			return kVal.setScale(0, RoundingMode.FLOOR).longValueExact();
+			log.debug("Parsed amo00unt: {}{}", number, suffix);
+
+			// Convert to raw coins
+			BigDecimal coinsValue = getBigDecimal(number, suffix);
+			// Return the exact long value (no normalization to K units)
+			return coinsValue.setScale(0, RoundingMode.FLOOR).longValueExact();
 		}
 
 		@Override

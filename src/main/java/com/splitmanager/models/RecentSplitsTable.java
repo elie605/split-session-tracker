@@ -1,8 +1,12 @@
 package com.splitmanager.models;
 
 
+import com.splitmanager.PluginConfig;
+import com.splitmanager.utils.Formats;
 import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public final class RecentSplitsTable extends javax.swing.table.AbstractTableModel
 {
 	private static final String[] COLS = {"Time", "Player", "Amount"};
@@ -12,8 +16,14 @@ public final class RecentSplitsTable extends javax.swing.table.AbstractTableMode
 			.withLocale(java.util.Locale.getDefault());
 	private static final java.time.ZoneId SYS_TZ = java.time.ZoneId.systemDefault();
 	private final java.util.List<Row> rows = new java.util.ArrayList<>(10);
+	private final PluginConfig config;
 	@Setter
 	private Listener listener;
+
+	public RecentSplitsTable(PluginConfig config)
+	{
+		this.config = config;
+	}
 
 	@Override
 	public int getRowCount()
@@ -38,7 +48,7 @@ public final class RecentSplitsTable extends javax.swing.table.AbstractTableMode
 			case 1:
 				return e.kill.getPlayer();
 			case 2:
-				return (e.kill.getAmount() + "K");
+				return Formats.OsrsAmountFormatter.toSuffixString(e.kill.getAmount(), 'k');
 			default:
 				return "";
 		}
@@ -70,36 +80,37 @@ public final class RecentSplitsTable extends javax.swing.table.AbstractTableMode
 			return;
 		}
 		Row e = rows.get(rowIndex);
-		if (columnIndex == 1)
-		{ // player
+		if (columnIndex == 1) // player
+		{
 			String v = aValue == null ? null : aValue.toString();
 			if (v != null && !v.isBlank())
 			{
 				e.kill.setPlayer(v.trim());
 			}
 		}
-		else if (columnIndex == 2)
-		{ // amount (K)
+		else if (columnIndex == 2) // amount (K)
+		{
 			try
 			{
-				String s = aValue == null ? "" : aValue.toString().trim().toLowerCase();
-				if (s.endsWith("k"))
-				{
-					s = s.substring(0, s.length() - 1);
-				}
-				s = s.replace(",", "");
-				long k = Long.parseLong(s);
+				Long k = Formats.OsrsAmountFormatter.stringAmountToLongAmount((String) aValue, config);
 				e.kill.setAmount(k);
 			}
 			catch (Exception ignored)
 			{
+				log.warn("Invalid amount: {}", aValue);
 			}
 		}
 		fireTableRowsUpdated(rowIndex, rowIndex);
 		if (listener != null)
 		{
-			listener.onEdited();
+			listener.onEdited(e.kill); // pass the edited kill so we know its sessionId
 		}
+	}
+
+	// Optionally expose a getter to let editors query the kill of a row:
+	public Kill getKillAt(int rowIndex)
+	{
+		return (rowIndex >= 0 && rowIndex < rows.size()) ? rows.get(rowIndex).kill : null;
 	}
 
 	private void addEntry(Kill k)
@@ -109,7 +120,7 @@ public final class RecentSplitsTable extends javax.swing.table.AbstractTableMode
 		{
 			timeStr = TIME_FMT.format(java.time.ZonedDateTime.ofInstant(k.getAt(), SYS_TZ));
 		}
-		// newest on top
+		// newest on top (insert at index 0)
 		rows.add(0, new Row(k, timeStr));
 		fireTableDataChanged();
 	}
@@ -123,8 +134,8 @@ public final class RecentSplitsTable extends javax.swing.table.AbstractTableMode
 			return;
 		}
 		int n = kills.size();
-		// Iterate from newest to oldest
-		for (int i = n - 1; i >= 0; i--)
+		// Iterate from oldest to newest
+		for (int i = 0; i < n; i++)
 		{
 			Kill k = kills.get(i);
 			addEntry(k);
@@ -140,7 +151,7 @@ public final class RecentSplitsTable extends javax.swing.table.AbstractTableMode
 
 	public interface Listener
 	{
-		void onEdited();
+		void onEdited(Kill editedKill);
 	}
 
 	private static final class Row

@@ -1,5 +1,6 @@
 package com.splitmanager;
 
+import lombok.Getter;
 import net.runelite.client.config.Config;
 import net.runelite.client.config.ConfigGroup;
 import net.runelite.client.config.ConfigItem;
@@ -20,7 +21,6 @@ public interface PluginConfig extends Config
 	String KEY_CURRENT_SESSION_ID = "currentSessionId";
 	String KEY_HISTORY_LOADED = "historyLoaded";
 	String KEY_PEOPLE_CSV = "PlayersCsv";
-
 	//TODO Create a new configitem that allows the user to submit any forms on enter, e.g. 1) user fills in split amount 2) presses enter 3) The same function as button press is called
 	@ConfigSection(
 		name = "Settlement",
@@ -38,19 +38,51 @@ public interface PluginConfig extends Config
 	// Alt/main mapping persistence (hidden JSON)
 	String KEY_ALTS_JSON = "altsJson";
 
-	//TODO implement this
-	//TODO implement this SIGHHHH I have claimed this
-	//Added a weird thingy in Auto Split Manager -> Turn Chat Detection ON -> see top left corner for box
-	//Automatically detect if Chat Channel is turned on, if not, warn player
-	//Important because changing worlds may automatically turn Chat off
-	//Option is a pop up, preferably in Canvas, alternatively closable pop up on the side
+	@ConfigItem(
+		keyName = "enablePopout",
+		name = "Enable popout",
+		description = "Show a popout button that enables the user to pop the plugin out into its own window."
+	)
+	default boolean enablePopout()
+	{
+		return false;
+	}
+
+	@ConfigItem(
+		keyName = "defaultValueMultiplier",
+		name = "Default value multiplier",
+		description = "The default multiplier that is used upon adding split values"
+	)
+	default ValueMultiplier defaultValueMultiplier()
+	{
+		return ValueMultiplier.THOUSAND;
+	}
+
+	@ConfigItem(
+		keyName = "enableTour",
+		name = "Enable tour",
+		description = "Show a guided step-by-step tutorial panel at the top of the plugin UI"
+	)
+	default boolean enableTour()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "enableTour",
+		name = "Enable tour",
+		description = "Show a guided step-by-step tutorial panel at the top of the plugin UI",
+		hidden = true
+	)
+	void enableTour(boolean value);
+
 	@ConfigItem(
 		keyName = "WarnNotInFC",
 		name = "Warning not in FC",
 		description = "Give a warning on OSRS canvas that you are not in a FC, usefull if you have !add on",
-		hidden = true
+		section = chatDetectionSection
 	)
-	default Boolean warnNotFC()
+	default boolean warnNotFC()
 	{
 		return false;
 	}
@@ -114,40 +146,10 @@ public interface PluginConfig extends Config
 	void currentSessionId(String value);
 
 	/**
-	 * Determines if the UI is in a read-only state due to a selected historical session being loaded.
-	 *
-	 * @return true if the UI is read-only and the historical session is loaded, false otherwise
-	 */
-	@ConfigItem(
-		keyName = KEY_HISTORY_LOADED,
-		name = "History Loaded",
-		description = "If true, UI is read-only; selected historical session is loaded",
-		hidden = true
-	)
-	default boolean historyLoaded()
-	{
-		return false;
-	}
-
-
-	/**
-	 * Sets whether the UI is in a read-only state due to a selected historical session being loaded.
-	 *
-	 * @param value true to set the UI to read-only and indicate that the historical session is loaded, false to disable it
-	 */
-	@ConfigItem(
-		keyName = KEY_HISTORY_LOADED,
-		name = "History Loaded",
-		description = "If true, UI is read-only; selected historical session is loaded",
-		hidden = true
-	)
-	void historyLoaded(boolean value);
-
-	/**
 	 * Retrieves a comma-separated string of known players.
 	 *
 	 * @return a string containing the known players separated by commas,
-	 *         or an empty string if no players are defined
+	 * or an empty string if no players are defined
 	 */
 	@ConfigItem(
 		keyName = KEY_PEOPLE_CSV,
@@ -172,19 +174,6 @@ public interface PluginConfig extends Config
 		hidden = true
 	)
 	void knownPlayersCsv(String value);
-
-	// Settlement mode
-
-	//todo fix
-	@ConfigItem(
-		keyName = "useActivePlayerManagement",
-		name = "Use active player buttons",
-		description = "Show top section with per-player buttons for adding splits/removing players"
-	)
-	default boolean useActivePlayerManagement()
-	{
-		return true;
-	}
 
 	/**
 	 * Determines whether the Markdown table should be wrapped in triple backticks (` ``` `)
@@ -221,28 +210,6 @@ public interface PluginConfig extends Config
 	default boolean directPayments()
 	{
 		return false;
-	}
-
-	//TODO implement this
-	@ConfigItem(
-		keyName = "showToasts",
-		name = "Show toasts",
-		description = "Show confirmation/info popups in the panel"
-	)
-	default boolean showToasts()
-	{
-		return true;
-	}
-
-	//TODO implement this
-	@ConfigItem(
-		keyName = "allowNegativeKills",
-		name = "Allow negative kill values",
-		description = "Permit entering negative kill values (e.g., adjustments)"
-	)
-	default boolean allowNegativeKills()
-	{
-		return true;
 	}
 
 	/**
@@ -366,37 +333,6 @@ public interface PluginConfig extends Config
 	}
 
 	/**
-	 * Retrieves the default section order as a comma-separated values string.
-	 * The order specifies the arrangement of various sections such as session,
-	 * session players, add split, recent splits, detected values, settlement,
-	 * and known players.
-	 *
-	 * @return A string containing the comma-separated default order of the sections.
-	 */
-	@ConfigItem(
-		keyName = "sectionOrderCsv",
-		name = "Panel section order",
-		description = "Comma-separated order of sections: session,sessionPlayers,addSplit,recentSplits,detectedValues,settlement,knownPlayers"
-	)
-	default String sectionOrderCsv()
-	{
-		return "session,sessionPlayers,addSplit,recentSplits,detectedValues,settlement,knownPlayers";
-	}
-
-	/**
-	 * Sets the order of panel sections based on the provided comma-separated values.
-	 *
-	 * @param value a comma-separated string defining the order of sections.
-	 *              Accepted values: session, sessionPlayers, addSplit, recentSplits, detectedValues, settlement, knownPlayers.
-	 */
-	@ConfigItem(
-		keyName = "sectionOrderCsv",
-		name = "Panel section order",
-		description = "Comma-separated order of sections: session,sessionPlayers,addSplit,recentSplits,detectedValues,settlement,knownPlayers"
-	)
-	void sectionOrderCsv(String value);
-
-	/**
 	 * Indicates whether to flip the sign of settlement values for display purposes.
 	 * When disabled, a positive value indicates that the bank pays the player.
 	 * When enabled, a positive value indicates that the player pays the bank. This setting
@@ -407,7 +343,8 @@ public interface PluginConfig extends Config
 	@ConfigItem(
 		keyName = "flipSettlementSign",
 		name = "Flip settlement sign (perspective)",
-		description = "Display-only: flips the sign of Split values. Off = + means bank pays the player; On = + means player pays the bank (middleman mode only)."
+		description = "Display-only: flips the sign of Split values. Off = + means bank pays the player; On = + means player pays the bank (middleman mode only).",
+		section = settlementSection
 	)
 	default boolean flipSettlementSign()
 	{
@@ -443,4 +380,29 @@ public interface PluginConfig extends Config
 		hidden = true
 	)
 	void altsJson(String value);
+
+	// Define an enum for your dropdown options
+	@Getter
+	enum ValueMultiplier
+	{
+		COINS("None, 1 = 1gp", " coins"),
+		THOUSAND("k, aka a thousand", "k"),
+		MILLION("m, aka a million", "m"),
+		BILLION("b, aka a billion", "b");
+
+		private final String description;
+		private final String value;
+
+		ValueMultiplier(String description, String value)
+		{
+			this.description = description;
+			this.value = value;
+		}
+
+		@Override
+		public String toString()
+		{
+			return description;
+		}
+	}
 }

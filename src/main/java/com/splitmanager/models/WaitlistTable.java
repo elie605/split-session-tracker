@@ -1,5 +1,6 @@
 package com.splitmanager.models;
 
+import static com.splitmanager.utils.Formats.OsrsAmountFormatter.toSuffixString;
 import java.util.ArrayList;
 import java.util.List;
 import javax.swing.table.AbstractTableModel;
@@ -49,8 +50,9 @@ public class WaitlistTable extends AbstractTableModel
 			case 0:
 				return pv.getType().name();
 			case 1:
-				double k = pv.getValue();
-				return (k % 1.0 == 0.0) ? String.format("%,.0fK", k) : String.format("%,.1fK", k);
+				long value = pv.getValue();
+				//TODO get this from config
+				return toSuffixString(value, "k");
 			case 2:
 				return pv.getSuggestedPlayer() == null ? "" : pv.getSuggestedPlayer();
 		}

@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+import javax.annotation.Nonnull;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import lombok.Getter;
@@ -219,12 +220,8 @@ public class ManagerKnownPlayers
 	 * @param name main or alt name
 	 * @return resolved main name (or the input trimmed if not an alt)
 	 */
-	public String getMainName(String name)
+	public String getMainName(@Nonnull String name)
 	{
-		if (name == null)
-		{
-			return null;
-		}
 		String n = name.trim();
 		String visited = null;
 		// resolve chain up to a few steps to avoid cycles
@@ -298,6 +295,29 @@ public class ManagerKnownPlayers
 			saveToConfig();
 		}
 		return added;
+	}
+
+	public boolean isKnownPlayer(@Nonnull String name)
+	{
+		return isKnownPlayer(name, false);
+	}
+
+	public boolean isKnownPlayer(@Nonnull String name, @Nonnull Boolean save)
+	{
+		if (name.trim().isEmpty())
+		{
+			return false;
+		}
+
+		boolean known = knownPlayers.contains(name.trim());
+
+		if (save && !known)
+		{
+			addKnownPlayer(name.trim());
+			return true;
+		}
+
+		return known;
 	}
 
 	public boolean removeKnownPlayer(String name)

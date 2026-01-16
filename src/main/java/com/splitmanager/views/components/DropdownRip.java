@@ -108,9 +108,12 @@ public class DropdownRip extends JPanel
 			sectionHeader.setMinimumSize(new Dimension(PANEL_WIDTH, 0));
 			// For whatever reason, the header extends out by a single pixel when closed. Adding a single pixel of
 			// border on the right only affects the width when closed, fixing the issue.
-//            sectionHeader.setBorder(new CompoundBorder(
-//                    new MatteBorder(0, 0, 1, 0, ColorScheme.MEDIUM_GRAY_COLOR),
-//                    new EmptyBorder(0, 0, 3, 1)));
+			if (!expanded)
+			{
+				sectionHeader.setBorder(new CompoundBorder(
+					new MatteBorder(0, 0, 1, 0, ColorScheme.MEDIUM_GRAY_COLOR),
+					new EmptyBorder(0, 0, 3, 1)));
+			}
 			section.add(sectionHeader, BorderLayout.NORTH);
 
 			sectionToggle = new JButton(expanded ? SECTION_RETRACT_ICON : SECTION_EXPAND_ICON);
@@ -130,9 +133,12 @@ public class DropdownRip extends JPanel
 			final JPanel sectionContents = new JPanel();
 			sectionContents.setLayout(new DynamicGridLayout(0, 1, 0, 5));
 			sectionContents.setMinimumSize(new Dimension(PANEL_WIDTH, 0));
-			sectionContents.setBorder(new CompoundBorder(
-				new MatteBorder(0, 0, 1, 0, ColorScheme.MEDIUM_GRAY_COLOR),
-				new EmptyBorder(BORDER_OFFSET, 0, BORDER_OFFSET, 0)));
+			if (expanded)
+			{
+				sectionContents.setBorder(new CompoundBorder(
+					new MatteBorder(0, 0, 1, 0, ColorScheme.MEDIUM_GRAY_COLOR),
+					new EmptyBorder(BORDER_OFFSET, 0, BORDER_OFFSET, 0)));
+			}
 			sectionContents.setVisible(expanded);
 			section.add(sectionContents);
 

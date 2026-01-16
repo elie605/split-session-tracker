@@ -1,6 +1,5 @@
 package com.splitmanager.utils;
 
-import com.splitmanager.PluginConfig;
 import java.awt.Color;
 import java.awt.Dimension;
 import lombok.Getter;
@@ -11,34 +10,21 @@ import net.runelite.client.ui.overlay.OverlayPosition;
 import net.runelite.client.ui.overlay.components.LineComponent;
 import net.runelite.client.ui.overlay.components.TitleComponent;
 
+@Getter
+@Setter
 public class ChatStatusOverlay extends OverlayPanel
 {
-	private final PluginConfig config;
-	@Setter
-	@Getter
+
 	private boolean visible = false;
 	private boolean chatchanOn = false;
 	private boolean clanOn = false;
 	private boolean guestOn = false;
-	private boolean countedOn = false;
 
-	public ChatStatusOverlay(PluginConfig config)
+	public ChatStatusOverlay()
 	{
-		this.config = config;
 		setPosition(OverlayPosition.TOP_LEFT);
 		setPosition(OverlayPosition.TOP_LEFT);
 		setLayer(OverlayLayer.ABOVE_SCENE);
-	}
-
-	/**
-	 * fc/clan/guest raw states + combined "counted" state (based on config toggles)
-	 */
-	public void setStatuses(boolean chatchan, boolean clan, boolean guest, boolean counted)
-	{
-		this.chatchanOn = chatchan;
-		this.clanOn = clan;
-		this.guestOn = guest;
-		this.countedOn = counted;
 	}
 
 	@Override
@@ -48,24 +34,29 @@ public class ChatStatusOverlay extends OverlayPanel
 		{
 			return null;
 		}
+		panelComponent.getChildren().clear();
+		panelComponent.setPreferredSize(new Dimension(120, 0));
+
+		final String title = "Cant track splits:";
+		final Color titleColor = new Color(255, 80, 80);
+
+		panelComponent.getChildren().add(TitleComponent.builder()
+			.text(title)
+			.color(titleColor)
+			.build());
+
 		if (!chatchanOn)
 		{
-			panelComponent.getChildren().clear();
-			panelComponent.setPreferredSize(new Dimension(230, 0));
-
-			final String title = "WARNING! NOT IN FC!";
-			final Color titleColor = new Color(255, 80, 80);
-
-			panelComponent.getChildren().add(TitleComponent.builder()
-				.text(title)
-				.color(titleColor)
-				.build());
-
 			addStatusLine("Chat Channel", chatchanOn);
-
-			return super.render(g);
 		}
-		return null;
+/*		if (!clanOn)
+			addStatusLine("Clan Chat", clanOn);
+		if (!guestOn)
+			addStatusLine("Guest Chat", guestOn);
+		if (!countedOn)
+			addStatusLine("Counted Chat", countedOn);*/
+
+		return super.render(g);
 	}
 
 	public void addStatusLine(String label, boolean on)

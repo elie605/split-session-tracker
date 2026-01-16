@@ -3,13 +3,20 @@ package com.splitmanager;
 import com.splitmanager.controllers.PanelController;
 import com.splitmanager.views.PanelView;
 import com.splitmanager.views.PopoutView;
+import java.awt.BorderLayout;
+import java.awt.Dimension;
+import java.awt.FlowLayout;
 import javax.inject.Inject;
 import javax.inject.Singleton;
+import javax.swing.JButton;
+import javax.swing.JFrame;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.ScrollPaneConstants;
+import javax.swing.WindowConstants;
 import lombok.Getter;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
-import net.runelite.client.ui.PluginPanel;
-import javax.swing.*;
-import java.awt.*;
 
 
 /**
@@ -21,13 +28,14 @@ import java.awt.*;
 public class ManagerPanel
 {
 
-	private JFrame popoutFrame;
-	private JButton popOutBtn;
-	private PanelController controller;
 	private final ManagerSession manager;
 	private final PluginConfig config;
 	private final ManagerKnownPlayers playerManager;
+	private JFrame popoutFrame;
+	private JButton popOutBtn;
+	private PanelController controller;
 	@Getter
+	@Setter
 	private PanelView view;
 
 	/**
@@ -52,25 +60,25 @@ public class ManagerPanel
 		controller.refreshAllView();
 	}
 
-
 	/**
 	 * Initialize and wire the view and controller, and perform an initial sync.
 	 */
 	private void startPanel()
 	{
-		view = new PanelView(manager, config, playerManager);
-		controller = new PanelController(manager, config, view, playerManager, this);
-		view.bindActions(controller);
+		controller = new PanelController(manager, config, playerManager, this);
+		view = new PanelView(manager, config, playerManager, controller);
+		controller.setView(view);
 
-		popOutBtn = new JButton("Pop Out");
-		popOutBtn.addActionListener(e -> togglePopOutWindow());
-		JPanel topBar = new JPanel(new FlowLayout(FlowLayout.RIGHT, 5, 5));
-		topBar.add(popOutBtn);
-		view.add(topBar, BorderLayout.NORTH,0);
+		if (config.enablePopout())
+		{
+			popOutBtn = new JButton("Pop Out");
+			popOutBtn.addActionListener(e -> togglePopOutWindow());
+			JPanel topBar = new JPanel(new FlowLayout(FlowLayout.RIGHT, 5, 5));
+			topBar.add(popOutBtn);
+			view.add(topBar, BorderLayout.NORTH, 0);
+		}
 
 		controller.refreshAllView();
-		view.revalidate();
-		view.repaint();
 	}
 
 
@@ -87,15 +95,15 @@ public class ManagerPanel
 			view.repaint();
 		}
 
-		PopoutView view = new PopoutView(manager, config, playerManager);
-		PanelController ctrl = new PanelController(manager, config, view, playerManager, this);
+		PanelController ctrl = new PanelController(manager, config, playerManager, this);
+		PopoutView popoutView = new PopoutView(manager, config, playerManager, ctrl);
+		ctrl.setView(popoutView);
 
-		view.bindActions(ctrl);
 		ctrl.refreshAllView();
 
 		popoutFrame = new JFrame("Auto Split Manager");
 		popoutFrame.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
-		JScrollPane scrollPane = new JScrollPane(view);
+		JScrollPane scrollPane = new JScrollPane(popoutView);
 		scrollPane.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED);
 		scrollPane.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
 		popoutFrame.getContentPane().add(scrollPane, BorderLayout.CENTER);
@@ -114,8 +122,8 @@ public class ManagerPanel
 				if (popOutBtn != null)
 				{
 					popOutBtn.setVisible(true);
-					view.revalidate();
-					view.repaint();
+					popoutView.revalidate();
+					popoutView.repaint();
 				}
 			}
 		});

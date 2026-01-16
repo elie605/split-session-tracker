@@ -7,6 +7,7 @@ import com.splitmanager.models.PendingValue;
 import com.splitmanager.models.PlayerMetrics;
 import com.splitmanager.models.Session;
 import com.splitmanager.utils.InstantTypeAdapter;
+import com.splitmanager.views.PanelView;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -23,6 +24,7 @@ import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 import javax.inject.Inject;
 import javax.inject.Singleton;
+import javax.swing.JOptionPane;
 import lombok.Getter;
 
 /**
@@ -37,7 +39,11 @@ public class ManagerSession
 	private final List<PendingValue> pendingValues = new ArrayList<>();
 	private final ManagerKnownPlayers playerManager;
 	private final PluginConfig config;
+	// Cache of all kills grouped by mother session id to avoid recomputing on every UI refresh
+	private final Map<String, List<Kill>> motherKillsCache = new LinkedHashMap<>();
 	private String currentSessionId;
+	private ManagerPlugin pluginManager;
+	// TODO implement in newer versions
 	@Getter
 	private boolean historyLoaded;
 
@@ -48,13 +54,14 @@ public class ManagerSession
 	 * @param config backing configuration/store used to load and save state
 	 */
 	@Inject
-	public ManagerSession(PluginConfig config, ManagerKnownPlayers playerManager)
+	public ManagerSession(PluginConfig config, ManagerKnownPlayers playerManager, ManagerPlugin pluginManager)
 	{
 		this.config = config;
 		this.playerManager = playerManager;
 		this.gson = new GsonBuilder()
 			.registerTypeAdapter(Instant.class, new InstantTypeAdapter())
 			.create();
+		this.pluginManager = pluginManager;
 	}
 
 	/**
@@ -112,8 +119,10 @@ public class ManagerSession
 			}
 		}
 
+		// Invalidate any cached mother->kills when loading fresh data
+		motherKillsCache.clear();
+
 		currentSessionId = emptyToNull(config.currentSessionId());
-		historyLoaded = config.historyLoaded();
 	}
 
 	/**
@@ -124,7 +133,6 @@ public class ManagerSession
 		Session[] arr = sessions.values().toArray(new Session[0]);
 		config.sessionsJson(gson.toJson(arr));
 		config.currentSessionId(nullToEmpty(currentSessionId));
-		config.historyLoaded(historyLoaded);
 	}
 
 	/**
@@ -254,12 +262,15 @@ public class ManagerSession
 		// Create mother and an initial child immediately (to mirror sheet)
 		Session mother = new Session(newId(), Instant.now(), null);
 		sessions.put(mother.getId(), mother);
+		// initialize empty cache list for this mother thread
+		motherKillsCache.put(mother.getId(), new ArrayList<>());
 
 		Session child = new Session(newId(), Instant.now(), mother.getId());
 		sessions.put(child.getId(), child);
 
 		currentSessionId = child.getId();
 		saveToConfig();
+		pluginManager.updateChatWarningStatus();
 		return Optional.of(child);
 	}
 
@@ -269,7 +280,7 @@ public class ManagerSession
 	 *
 	 * @return true if an active session was stopped
 	 */
-	public boolean stopSession()
+	public boolean stopSession(PanelView view)
 	{
 		if (historyLoaded)
 		{
@@ -281,6 +292,16 @@ public class ManagerSession
 		{
 			return false;
 		}
+
+		if (
+			JOptionPane.showConfirmDialog(view,
+				"Are you sure you want to stop the session")
+				!= 0
+		)
+		{
+			return false;
+		}
+
 		curr.setEnd(Instant.now());
 
 		// If child has a mother which is active, end mother too.
@@ -295,6 +316,7 @@ public class ManagerSession
 
 		currentSessionId = null;
 		saveToConfig();
+		pluginManager.updateChatWarningStatus();
 		return true;
 	}
 
@@ -412,29 +434,36 @@ public class ManagerSession
 	 * @param amount value in coins (may be negative if allowed by config)
 	 * @return true if recorded
 	 */
-	public boolean addKill(String player, Long amount)
+	public boolean addKill(@Nonnull String player, @Nonnull Long amount)
 	{
 		if (historyLoaded)
 		{
 			return false; //TODO support altering history
 		}
-		Session curr = getCurrentSession().orElse(null);
-		if (curr == null || !curr.isActive())
+
+		Session currentSession = getCurrentSession().orElse(null);
+		if (currentSession == null || !currentSession.isActive())
 		{
 			return false;
 		}
 
-		String mainPlayer = playerManager.getMainName(player == null ? null : player.trim());
+		String mainPlayer = playerManager.getMainName(player.trim());
 		if (mainPlayer == null || mainPlayer.isBlank())
 		{
 			return false;
 		}
-		if (curr.getPlayers().stream().noneMatch(p -> p.equalsIgnoreCase(mainPlayer)))
+		if (currentSession.getPlayers().stream().noneMatch(p -> p.equalsIgnoreCase(mainPlayer)))
 		{
 			return false;
 		}
 
-		curr.getKills().add(new Kill(curr.getId(), mainPlayer, amount, Instant.now()));
+		Kill newKill = new Kill(currentSession.getId(), mainPlayer, amount, Instant.now());
+		currentSession.getKills().add(newKill);
+
+		// Update mother cache incrementally
+		String motherId = currentSession.getMotherId() == null ? currentSession.getId() : currentSession.getMotherId();
+		motherKillsCache.computeIfAbsent(motherId, k -> new ArrayList<>()).add(newKill);
+
 		saveToConfig();
 		return true;
 	}
@@ -452,43 +481,39 @@ public class ManagerSession
 	 * the value may be auto-applied (when the player is currently in session), in which case this
 	 * method records a kill and does not queue. A small cap prevents unbounded growth.
 	 *
-	 * @param pv pending value payload; null is ignored
+	 * @param pendingValue pending value payload; null is ignored
 	 */
-	public void addPendingValue(PendingValue pv)
+	public void addPendingValue(@Nonnull PendingValue pendingValue)
 	{
-		if (pv == null)
+		// Normalize suggestedPlayer player to main for all downstream uses
+		String suggestedPlayer = pendingValue.getSuggestedPlayer();
+		String resolvedPlayer = playerManager.getMainName(suggestedPlayer);
+
+		pendingValue.setSuggestedPlayer(resolvedPlayer);
+
+		if (!playerManager.getKnownPlayers().contains(resolvedPlayer))
 		{
-			return;
+			playerManager.getKnownPlayers().add(resolvedPlayer);
+			saveToConfig();
 		}
-		// Normalize suggested player to main for all downstream uses
-		String suggested = pv.getSuggestedPlayer();
-		String resolved = playerManager.getMainName(suggested);
-		pv.setSuggestedPlayer(resolved);
-		// Auto-add unknown suggested MAIN to known list
-		if (resolved != null && !resolved.isBlank())
-		{
-			if (!playerManager.getKnownPlayers().contains(resolved))
-			{
-				playerManager.getKnownPlayers().add(resolved);
-				saveToConfig();
-			}
-		}
+
 		// Auto-apply if configured and player already in session
-		if (config.autoApplyWhenInSession() && hasActiveSession() && resolved != null && !resolved.isBlank())
+		if (config.autoApplyWhenInSession() && hasActiveSession())
 		{
-			Session curr = getCurrentSession().orElse(null);
-			if (curr != null && curr.getPlayers().stream().anyMatch(p -> p.equalsIgnoreCase(resolved)))
+			Session currentSession = getCurrentSession().orElse(null);
+			if (currentSession != null && currentSession.getPlayers().stream().anyMatch(p -> p.equalsIgnoreCase(resolvedPlayer)))
 			{
-				addKill(resolved, pv.getValue());
+				addKill(resolvedPlayer, pendingValue.getValue());
 				return; // do not queue
 			}
 		}
+
 		// Limit size to avoid unbounded growth
 		if (pendingValues.size() > 100)
 		{
 			pendingValues.remove(0);
 		}
-		pendingValues.add(pv);
+		pendingValues.add(pendingValue);
 	}
 
 	/**
@@ -706,6 +731,43 @@ public class ManagerSession
 		}
 		return out;
 	}
+
+
+	/**
+	 * Get all kills from all sessions that share the same mother session as the current session.
+	 * Uses a cached list per mother to avoid recomputing on every UI update.
+	 *
+	 * @return a list containing all kill records from sessions with the same mother
+	 */
+	public List<Kill> getAllKills()
+	{
+		Session curr = getCurrentSession().orElse(null);
+		if (curr == null)
+		{
+			return new ArrayList<>();
+		}
+		// Determine the mother id for this thread
+		String motherId = (curr.getMotherId() == null) ? curr.getId() : curr.getMotherId();
+		// If cached, return it
+		List<Kill> cached = motherKillsCache.get(motherId);
+		if (cached != null)
+		{
+			return Collections.unmodifiableList(cached);
+		}
+		// Build once, sort by time ascending (oldest first), and cache
+		List<Kill> built = new ArrayList<>();
+		for (Session session : sessions.values())
+		{
+			if (motherId.equals(session.getId()) || motherId.equals(session.getMotherId()))
+			{
+				built.addAll(session.getKills());
+			}
+		}
+		built.sort(Comparator.comparing(Kill::getAt, Comparator.nullsLast(Comparator.naturalOrder())));
+		motherKillsCache.put(motherId, built);
+		return built;
+	}
+
 
 	/**
 	 * Generate a random unique id for sessions.

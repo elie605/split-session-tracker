@@ -6,20 +6,22 @@ import com.splitmanager.ManagerSession;
 import com.splitmanager.PluginConfig;
 import com.splitmanager.models.Metrics;
 import com.splitmanager.models.PendingValue;
-import com.splitmanager.models.PlayerMetrics;
 import com.splitmanager.models.Session;
-import com.splitmanager.models.Transfer;
 import com.splitmanager.models.WaitlistTable;
+import com.splitmanager.utils.Formats;
 import com.splitmanager.utils.MarkdownFormatter;
-import com.splitmanager.utils.PaymentProcessor;
 import static com.splitmanager.utils.Utils.toast;
 import com.splitmanager.views.PanelView;
+import java.awt.Toolkit;
+import java.awt.datatransfer.StringSelection;
 import java.util.List;
 import javax.swing.DefaultCellEditor;
 import javax.swing.DefaultComboBoxModel;
 import javax.swing.DefaultListModel;
 import javax.swing.JComboBox;
 import javax.swing.JOptionPane;
+import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 
 //Testing push again
 
@@ -27,21 +29,24 @@ import javax.swing.JOptionPane;
  * MVC Controller: non-UI logic + event handling. The View calls into this via PanelActions.
  * Keeps string/markdown/transfer computations here and pushes UI refreshes through the View.
  */
+@Slf4j
 public class PanelController implements PanelActions
 {
 	private final ManagerSession sessionManager;
 	private final PluginConfig config;
-	private final PanelView view;
 	private final ManagerKnownPlayers playerManager;
 	private final ManagerPanel managerPanel;
+	@Setter
+	private PanelView view;
+	private Formats.OsrsAmountFormatter formats;
 
-	public PanelController(ManagerSession sessionManager, PluginConfig config, PanelView view, ManagerKnownPlayers playerManager, ManagerPanel managerPanel)
+	public PanelController(ManagerSession sessionManager, PluginConfig config, ManagerKnownPlayers playerManager, ManagerPanel managerPanel)
 	{
 		this.sessionManager = sessionManager;
 		this.playerManager = playerManager;
 		this.config = config;
-		this.view = view;
 		this.managerPanel = managerPanel;
+		this.formats = new Formats.OsrsAmountFormatter();
 	}
 
 	@Override
@@ -70,10 +75,9 @@ public class PanelController implements PanelActions
 			toast(view, "Cannot stop while history loaded.");
 			return;
 		}
-		if (sessionManager.stopSession())
+		if (sessionManager.stopSession(view))
 		{
 			managerPanel.refreshAllView();
-			toast(view, "Session stopped.");
 		}
 		else
 		{
@@ -172,8 +176,35 @@ public class PanelController implements PanelActions
 	}
 
 	@Override
+	public void addKillFromInputs()
+	{
+		String player = (String) view.getCurrentSessionPlayerDropdown().getSelectedItem();
+		long amt;
+		String val = view.getKillAmountField().getValue().toString();
+		try
+		{
+			log.debug("Adding kill for1  {} with amount {}", player, val);
+			//amt = Formats.OsrsAmountFormatter.stringAmountToLongAmount(val,config);
+			//log.debug("Adding kill for2  {} with amount {}", player, amt);
+			amt = Long.parseLong(val);
+			log.debug("Adding kill for3  {} with amount {}", player, amt);
+			// amt = Long.parseLong(val); TODO?????
+			addKill(player, amt);
+		}
+		catch (Exception ex)
+		{
+			toast(view, "Invalid amount.");
+		}
+	}
+
+	@Override
 	public void addAltToMain(String main, String alt)
 	{
+		if (sessionManager.hasActiveSession())
+		{
+			toast(view, "Cannot add/remove alts while session is active. Stop session first.");
+			return;
+		}
 		if (main == null || alt == null)
 		{
 			toast(view, "Select a player and an alt to add.");
@@ -199,7 +230,11 @@ public class PanelController implements PanelActions
 	@Override
 	public void removeSelectedAlt(String selectedMain, String selectedEntry)
 	{
-		//TODO TEST me, selectedEntry should be a alt?
+		if (sessionManager.hasActiveSession())
+		{
+			toast(view, "Cannot add/remove alts while session is active. Stop session first.");
+			return;
+		}
 		if (selectedMain == null || selectedMain.isBlank())
 		{
 			toast(view, "Select a player in Known list.");
@@ -317,49 +352,110 @@ public class PanelController implements PanelActions
 	public void refreshAllView()
 	{
 		refreshKnownPlayers();
+		recomputeMetrics();
 		refreshSessionData();
 		refreshWaitlist();
 		refreshButtonStates();
 	}
 
 	@Override
-	public void altPlayerManageAddPlayer(String player)
+	public void recomputeMetrics()
 	{
-		long amt;
-		Object val = view.getActiveKillAmountField().getValue();
-		try
+		Session current = sessionManager.getCurrentSession().orElse(null);
+		if (current != null)
 		{
-			amt = val == null ? Long.parseLong(view.getActiveKillAmountField().getText()) : ((Number) val).longValue();
-		}
-		catch (Exception ex)
-		{
-			javax.swing.JOptionPane.showMessageDialog(null, "Invalid amount.", "Error", javax.swing.JOptionPane.ERROR_MESSAGE);
-			return;
-		}
-		if (sessionManager.addKill(player, amt))
-		{
-			view.getActiveKillAmountField().setText("");
-			managerPanel.refreshAllView();
+			((Metrics) view.getMetricsTable().getModel()).setData(sessionManager.computeMetricsFor(current, true));
+			view.getRecentSplitsModel().setFromKills(sessionManager.getAllKills());
 		}
 		else
 		{
-			javax.swing.JOptionPane.showMessageDialog(null, "Failed to add split. Is player in session?", "Error", javax.swing.JOptionPane.ERROR_MESSAGE);
+			view.getRecentSplitsModel().clear();
 		}
+	}
+
+	@Override
+	public void recomputeMetricsForSession(String sessionId)
+	{
+		if (sessionId == null)
+		{
+			recomputeMetrics();
+			return;
+		}
+		// Find that session (either current or one from history)
+		Session target = sessionManager.getAllSessionsNewestFirst().stream()
+			.filter(s -> sessionId.equals(s.getId()))
+			.findFirst().orElse(null);
+		if (target != null)
+		{
+			((Metrics) view.getMetricsTable().getModel()).setData(
+				sessionManager.computeMetricsFor(target, true)
+			);
+		}
+		// Keep the recent splits list up-to-date (it shows all kills)
+		view.getRecentSplitsModel().setFromKills(sessionManager.getAllKills());
+	}
+
+	@Override
+	public void altPlayerManageAddPlayer(String player)
+	{
+		//TODO remove
 	}
 
 	@Override
 	public void altPlayerManageRemovePlayer(String player)
 	{
-		if (sessionManager.removePlayerFromSession(player))
-		{
-			managerPanel.refreshAllView();
-		}
-		else
-		{
-			javax.swing.JOptionPane.showMessageDialog(null, "Failed to remove player from session.", "Error", javax.swing.JOptionPane.ERROR_MESSAGE);
-		}
+		//TODO remove
 	}
 
+	@Override
+	public void copyMetricsJson()
+	{
+		String payload = MarkdownFormatter.buildMetricsJson(sessionManager);
+		StringSelection selection = new StringSelection(payload);
+		Toolkit.getDefaultToolkit().getSystemClipboard().setContents(selection, selection);
+	}
+
+	@Override
+	public void copyMetricsMarkdown()
+	{
+		String payload = MarkdownFormatter.buildMetricsMarkdown(
+			sessionManager.computeMetricsFor(
+				sessionManager.getCurrentSession().orElse(null), true), config);
+		StringSelection selection = new StringSelection(payload);
+		Toolkit.getDefaultToolkit().getSystemClipboard().setContents(selection, selection);
+	}
+
+	// Tutorial control implementations to keep view passive
+	@Override
+	public void tourStart()
+	{
+		view.startTour();
+	}
+
+	@Override
+	public void tourPrev()
+	{
+		view.prevTourStep();
+	}
+
+	@Override
+	public void tourNext()
+	{
+		view.nextTourStep();
+	}
+
+	@Override
+	public void tourEnd()
+	{
+		try
+		{
+			config.enableTour(false);
+		}
+		catch (Throwable ignored)
+		{
+		}
+		view.endTour();
+	}
 
 	/**
 	 * Refreshes the list of known players and updates corresponding UI components.
@@ -407,7 +503,7 @@ public class PanelController implements PanelActions
 		{
 			((Metrics) view.getMetricsTable().getModel())
 				.setData(sessionManager.computeMetricsFor(current, true));
-			view.getRecentSplitsModel().setFromKills(current.getKills());
+			view.getRecentSplitsModel().setFromKills(sessionManager.getAllKills());
 		}
 		else
 		{
@@ -444,8 +540,6 @@ public class PanelController implements PanelActions
 	 */
 	private void refreshButtonStates()
 	{
-		view.refreshActivePlayerButtons();
-
 		boolean readOnly = sessionManager.isHistoryLoaded();
 		boolean hasActiveSession = sessionManager.hasActiveSession();
 

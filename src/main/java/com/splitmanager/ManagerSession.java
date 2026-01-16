@@ -1,7 +1,6 @@
 package com.splitmanager;
 
 import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.splitmanager.models.Kill;
 import com.splitmanager.models.PendingValue;
 import com.splitmanager.models.PlayerMetrics;
@@ -54,11 +53,12 @@ public class ManagerSession
 	 * @param config backing configuration/store used to load and save state
 	 */
 	@Inject
-	public ManagerSession(PluginConfig config, ManagerKnownPlayers playerManager, ManagerPlugin pluginManager)
+	public ManagerSession(PluginConfig config, ManagerKnownPlayers playerManager, ManagerPlugin pluginManager, Gson gson)
 	{
 		this.config = config;
 		this.playerManager = playerManager;
-		this.gson = new GsonBuilder()
+		// Use injected client's Gson, customize via newBuilder per guidelines
+		this.gson = gson.newBuilder()
 			.registerTypeAdapter(Instant.class, new InstantTypeAdapter())
 			.create();
 		this.pluginManager = pluginManager;

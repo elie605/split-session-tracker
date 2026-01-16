@@ -1,7 +1,6 @@
 package com.splitmanager;
 
 import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
 import com.splitmanager.utils.InstantTypeAdapter;
 import java.lang.reflect.Type;
@@ -37,10 +36,11 @@ public class ManagerKnownPlayers
 	private Map<String, String> altMainMapping = new LinkedHashMap<>();
 
 	@Inject
-	public ManagerKnownPlayers(PluginConfig config)
+	public ManagerKnownPlayers(PluginConfig config, Gson gson)
 	{
 		this.config = config;
-		this.gson = new GsonBuilder()
+		// Use the client's injected Gson and customize via newBuilder per PluginHub guidelines
+		this.gson = gson.newBuilder()
 			.registerTypeAdapter(Instant.class, new InstantTypeAdapter())
 			.create();
 	}

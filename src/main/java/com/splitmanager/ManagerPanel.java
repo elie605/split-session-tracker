@@ -31,7 +31,6 @@ public class ManagerPanel
 	private final ManagerSession manager;
 	private final PluginConfig config;
 	private final ManagerKnownPlayers playerManager;
-	private PanelController controller;
 	@Getter
 	@Setter
 	private PanelView view;
@@ -67,15 +66,16 @@ public class ManagerPanel
 		view = new PanelView(manager, config, playerManager,controller);
 		controller.setView(view);
 
-		popOutBtn = new JButton("Pop Out");
-		popOutBtn.addActionListener(e -> togglePopOutWindow());
-		JPanel topBar = new JPanel(new FlowLayout(FlowLayout.RIGHT, 5, 5));
-		topBar.add(popOutBtn);
-		view.add(topBar, BorderLayout.NORTH,0);
+		if (config.enablePopout())
+		{
+			popOutBtn = new JButton("Pop Out");
+			popOutBtn.addActionListener(e -> togglePopOutWindow());
+			JPanel topBar = new JPanel(new FlowLayout(FlowLayout.RIGHT, 5, 5));
+			topBar.add(popOutBtn);
+			view.add(topBar, BorderLayout.NORTH,0);
+		}
 
 		controller.refreshAllView();
-		view.revalidate();
-		view.repaint();
 	}
 
 
@@ -92,15 +92,15 @@ public class ManagerPanel
 			view.repaint();
 		}
 
-		PopoutView view = new PopoutView(manager, config, playerManager);
-		PanelController ctrl = new PanelController(manager, config, view, playerManager, this);
+		PanelController ctrl = new PanelController(manager, config, playerManager, this);
+		PopoutView popoutView = new PopoutView(manager, config, playerManager, ctrl);
+		ctrl.setView(popoutView);
 
-		view.bindActions(ctrl);
 		ctrl.refreshAllView();
 
 		popoutFrame = new JFrame("Auto Split Manager");
 		popoutFrame.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
-		JScrollPane scrollPane = new JScrollPane(view);
+		JScrollPane scrollPane = new JScrollPane(popoutView);
 		scrollPane.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED);
 		scrollPane.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
 		popoutFrame.getContentPane().add(scrollPane, BorderLayout.CENTER);
@@ -119,8 +119,8 @@ public class ManagerPanel
 				if (popOutBtn != null)
 				{
 					popOutBtn.setVisible(true);
-					view.revalidate();
-					view.repaint();
+					popoutView.revalidate();
+					popoutView.repaint();
 				}
 			}
 		});

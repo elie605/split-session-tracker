@@ -180,6 +180,7 @@ public class ManagerPlugin extends Plugin
 			case "WarnNotInFC":
 				updateChatWarningStatus();
 				break;
+			case "enablePopout":
 			case "enableTour":
 				restartViewFix();
 				break;

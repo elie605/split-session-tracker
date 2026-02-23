@@ -1,21 +1,23 @@
 package com.splitmanager.models;
 
 import com.splitmanager.utils.Formats;
+import java.awt.image.BufferedImage;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
-import net.runelite.client.ui.ColorScheme;
-import net.runelite.client.util.ImageUtil;
 import javax.swing.BorderFactory;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.table.AbstractTableModel;
-import java.awt.image.BufferedImage;
+import net.runelite.client.ui.ColorScheme;
+import net.runelite.client.util.ImageUtil;
 
 public final class Metrics extends AbstractTableModel
 {
 	private final JButton removeBtn = createStyledButton("/com/splitmanager/icons/trash-solid-full.png");
 	private final JButton addBtn = createStyledButton("/com/splitmanager/icons/trash-arrow-up-solid-full.png");
+	private List<PlayerMetrics> rows = List.of();
+	private boolean hideTotalColumn = false;
 
 	private static JButton createStyledButton(String iconPath)
 	{
@@ -25,8 +27,6 @@ public final class Metrics extends AbstractTableModel
 		btn.setBorder(BorderFactory.createLineBorder(ColorScheme.DARK_GRAY_COLOR));
 		return btn;
 	}
-	private List<PlayerMetrics> rows = List.of();
-	private boolean hideTotalColumn = false;
 
 	public void setHideTotalColumn(boolean hide)
 	{

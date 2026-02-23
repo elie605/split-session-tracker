@@ -5,8 +5,6 @@ import com.splitmanager.ManagerSession;
 import com.splitmanager.controllers.PanelActions;
 import com.splitmanager.models.Metrics;
 import static com.splitmanager.utils.Utils.toast;
-import net.runelite.client.ui.ColorScheme;
-import net.runelite.client.util.ImageUtil;
 import java.awt.Component;
 import java.awt.image.BufferedImage;
 import javax.inject.Inject;
@@ -16,6 +14,8 @@ import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JTable;
+import net.runelite.client.ui.ColorScheme;
+import net.runelite.client.util.ImageUtil;
 
 /**
  * Table cell editor rendering an action button:

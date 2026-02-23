@@ -109,6 +109,8 @@ public class PanelView extends PluginPanel
 	private final Dimension lm = new Dimension(0, 140);
 	private final Dimension ll = new Dimension(0, 280);
 	private final JTable recentSplitsTable;
+	//Icons
+	private final String infoIconUniCode = "\uD83D\uDEC8";
 	private PanelActions actions;
 	// Tutorial UI
 	private JPanel tutorialPanel;
@@ -122,14 +124,10 @@ public class PanelView extends PluginPanel
 	private Timer rainbowTimer;
 	private JComponent highlighted;
 	private Border originalBorder;
-
 	// References to copy buttons so we can highlight them in the tour
 	private JButton btnCopyJson;
 	private JButton btnCopyMd;
 	private DropdownRip detectedValuesDropdown;
-
-	//Icons
-	private final String infoIconUniCode = "\uD83D\uDEC8";
 
 	public PanelView(ManagerSession sessionManager, PluginConfig config, ManagerKnownPlayers playerManager, PanelController controller)
 	{
@@ -224,7 +222,7 @@ public class PanelView extends PluginPanel
 			@Override
 			public void mouseClicked(java.awt.event.MouseEvent e)
 			{
-				if (e.getClickCount() == 2 && waitlistTable.getSelectedRow() != -1)
+				if (e.getClickCount() == 2 && e.isControlDown() && waitlistTable.getSelectedRow() != -1)
 				{
 					actions.applySelectedPendingValue(waitlistTable.getSelectedRow());
 				}
@@ -937,8 +935,52 @@ public class PanelView extends PluginPanel
 		gbc.fill = GridBagConstraints.BOTH;
 		waitlistTable.setFillsViewportHeight(true);
 		waitlistTable.setRowHeight(22);
-		waitlistTable.setToolTipText("Double-click a row to accept the pending value");
+		waitlistTable.setToolTipText("Ctrl + Double-click a row to accept the pending value");
 		waitlistTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+
+		// Align Value column to the right
+		javax.swing.table.DefaultTableCellRenderer right = new javax.swing.table.DefaultTableCellRenderer();
+		right.setHorizontalAlignment(SwingConstants.RIGHT);
+		try
+		{
+			waitlistTable.getColumnModel().getColumn(1).setCellRenderer(right);
+		}
+		catch (Exception ignored)
+		{
+		}
+
+		// Editor for Player column (use known players list)
+		DefaultCellEditor wlPlayerEditor = new DefaultCellEditor(new JComboBox<String>())
+		{
+			@Override
+			public Component getTableCellEditorComponent(JTable table, Object value, boolean isSelected, int row, int column)
+			{
+				JComboBox<String> combo = (JComboBox<String>) getComponent();
+				combo.setModel(new DefaultComboBoxModel<>(playerManager.getKnownMains().toArray(new String[0])));
+				combo.setSelectedItem(value);
+				return combo;
+			}
+		};
+		try
+		{
+			waitlistTable.getColumnModel().getColumn(2).setCellEditor(wlPlayerEditor);
+		}
+		catch (Exception ignored)
+		{
+		}
+
+		// Editor for Value column (OSRS amount)
+		JFormattedTextField wlAmtField = new JFormattedTextField(new DefaultFormatterFactory(new Formats.OsrsAmountFormatter()));
+		wlAmtField.setBorder(null);
+		DefaultCellEditor wlAmtEditor = new DefaultCellEditor(wlAmtField);
+		try
+		{
+			waitlistTable.getColumnModel().getColumn(1).setCellEditor(wlAmtEditor);
+		}
+		catch (Exception ignored)
+		{
+		}
+
 		JScrollPane sc = new JScrollPane(waitlistTable);
 		sc.setPreferredSize(lm);
 		p.add(sc, gbc);
@@ -975,7 +1017,10 @@ public class PanelView extends PluginPanel
 	{
 		JPanel content = new JPanel(new BorderLayout());
 		content.add(generateWaitlistPanel(), BorderLayout.CENTER);
-		detectedValuesDropdown = new DropdownRip("Detected values", content, config.enableTour());
+		String tooltip = "'!add' in chat queues here." +
+			" - Edit player and amount by double clicking the respective field. \n " +
+			" - Ctrl+Double-click a row/field to add.";
+		detectedValuesDropdown = new DropdownRip("Detected values", content, config.enableTour(), tooltip);
 		return detectedValuesDropdown;
 	}
 
@@ -983,7 +1028,9 @@ public class PanelView extends PluginPanel
 	{
 		JScrollPane scroller = new JScrollPane(recentSplitsTable);
 		scroller.setPreferredSize(new Dimension(0, 140));
-		return new DropdownRip("Recent splits", scroller, config.enableTour());
+		String tooltip = " Tip: You can edit 'Player'* and 'Amount' by double clicking the respective field.\n" +
+			" *Do to limitations you can only change players to the already participating players.";
+		return new DropdownRip("Recent splits", scroller, config.enableTour(), tooltip);
 	}
 
 	private JComponent generateMetrics()

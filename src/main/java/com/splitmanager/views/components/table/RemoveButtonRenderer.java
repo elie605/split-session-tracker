@@ -1,10 +1,10 @@
 package com.splitmanager.views.components.table;
 
-import net.runelite.client.ui.ColorScheme;
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JTable;
 import javax.swing.table.TableCellRenderer;
+import net.runelite.client.ui.ColorScheme;
 
 public class RemoveButtonRenderer extends JButton implements TableCellRenderer
 {

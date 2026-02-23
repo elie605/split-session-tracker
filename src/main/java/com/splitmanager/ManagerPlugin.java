@@ -6,8 +6,6 @@ import com.splitmanager.models.Session;
 import com.splitmanager.utils.ChatStatusOverlay;
 import com.splitmanager.utils.Formats;
 import com.splitmanager.views.PanelView;
-import java.awt.Color;
-import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.text.ParseException;
 import java.util.Arrays;
@@ -78,6 +76,9 @@ public class ManagerPlugin extends Plugin
 	 */
 	protected void startUp()
 	{
+		//Force diable pop out for now
+		config.enablePopout(false);
+
 		Formats.setConfig(config);
 		playerManager.init();
 		sessionManager.init();
@@ -97,8 +98,31 @@ public class ManagerPlugin extends Plugin
 		clientToolbar.addNavigation(navButton);
 	}
 
+	@Override
+	/**
+	 * Persist state and remove UI elements when the plugin shuts down.
+	 */
+	protected void shutDown()
+	{
+		if (navButton != null)
+		{
+			clientToolbar.removeNavigation(navButton);
+			navButton = null;
+		}
+		if (sessionManager != null)
+		{
+			sessionManager.saveToConfig();
+		}
 
-	private BufferedImage createIcon(){
+		if (chatOverlay != null)
+		{
+			overlayManager.remove(chatOverlay);
+			chatOverlay = null;
+		}
+	}
+
+	private BufferedImage createIcon()
+	{
 		BufferedImage scalesIcon = new BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB);
 		java.awt.Graphics2D g = scalesIcon.createGraphics();
 		g.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING, java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
@@ -168,29 +192,6 @@ public class ManagerPlugin extends Plugin
 		g.dispose();
 
 		return scalesIcon;
-	}
-
-	@Override
-	/**
-	 * Persist state and remove UI elements when the plugin shuts down.
-	 */
-	protected void shutDown()
-	{
-		if (navButton != null)
-		{
-			clientToolbar.removeNavigation(navButton);
-			navButton = null;
-		}
-		if (sessionManager != null)
-		{
-			sessionManager.saveToConfig();
-		}
-
-		if (chatOverlay != null)
-		{
-			overlayManager.remove(chatOverlay);
-			chatOverlay = null;
-		}
 	}
 
 	/**

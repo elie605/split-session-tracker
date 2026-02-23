@@ -181,7 +181,8 @@ public class PanelController implements PanelActions
 		String player = (String) view.getCurrentSessionPlayerDropdown().getSelectedItem();
 
 		Object rawValue = view.getKillAmountField().getValue();
-		if (rawValue == null) {
+		if (rawValue == null)
+		{
 			toast(view, "Please enter a valid amount.");
 			return;
 		}

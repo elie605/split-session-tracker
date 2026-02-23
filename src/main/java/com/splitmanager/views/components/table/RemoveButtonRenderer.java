@@ -1,20 +1,27 @@
 package com.splitmanager.views.components.table;
 
+import net.runelite.client.ui.ColorScheme;
+import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JTable;
 import javax.swing.table.TableCellRenderer;
 
 public class RemoveButtonRenderer extends JButton implements TableCellRenderer
 {
-	RemoveButtonRenderer()
+	public RemoveButtonRenderer()
 	{
 		setOpaque(true);
+		setBorder(BorderFactory.createLineBorder(ColorScheme.DARK_GRAY_COLOR));
+		setRolloverEnabled(true);
 	}
 
 	@Override
 	public java.awt.Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column)
 	{
-		setText("X");
+		if (value instanceof java.awt.Component)
+		{
+			return (java.awt.Component) value;
+		}
 		return this;
 	}
 }

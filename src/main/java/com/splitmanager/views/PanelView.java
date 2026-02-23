@@ -18,6 +18,7 @@ import com.splitmanager.utils.MarkdownFormatter;
 import com.splitmanager.utils.PaymentProcessor;
 import com.splitmanager.views.components.DropdownRip;
 import com.splitmanager.views.components.table.RemoveButtonEditor;
+import com.splitmanager.views.components.table.RemoveButtonRenderer;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
@@ -1116,6 +1117,8 @@ public class PanelView extends PluginPanel
 		try
 		{
 			int actionIdx = metricsTable.getColumnModel().getColumnIndex("X");
+			metricsTable.getColumnModel().getColumn(actionIdx)
+				.setCellRenderer(new RemoveButtonRenderer());
 			metricsTable.getColumnModel().getColumn(actionIdx)
 				.setCellEditor(new RemoveButtonEditor(this, sessionManager, metricsTable, actions));
 		}

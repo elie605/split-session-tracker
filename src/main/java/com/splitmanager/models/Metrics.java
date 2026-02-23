@@ -4,10 +4,27 @@ import com.splitmanager.utils.Formats;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
+import net.runelite.client.ui.ColorScheme;
+import net.runelite.client.util.ImageUtil;
+import javax.swing.BorderFactory;
+import javax.swing.ImageIcon;
+import javax.swing.JButton;
 import javax.swing.table.AbstractTableModel;
+import java.awt.image.BufferedImage;
 
 public final class Metrics extends AbstractTableModel
 {
+	private final JButton removeBtn = createStyledButton("/com/splitmanager/icons/trash-solid-full.png");
+	private final JButton addBtn = createStyledButton("/com/splitmanager/icons/trash-arrow-up-solid-full.png");
+
+	private static JButton createStyledButton(String iconPath)
+	{
+		BufferedImage img = ImageUtil.loadImageResource(Metrics.class, iconPath);
+		BufferedImage scaledImg = ImageUtil.resizeImage(img, 16, 16);
+		JButton btn = new JButton(new ImageIcon(scaledImg));
+		btn.setBorder(BorderFactory.createLineBorder(ColorScheme.DARK_GRAY_COLOR));
+		return btn;
+	}
 	private List<PlayerMetrics> rows = List.of();
 	private boolean hideTotalColumn = false;
 
@@ -71,8 +88,7 @@ public final class Metrics extends AbstractTableModel
 				case 2:
 					return Formats.OsrsAmountFormatter.toSuffixString(r.split, 'k');
 				case 3:
-					// Show X for active players, sleeping emoji for non-active
-					return r.activePlayer ? "X" : "💤";
+					return r.activePlayer ? removeBtn : addBtn;
 				default:
 					return "";
 			}
@@ -86,7 +102,7 @@ public final class Metrics extends AbstractTableModel
 				case 1:
 					return Formats.OsrsAmountFormatter.toSuffixString(r.split, 'k');
 				case 2:
-					return r.activePlayer ? "X" : "💤";
+					return r.activePlayer ? removeBtn : addBtn;
 				default:
 					return "";
 			}
@@ -138,9 +154,8 @@ public final class Metrics extends AbstractTableModel
 	@Override
 	public boolean isCellEditable(int rowIndex, int columnIndex)
 	{
-		// Only the action column is potentially editable, and only for active players
 		int actionCol = hideTotalColumn ? 2 : 3;
-		return columnIndex == actionCol && isRowActive(rowIndex);
+		return columnIndex == actionCol;
 	}
 
 	// Accessor for renderers: raw split value for row

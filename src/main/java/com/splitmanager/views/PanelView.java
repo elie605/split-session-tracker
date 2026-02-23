@@ -127,6 +127,9 @@ public class PanelView extends PluginPanel
 	private JButton btnCopyMd;
 	private DropdownRip detectedValuesDropdown;
 
+	//Icons
+	private final String infoIconUniCode = "\uD83D\uDEC8";
+
 	public PanelView(ManagerSession sessionManager, PluginConfig config, ManagerKnownPlayers playerManager, PanelController controller)
 	{
 		this.sessionManager = sessionManager;
@@ -676,7 +679,14 @@ public class PanelView extends PluginPanel
 
 		String[] Players = sessionManager.getNonActivePlayers().toArray(new String[0]);
 		notInCurrentSessionPlayerDropdown.setModel(new DefaultComboBoxModel<>(Players));
-		rosterPanel.add(notInCurrentSessionPlayerDropdown, gbc);
+		// Add dropdown with info (i) icon and tooltip about right-clicking names in chat/clan
+		JPanel addToSessionRow = new JPanel(new BorderLayout(6, 0));
+		addToSessionRow.add(notInCurrentSessionPlayerDropdown, BorderLayout.CENTER);
+		JLabel addToSessionInfo = new JLabel(infoIconUniCode); // info symbol
+		addToSessionInfo.setToolTipText("Tip: You can also right-click a player's name in Chat or Clan Chat to add/remove them to the session.");
+		addToSessionInfo.setForeground(Color.GRAY);
+		addToSessionRow.add(addToSessionInfo, BorderLayout.EAST);
+		rosterPanel.add(addToSessionRow, gbc);
 
 		gbc.gridx = 0;
 		gbc.gridy = 0;
@@ -687,19 +697,9 @@ public class PanelView extends PluginPanel
 		apLabel.setHorizontalAlignment(SwingConstants.RIGHT);
 		rosterPanel.add(apLabel, gbc);
 
-/*        gbc.gridx = 0;
-        gbc.gridy = 1;
-        gbc.gridwidth = 2;
-        gbc.weightx = 1.0;
-        gbc.anchor = GridBagConstraints.CENTER;
-
-        JLabel help = new JLabel("Remove via the 'X' in the table.");
-        help.setHorizontalAlignment(SwingConstants.CENTER);
-        rosterPanel.add(help, gbc);*/
-
-
 		gbc.gridx = 1;
-		gbc.gridy = 1;
+		gbc.gridy = 2;
+		gbc.gridwidth = 1;
 		gbc.weightx = 1.0;
 		gbc.anchor = GridBagConstraints.EAST;
 		gbc.fill = GridBagConstraints.NONE;
@@ -735,8 +735,7 @@ public class PanelView extends PluginPanel
 		PlayersPanel.add(title, gbc);
 		row++;
 
-		JLabel nameLabel = new JLabel("Name:");
-		nameLabel.setPreferredSize(dl);
+		JLabel nameLabel = new JLabel("Name (Case sensitive):");
 		nameLabel.setHorizontalAlignment(SwingConstants.RIGHT);
 
 		gbc.gridwidth = 1;
@@ -746,13 +745,22 @@ public class PanelView extends PluginPanel
 		gbc.fill = GridBagConstraints.NONE;
 		gbc.anchor = GridBagConstraints.EAST;
 		PlayersPanel.add(nameLabel, gbc);
+		row++;
 
-		gbc.gridx = 1;
+		gbc.gridx = 0;
 		gbc.gridy = row;
 		gbc.weightx = 1.0;
+		gbc.gridwidth = 2;
 		gbc.fill = GridBagConstraints.HORIZONTAL;
 		gbc.anchor = GridBagConstraints.WEST;
-		PlayersPanel.add(newPlayerField, gbc);
+		newPlayerField.setToolTipText("Note: OSRS player names are case-sensitive. Add with exact casing.");
+		JPanel addKnownPlayerRow = new JPanel(new BorderLayout(6, 0));
+		addKnownPlayerRow.add(newPlayerField, BorderLayout.CENTER);
+		JLabel addKnownPlayerInfo = new JLabel(infoIconUniCode); // info symbol
+		addKnownPlayerInfo.setToolTipText("Tip: You can also right-click a player's name in Chat or Clan Chat to add/remove them to Known Players.");
+		addKnownPlayerInfo.setForeground(Color.GRAY);
+		addKnownPlayerRow.add(addKnownPlayerInfo, BorderLayout.EAST);
+		PlayersPanel.add(addKnownPlayerRow, gbc);
 		row++;
 
 		gbc.gridx = 0;
@@ -772,7 +780,9 @@ public class PanelView extends PluginPanel
 		gbc.weightx = 1.0;
 		gbc.fill = GridBagConstraints.HORIZONTAL;
 		gbc.anchor = GridBagConstraints.CENTER;
-		PlayersPanel.add(new JSeparator(SwingConstants.HORIZONTAL), gbc);
+		JSeparator sep0 = new JSeparator(SwingConstants.HORIZONTAL);
+		sep0.setMinimumSize(new Dimension(0, 5));
+		PlayersPanel.add(sep0, gbc);
 		row++;
 
 		JLabel alterLbl = new JLabel("Alter player info:");
@@ -812,7 +822,9 @@ public class PanelView extends PluginPanel
 		gbc.weightx = 1.0;
 		gbc.fill = GridBagConstraints.HORIZONTAL;
 		gbc.anchor = GridBagConstraints.CENTER;
-		PlayersPanel.add(new JSeparator(SwingConstants.HORIZONTAL), gbc);
+		JSeparator sep1 = new JSeparator(SwingConstants.HORIZONTAL);
+		sep1.setMinimumSize(new Dimension(0, 5));
+		PlayersPanel.add(sep1, gbc);
 		row++;
 
 		altsLabel.setHorizontalAlignment(SwingConstants.LEFT);

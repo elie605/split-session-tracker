@@ -41,6 +41,7 @@ public interface PluginConfig extends Config
 	@ConfigItem(
 		keyName = "enablePopout",
 		name = "Enable popout",
+		hidden = true,
 		description = "Show a popout button that enables the user to pop the plugin out into its own window."
 	)
 	default boolean enablePopout()

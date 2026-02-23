@@ -721,8 +721,8 @@ public class ManagerSession
 			Long total = totals.getOrDefault(p, 0L);
 			Long split = splits.getOrDefault(p, 0L);
 
-			// Skip players with total = 0
-			if (total == 0.0 && split == 0.0)
+			// Skip players with total = 0, unless they are active now
+			if (!isActiveNow && total == 0.0 && split == 0.0)
 			{
 				continue;
 			}

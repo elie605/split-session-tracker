@@ -219,6 +219,17 @@ public class PanelView extends PluginPanel
 
 		btnWaitlistAdd.addActionListener(e -> actions.applySelectedPendingValue(waitlistTable.getSelectedRow()));
 		btnWaitlistDelete.addActionListener(e -> actions.deleteSelectedPendingValue(waitlistTable.getSelectedRow()));
+		waitlistTable.addMouseListener(new java.awt.event.MouseAdapter()
+		{
+			@Override
+			public void mouseClicked(java.awt.event.MouseEvent e)
+			{
+				if (e.getClickCount() == 2 && waitlistTable.getSelectedRow() != -1)
+				{
+					actions.applySelectedPendingValue(waitlistTable.getSelectedRow());
+				}
+			}
+		});
 	}
 
 	private JFormattedTextField makeOsrsField()
@@ -926,6 +937,7 @@ public class PanelView extends PluginPanel
 		gbc.fill = GridBagConstraints.BOTH;
 		waitlistTable.setFillsViewportHeight(true);
 		waitlistTable.setRowHeight(22);
+		waitlistTable.setToolTipText("Double-click a row to accept the pending value");
 		waitlistTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 		JScrollPane sc = new JScrollPane(waitlistTable);
 		sc.setPreferredSize(lm);

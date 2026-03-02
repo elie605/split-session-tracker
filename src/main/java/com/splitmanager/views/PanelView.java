@@ -222,9 +222,16 @@ public class PanelView extends PluginPanel
 			@Override
 			public void mouseClicked(java.awt.event.MouseEvent e)
 			{
-				if (e.getClickCount() == 2 && e.isControlDown() && waitlistTable.getSelectedRow() != -1)
+				if (e.getClickCount() == 2 && waitlistTable.getSelectedRow() != -1)
 				{
-					actions.applySelectedPendingValue(waitlistTable.getSelectedRow());
+					if (e.isControlDown() && e.isShiftDown())
+					{
+						actions.deleteSelectedPendingValue(waitlistTable.getSelectedRow());
+					}
+					else if (e.isControlDown())
+					{
+						actions.applySelectedPendingValue(waitlistTable.getSelectedRow());
+					}
 				}
 			}
 		});
@@ -1017,9 +1024,10 @@ public class PanelView extends PluginPanel
 	{
 		JPanel content = new JPanel(new BorderLayout());
 		content.add(generateWaitlistPanel(), BorderLayout.CENTER);
-		String tooltip = "'!add' in chat queues here." +
-			" - Edit player and amount by double clicking the respective field. \n " +
-			" - Ctrl+Double-click a row/field to add.";
+		String tooltip = "'!add' in chat queues here. \n" +
+			" - Edit player and amount by double clicking the respective field. \n" +
+			" - Ctrl+Double-click a row/field to add. \n" +
+			" - Ctrl+Shift+Double-click a row/field to remove.";
 		detectedValuesDropdown = new DropdownRip("Detected values", content, config.enableTour(), tooltip);
 		return detectedValuesDropdown;
 	}

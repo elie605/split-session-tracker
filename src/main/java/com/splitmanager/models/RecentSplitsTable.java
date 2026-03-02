@@ -48,6 +48,15 @@ public final class RecentSplitsTable extends javax.swing.table.AbstractTableMode
 			case 1:
 				return e.kill.getPlayer();
 			case 2:
+				String t = e.kill.getType();
+				if ("JOINED".equalsIgnoreCase(t))
+				{
+					return "Joined";
+				}
+				if ("LEFT".equalsIgnoreCase(t))
+				{
+					return "Left";
+				}
 				return Formats.OsrsAmountFormatter.toSuffixString(e.kill.getAmount(), 'k');
 			default:
 				return "";
@@ -69,6 +78,15 @@ public final class RecentSplitsTable extends javax.swing.table.AbstractTableMode
 	@Override
 	public boolean isCellEditable(int rowIndex, int columnIndex)
 	{
+		// Disable editing for JOINED/LEFT rows
+		if (rowIndex >= 0 && rowIndex < rows.size())
+		{
+			String t = rows.get(rowIndex).kill.getType();
+			if (t != null && (t.equalsIgnoreCase("JOINED") || t.equalsIgnoreCase("LEFT")))
+			{
+				return false;
+			}
+		}
 		return columnIndex == 1 || columnIndex == 2; // player, amount
 	}
 

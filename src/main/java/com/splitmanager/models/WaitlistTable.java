@@ -1,10 +1,15 @@
 package com.splitmanager.models;
 
+import com.splitmanager.PluginConfig;
+import com.splitmanager.utils.Formats;
 import static com.splitmanager.utils.Formats.OsrsAmountFormatter.toSuffixString;
+import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.List;
 import javax.swing.table.AbstractTableModel;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public class WaitlistTable extends AbstractTableModel
 {
 	private final String[] cols = {"Type", "Value", "Player"};
@@ -74,7 +79,7 @@ public class WaitlistTable extends AbstractTableModel
 			case 2:
 				return String.class;
 			case 1:
-				return String.class; // formatted K string
+				return String.class; // formatted K/M/B string
 		}
 		return Object.class;
 	}
@@ -82,17 +87,34 @@ public class WaitlistTable extends AbstractTableModel
 	@Override
 	public boolean isCellEditable(int rowIndex, int columnIndex)
 	{
-		return columnIndex == 2;
+		// Allow editing Player and Value columns
+		return columnIndex == 1 || columnIndex == 2;
 	}
 
 	@Override
 	public void setValueAt(Object aValue, int rowIndex, int columnIndex)
 	{
-		if (columnIndex != 2)
+		PendingValue pv = rows.get(rowIndex);
+		if (columnIndex == 2)
 		{
+			pv.setSuggestedPlayer(aValue == null ? null : aValue.toString());
+			fireTableCellUpdated(rowIndex, columnIndex);
 			return;
 		}
-		PendingValue pv = rows.get(rowIndex);
-		pv.setSuggestedPlayer(aValue == null ? null : aValue.toString());
+		if (columnIndex == 1)
+		{
+			String txt = aValue == null ? "" : aValue.toString();
+			try
+			{
+				// Parse using default config multiplier if needed; null config will default inside formatter
+				long parsed = Formats.OsrsAmountFormatter.stringAmountToLongAmount(txt, (PluginConfig) null);
+				pv.setValue(parsed);
+				fireTableCellUpdated(rowIndex, columnIndex);
+			}
+			catch (ParseException e)
+			{
+				log.warn("Failed to parse amount '{}' for pending value row {}", txt, rowIndex, e);
+			}
+		}
 	}
 }

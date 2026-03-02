@@ -18,6 +18,7 @@ import com.splitmanager.utils.MarkdownFormatter;
 import com.splitmanager.utils.PaymentProcessor;
 import com.splitmanager.views.components.DropdownRip;
 import com.splitmanager.views.components.table.RemoveButtonEditor;
+import com.splitmanager.views.components.table.RemoveButtonRenderer;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
@@ -53,6 +54,7 @@ import javax.swing.ListSelectionModel;
 import javax.swing.SwingConstants;
 import javax.swing.Timer;
 import javax.swing.border.Border;
+import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.text.DefaultFormatterFactory;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -108,6 +110,9 @@ public class PanelView extends PluginPanel
 	private final Dimension lm = new Dimension(0, 140);
 	private final Dimension ll = new Dimension(0, 280);
 	private final JTable recentSplitsTable;
+	//Icons
+	private final String infoIconUniCode = "\uD83D\uDEC8";
+	private final JPanel metricsContentWrapper = new JPanel(new BorderLayout());
 	private PanelActions actions;
 	// Tutorial UI
 	private JPanel tutorialPanel;
@@ -121,7 +126,6 @@ public class PanelView extends PluginPanel
 	private Timer rainbowTimer;
 	private JComponent highlighted;
 	private Border originalBorder;
-
 	// References to copy buttons so we can highlight them in the tour
 	private JButton btnCopyJson;
 	private JButton btnCopyMd;
@@ -215,6 +219,24 @@ public class PanelView extends PluginPanel
 
 		btnWaitlistAdd.addActionListener(e -> actions.applySelectedPendingValue(waitlistTable.getSelectedRow()));
 		btnWaitlistDelete.addActionListener(e -> actions.deleteSelectedPendingValue(waitlistTable.getSelectedRow()));
+		waitlistTable.addMouseListener(new java.awt.event.MouseAdapter()
+		{
+			@Override
+			public void mouseClicked(java.awt.event.MouseEvent e)
+			{
+				if (e.getClickCount() == 2 && waitlistTable.getSelectedRow() != -1)
+				{
+					if (e.isControlDown() && e.isShiftDown())
+					{
+						actions.deleteSelectedPendingValue(waitlistTable.getSelectedRow());
+					}
+					else if (e.isControlDown())
+					{
+						actions.applySelectedPendingValue(waitlistTable.getSelectedRow());
+					}
+				}
+			}
+		});
 	}
 
 	private JFormattedTextField makeOsrsField()
@@ -676,7 +698,14 @@ public class PanelView extends PluginPanel
 
 		String[] Players = sessionManager.getNonActivePlayers().toArray(new String[0]);
 		notInCurrentSessionPlayerDropdown.setModel(new DefaultComboBoxModel<>(Players));
-		rosterPanel.add(notInCurrentSessionPlayerDropdown, gbc);
+		// Add dropdown with info (i) icon and tooltip about right-clicking names in chat/clan
+		JPanel addToSessionRow = new JPanel(new BorderLayout(6, 0));
+		addToSessionRow.add(notInCurrentSessionPlayerDropdown, BorderLayout.CENTER);
+		JLabel addToSessionInfo = new JLabel(infoIconUniCode); // info symbol
+		addToSessionInfo.setToolTipText("Tip: You can also right-click a player's name in Chat or Clan Chat to add/remove them to the session.");
+		addToSessionInfo.setForeground(Color.GRAY);
+		addToSessionRow.add(addToSessionInfo, BorderLayout.EAST);
+		rosterPanel.add(addToSessionRow, gbc);
 
 		gbc.gridx = 0;
 		gbc.gridy = 0;
@@ -687,19 +716,9 @@ public class PanelView extends PluginPanel
 		apLabel.setHorizontalAlignment(SwingConstants.RIGHT);
 		rosterPanel.add(apLabel, gbc);
 
-/*        gbc.gridx = 0;
-        gbc.gridy = 1;
-        gbc.gridwidth = 2;
-        gbc.weightx = 1.0;
-        gbc.anchor = GridBagConstraints.CENTER;
-
-        JLabel help = new JLabel("Remove via the 'X' in the table.");
-        help.setHorizontalAlignment(SwingConstants.CENTER);
-        rosterPanel.add(help, gbc);*/
-
-
 		gbc.gridx = 1;
-		gbc.gridy = 1;
+		gbc.gridy = 2;
+		gbc.gridwidth = 1;
 		gbc.weightx = 1.0;
 		gbc.anchor = GridBagConstraints.EAST;
 		gbc.fill = GridBagConstraints.NONE;
@@ -735,8 +754,7 @@ public class PanelView extends PluginPanel
 		PlayersPanel.add(title, gbc);
 		row++;
 
-		JLabel nameLabel = new JLabel("Name:");
-		nameLabel.setPreferredSize(dl);
+		JLabel nameLabel = new JLabel("Name (Case sensitive):");
 		nameLabel.setHorizontalAlignment(SwingConstants.RIGHT);
 
 		gbc.gridwidth = 1;
@@ -746,13 +764,22 @@ public class PanelView extends PluginPanel
 		gbc.fill = GridBagConstraints.NONE;
 		gbc.anchor = GridBagConstraints.EAST;
 		PlayersPanel.add(nameLabel, gbc);
+		row++;
 
-		gbc.gridx = 1;
+		gbc.gridx = 0;
 		gbc.gridy = row;
 		gbc.weightx = 1.0;
+		gbc.gridwidth = 2;
 		gbc.fill = GridBagConstraints.HORIZONTAL;
 		gbc.anchor = GridBagConstraints.WEST;
-		PlayersPanel.add(newPlayerField, gbc);
+		newPlayerField.setToolTipText("Note: OSRS player names are case-sensitive. Add with exact casing.");
+		JPanel addKnownPlayerRow = new JPanel(new BorderLayout(6, 0));
+		addKnownPlayerRow.add(newPlayerField, BorderLayout.CENTER);
+		JLabel addKnownPlayerInfo = new JLabel(infoIconUniCode); // info symbol
+		addKnownPlayerInfo.setToolTipText("Tip: You can also right-click a player's name in Chat or Clan Chat to add/remove them to Known Players.");
+		addKnownPlayerInfo.setForeground(Color.GRAY);
+		addKnownPlayerRow.add(addKnownPlayerInfo, BorderLayout.EAST);
+		PlayersPanel.add(addKnownPlayerRow, gbc);
 		row++;
 
 		gbc.gridx = 0;
@@ -772,7 +799,9 @@ public class PanelView extends PluginPanel
 		gbc.weightx = 1.0;
 		gbc.fill = GridBagConstraints.HORIZONTAL;
 		gbc.anchor = GridBagConstraints.CENTER;
-		PlayersPanel.add(new JSeparator(SwingConstants.HORIZONTAL), gbc);
+		JSeparator sep0 = new JSeparator(SwingConstants.HORIZONTAL);
+		sep0.setMinimumSize(new Dimension(0, 5));
+		PlayersPanel.add(sep0, gbc);
 		row++;
 
 		JLabel alterLbl = new JLabel("Alter player info:");
@@ -812,7 +841,9 @@ public class PanelView extends PluginPanel
 		gbc.weightx = 1.0;
 		gbc.fill = GridBagConstraints.HORIZONTAL;
 		gbc.anchor = GridBagConstraints.CENTER;
-		PlayersPanel.add(new JSeparator(SwingConstants.HORIZONTAL), gbc);
+		JSeparator sep1 = new JSeparator(SwingConstants.HORIZONTAL);
+		sep1.setMinimumSize(new Dimension(0, 5));
+		PlayersPanel.add(sep1, gbc);
 		row++;
 
 		altsLabel.setHorizontalAlignment(SwingConstants.LEFT);
@@ -913,7 +944,52 @@ public class PanelView extends PluginPanel
 		gbc.fill = GridBagConstraints.BOTH;
 		waitlistTable.setFillsViewportHeight(true);
 		waitlistTable.setRowHeight(22);
+		waitlistTable.setToolTipText("Ctrl + Double-click a row to accept the pending value");
 		waitlistTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+
+		// Align Value column to the right
+		javax.swing.table.DefaultTableCellRenderer right = new javax.swing.table.DefaultTableCellRenderer();
+		right.setHorizontalAlignment(SwingConstants.RIGHT);
+		try
+		{
+			waitlistTable.getColumnModel().getColumn(1).setCellRenderer(right);
+		}
+		catch (Exception ignored)
+		{
+		}
+
+		// Editor for Player column (use known players list)
+		DefaultCellEditor wlPlayerEditor = new DefaultCellEditor(new JComboBox<String>())
+		{
+			@Override
+			public Component getTableCellEditorComponent(JTable table, Object value, boolean isSelected, int row, int column)
+			{
+				JComboBox<String> combo = (JComboBox<String>) getComponent();
+				combo.setModel(new DefaultComboBoxModel<>(playerManager.getKnownMains().toArray(new String[0])));
+				combo.setSelectedItem(value);
+				return combo;
+			}
+		};
+		try
+		{
+			waitlistTable.getColumnModel().getColumn(2).setCellEditor(wlPlayerEditor);
+		}
+		catch (Exception ignored)
+		{
+		}
+
+		// Editor for Value column (OSRS amount)
+		JFormattedTextField wlAmtField = new JFormattedTextField(new DefaultFormatterFactory(new Formats.OsrsAmountFormatter()));
+		wlAmtField.setBorder(null);
+		DefaultCellEditor wlAmtEditor = new DefaultCellEditor(wlAmtField);
+		try
+		{
+			waitlistTable.getColumnModel().getColumn(1).setCellEditor(wlAmtEditor);
+		}
+		catch (Exception ignored)
+		{
+		}
+
 		JScrollPane sc = new JScrollPane(waitlistTable);
 		sc.setPreferredSize(lm);
 		p.add(sc, gbc);
@@ -950,7 +1026,11 @@ public class PanelView extends PluginPanel
 	{
 		JPanel content = new JPanel(new BorderLayout());
 		content.add(generateWaitlistPanel(), BorderLayout.CENTER);
-		detectedValuesDropdown = new DropdownRip("Detected values", content, config.enableTour());
+		String tooltip = "'!add' in chat queues here. \n" +
+			" - Edit player and amount by double clicking the respective field. \n" +
+			" - Ctrl+Double-click a row/field to add. \n" +
+			" - Ctrl+Shift+Double-click a row/field to remove.";
+		detectedValuesDropdown = new DropdownRip("Detected values", content, config.enableTour(), tooltip);
 		return detectedValuesDropdown;
 	}
 
@@ -958,12 +1038,49 @@ public class PanelView extends PluginPanel
 	{
 		JScrollPane scroller = new JScrollPane(recentSplitsTable);
 		scroller.setPreferredSize(new Dimension(0, 140));
-		return new DropdownRip("Recent splits", scroller, config.enableTour());
+		String tooltip = " Tip: You can edit 'Player'* and 'Amount' by double clicking the respective field.\n" +
+			" *Do to limitations you can only change players to the already participating players.";
+		return new DropdownRip("Recent splits", scroller, config.enableTour(), tooltip);
 	}
 
 	private JComponent generateMetrics()
 	{
 		JPanel wrapper = new JPanel(new BorderLayout(0, 6));
+		wrapper.add(generateMetricsHeader(), BorderLayout.NORTH);
+
+		configureMetricsTable();
+		refreshMetricsContent();
+
+		wrapper.add(metricsContentWrapper, BorderLayout.CENTER);
+
+		JPanel btns = new JPanel(new GridLayout(1, 2, 6, 0));
+		btns.add(btnCopyJson);
+		btns.add(btnCopyMd);
+		wrapper.add(btns, BorderLayout.SOUTH);
+
+		return new DropdownRip("Settlement information", wrapper);
+	}
+
+	private void refreshMetricsContent()
+	{
+		metricsContentWrapper.removeAll();
+
+		JComponent centerContent = config.directPayments()
+			? generateDirectPaymentsContent()
+			: new JScrollPane(metricsTable);
+
+		if (centerContent instanceof JScrollPane)
+		{
+			centerContent.setPreferredSize(ll);
+		}
+
+		metricsContentWrapper.add(centerContent, BorderLayout.CENTER);
+		metricsContentWrapper.revalidate();
+		metricsContentWrapper.repaint();
+	}
+
+	private JPanel generateMetricsHeader()
+	{
 		JLabel title = new JLabel("Settlement");
 		title.setFont(title.getFont().deriveFont(Font.BOLD));
 
@@ -1005,8 +1122,11 @@ public class PanelView extends PluginPanel
 			}
 		});
 
-		wrapper.add(header, BorderLayout.NORTH);
+		return header;
+	}
 
+	private void configureMetricsTable()
+	{
 		metricsTable.setFillsViewportHeight(true);
 		metricsTable.setAutoResizeMode(JTable.AUTO_RESIZE_ALL_COLUMNS);
 
@@ -1033,7 +1153,7 @@ public class PanelView extends PluginPanel
 			metricsTable.getColumnModel().getColumn(actionColViewIndex).setPreferredWidth(40);
 		}
 
-		javax.swing.table.DefaultTableCellRenderer greyingRenderer = new javax.swing.table.DefaultTableCellRenderer()
+		DefaultTableCellRenderer greyingRenderer = new DefaultTableCellRenderer()
 		{
 			@Override
 			public java.awt.Component getTableCellRendererComponent(JTable table, Object value,
@@ -1067,7 +1187,7 @@ public class PanelView extends PluginPanel
 		{
 		}
 
-		javax.swing.table.DefaultTableCellRenderer splitRenderer = new javax.swing.table.DefaultTableCellRenderer()
+		DefaultTableCellRenderer splitRenderer = new DefaultTableCellRenderer()
 		{
 			@Override
 			public java.awt.Component getTableCellRendererComponent(JTable table, Object value,
@@ -1105,78 +1225,59 @@ public class PanelView extends PluginPanel
 		{
 			int actionIdx = metricsTable.getColumnModel().getColumnIndex("X");
 			metricsTable.getColumnModel().getColumn(actionIdx)
+				.setCellRenderer(new RemoveButtonRenderer());
+			metricsTable.getColumnModel().getColumn(actionIdx)
 				.setCellEditor(new RemoveButtonEditor(this, sessionManager, metricsTable, actions));
 		}
 		catch (IllegalArgumentException ignored)
 		{
 		}
-
-		JComponent centerContent;
-		if (direct)
-		{
-			Session currentSession = sessionManager.getCurrentSession().orElse(null);
-			List<PlayerMetrics> data = sessionManager.computeMetricsFor(currentSession, true);
-			List<Transfer> transfers = PaymentProcessor.computeDirectPaymentsStructured(data);
-
-			if (transfers != null && !transfers.isEmpty())
-			{
-				javax.swing.table.DefaultTableModel txModel =
-					new javax.swing.table.DefaultTableModel(new Object[]{"Suggested direct payments"}, 0)
-					{
-						@Override
-						public boolean isCellEditable(int r, int c)
-						{
-							return false;
-						}
-					};
-
-				for (Transfer t : transfers)
-				{
-					String payerShort = shortenName(t.getFrom(), 7);
-					String payeeShort = shortenName(t.getTo(), 7);
-					String amountStr = toSuffixString(Math.abs(t.getAmount()), config.defaultValueMultiplier().getValue());
-					String display = payerShort + " -> " + payeeShort + ": " + amountStr;
-					txModel.addRow(new Object[]{display});
-				}
-
-				JTable txTable = new JTable(txModel);
-				txTable.setFillsViewportHeight(true);
-				txTable.setAutoResizeMode(JTable.AUTO_RESIZE_ALL_COLUMNS);
-				txTable.setRowSelectionAllowed(false);
-				txTable.setShowGrid(false);
-
-				JScrollPane txScroll = new JScrollPane(txTable);
-				txScroll.setPreferredSize(ll);
-				centerContent = txScroll;
-			}
-			else
-			{
-				JScrollPane tableScroll = new JScrollPane(metricsTable);
-				tableScroll.setPreferredSize(ll);
-				centerContent = tableScroll;
-			}
-		}
-		else
-		{
-			JScrollPane tableScroll = new JScrollPane(metricsTable);
-			tableScroll.setPreferredSize(ll);
-			centerContent = tableScroll;
-		}
-
-		wrapper.add(centerContent, BorderLayout.CENTER);
-
-		JPanel btns = new JPanel(new GridLayout(1, 2, 6, 0));
-		btns.add(btnCopyJson);
-		btns.add(btnCopyMd);
-		wrapper.add(btns, BorderLayout.SOUTH);
-
-		return new DropdownRip("Settlement information", wrapper);
 	}
 
-	private void refreshMetrics()
+	private JComponent generateDirectPaymentsContent()
+	{
+		Session currentSession = sessionManager.getCurrentSession().orElse(null);
+		List<PlayerMetrics> data = sessionManager.computeMetricsFor(currentSession, true);
+		List<Transfer> transfers = PaymentProcessor.computeDirectPaymentsStructured(data);
+
+		if (transfers != null && !transfers.isEmpty())
+		{
+			javax.swing.table.DefaultTableModel txModel =
+				new javax.swing.table.DefaultTableModel(new Object[]{"Suggested direct payments"}, 0)
+				{
+					@Override
+					public boolean isCellEditable(int r, int c)
+					{
+						return false;
+					}
+				};
+
+			for (Transfer t : transfers)
+			{
+				String payerShort = shortenName(t.getFrom(), 7);
+				String payeeShort = shortenName(t.getTo(), 7);
+				String amountStr = toSuffixString(Math.abs(t.getAmount()), config.defaultValueMultiplier().getValue());
+				String display = payerShort + " -> " + payeeShort + ": " + amountStr;
+				txModel.addRow(new Object[]{display});
+			}
+
+			JTable txTable = new JTable(txModel);
+			txTable.setFillsViewportHeight(true);
+			txTable.setAutoResizeMode(JTable.AUTO_RESIZE_ALL_COLUMNS);
+			txTable.setRowSelectionAllowed(false);
+			txTable.setShowGrid(false);
+
+			return new JScrollPane(txTable);
+		}
+
+		return new JScrollPane(metricsTable);
+	}
+
+	public void refreshMetrics()
 	{
 		Session currentSession = sessionManager.getCurrentSession().orElse(null);
 		((Metrics) metricsTable.getModel()).setData(sessionManager.computeMetricsFor(currentSession, true));
+		refreshMetricsContent();
 	}
 
 	private void copyMetricsJsonToClipboard()

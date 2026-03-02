@@ -6,8 +6,6 @@ import com.splitmanager.models.Session;
 import com.splitmanager.utils.ChatStatusOverlay;
 import com.splitmanager.utils.Formats;
 import com.splitmanager.views.PanelView;
-import java.awt.Color;
-import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.text.ParseException;
 import java.util.Arrays;
@@ -35,6 +33,7 @@ import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.ui.ClientToolbar;
 import net.runelite.client.ui.NavigationButton;
 import net.runelite.client.ui.overlay.OverlayManager;
+import net.runelite.client.util.ImageUtil;
 import net.runelite.client.util.Text;
 
 @Slf4j
@@ -49,6 +48,7 @@ import net.runelite.client.util.Text;
  */
 public class ManagerPlugin extends Plugin
 {
+	private static final BufferedImage ICON = ImageUtil.loadImageResource(ManagerPlugin.class, "/com/splitmanager/icons/icon.png");
 	@Getter
 	private static ManagerPanel panel;
 	@Inject
@@ -62,7 +62,6 @@ public class ManagerPlugin extends Plugin
 	private OverlayManager overlayManager;
 	private ChatStatusOverlay chatOverlay;
 	private NavigationButton navButton;
-
 	@Inject
 	private ManagerPanel panelManager;
 	@Inject
@@ -71,13 +70,16 @@ public class ManagerPlugin extends Plugin
 	private ManagerKnownPlayers playerManager;
 	private PanelView view;
 
-
 	@Override
 	/**
 	 * Initialize plugin state and register the sidebar panel/navigation.
 	 */
 	protected void startUp()
 	{
+		//Force diable pop out for now
+		config.enablePopout(false);
+		config.directPayments(false);
+
 		Formats.setConfig(config);
 		playerManager.init();
 		sessionManager.init();
@@ -85,89 +87,17 @@ public class ManagerPlugin extends Plugin
 
 		// TODO create an icon
 
+
 		chatOverlay = new ChatStatusOverlay();
 		overlayManager.add(chatOverlay);
 		view = panelManager.getView();
 		navButton = NavigationButton.builder()
 			.tooltip("Auto Split Manager")
-			.icon(createIcon())
+			.icon(ICON)
 			.priority(5)
 			.panel(view)
 			.build();
 		clientToolbar.addNavigation(navButton);
-	}
-
-
-	private BufferedImage createIcon(){
-		BufferedImage scalesIcon = new BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB);
-		java.awt.Graphics2D g = scalesIcon.createGraphics();
-		g.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING, java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
-
-		// Define colors
-		java.awt.Color darkBrown = new java.awt.Color(58, 40, 28);
-		java.awt.Color orange = new java.awt.Color(246, 135, 79);
-		java.awt.Color cream = new java.awt.Color(255, 224, 159);
-		java.awt.Color black = new java.awt.Color(0, 0, 0);
-
-		// First draw black outlines/shadows (slightly offset)
-		g.setColor(black);
-		g.setStroke(new java.awt.BasicStroke(2.0f));
-
-		// Shadow for the center vertical line - made taller
-		g.drawLine(8, 1, 8, 12);
-
-		// Shadow for the horizontal balance bar - moved up slightly
-		g.drawLine(2, 3, 14, 3);
-
-		// Shadow for triangular connections - adjusted for taller appearance
-		g.drawLine(4, 3, 1, 8); // Left triangle
-		g.drawLine(12, 3, 15, 8); // Right triangle
-
-		// Shadow for the left scale bowl - moved down slightly
-		g.drawArc(0, 8, 6, 4, 0, 180);
-
-		// Shadow for the right scale bowl - moved down slightly
-		g.drawArc(10, 8, 6, 4, 0, 180);
-
-		// Shadow for the base - moved down
-		g.drawArc(5, 12, 6, 4, 0, 180);
-
-		// Now draw the actual elements
-
-		// Draw the center vertical line (pole) - made taller
-		g.setColor(darkBrown);
-		g.setStroke(new java.awt.BasicStroke(1.5f));
-		g.drawLine(8, 1, 8, 12);
-
-		// Draw the horizontal balance bar - moved up slightly
-		g.drawLine(2, 3, 14, 3);
-
-		// Draw the triangular connections - adjusted for taller appearance
-		g.drawLine(4, 3, 1, 8); // Left triangle
-		g.drawLine(12, 3, 15, 8); // Right triangle
-
-		// Draw the left scale bowl outline - moved down slightly
-		g.drawArc(0, 8, 6, 4, 0, 180);
-
-		// Draw the right scale bowl outline - moved down slightly
-		g.drawArc(10, 8, 6, 4, 0, 180);
-
-		// Fill the bowls with orange
-		g.setColor(orange);
-		g.fillArc(1, 9, 4, 2, 0, 180);
-		g.fillArc(11, 9, 4, 2, 0, 180);
-
-		// Draw the base outline - moved down
-		g.setColor(darkBrown);
-		g.drawArc(5, 12, 6, 4, 0, 180);
-
-		// Fill the base with cream color
-		g.setColor(cream);
-		g.fillArc(6, 13, 4, 2, 0, 180);
-
-		g.dispose();
-
-		return scalesIcon;
 	}
 
 	@Override
@@ -315,7 +245,7 @@ public class ManagerPlugin extends Plugin
 		// Try parse PvM drop
 		if (config.detectPvmValues())
 		{
-			java.util.regex.Matcher m = java.util.regex.Pattern.compile("^(.+?) has received a drop: .*?\\((\\d[\\d,]*) coins\\)").matcher(msg);
+			java.util.regex.Matcher m = java.util.regex.Pattern.compile("^(.+?) received a drop: .*?\\((\\d[\\d,]*) coins\\)").matcher(msg);
 			if (m.find())
 			{
 				String player = m.group(1);

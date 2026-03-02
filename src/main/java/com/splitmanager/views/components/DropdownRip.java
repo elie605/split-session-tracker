@@ -36,16 +36,20 @@ public class DropdownRip extends JPanel
 
 	public DropdownRip(String title, JComponent content)
 	{
-		this(title, content, true);
+		this(title, content, true, null);
 	}
 
 	public DropdownRip(String title, JComponent content, boolean expanded)
 	{
+		this(title, content, expanded, null);
+	}
+
+	public DropdownRip(String title, JComponent content, boolean expanded, String tooltip)
+	{
 		super(new BorderLayout());
 		this.expanded = expanded;
 
-		String description = "";
-		header = new Header(title, description);
+		header = new Header(title, tooltip);
 		header.setBorder(new EmptyBorder(3, 0, 0, 0));
 		contentHolder = new JPanel(new BorderLayout());
 		contentHolder.setOpaque(false);
@@ -89,7 +93,7 @@ public class DropdownRip extends JPanel
 
 		private final JButton sectionToggle;
 
-		private Header(String title, String description)
+		private Header(String title, String tooltip)
 		{
 			super(new BorderLayout());
 
@@ -127,8 +131,12 @@ public class DropdownRip extends JPanel
 			JLabel sectionName = new JLabel(title);
 			sectionName.setForeground(ColorScheme.BRAND_ORANGE);
 			sectionName.setFont(FontManager.getRunescapeBoldFont());
-			sectionName.setToolTipText("<html>" + title + ":<br>" + description + "</html>");
 			sectionHeader.add(sectionName, BorderLayout.CENTER);
+
+			JLabel info = new JLabel("\uD83D\uDEC8"); // info symbol
+			info.setToolTipText(tooltip);
+			info.setVisible(tooltip != null && !tooltip.isEmpty());
+			sectionHeader.add(info, BorderLayout.EAST);
 
 			final JPanel sectionContents = new JPanel();
 			sectionContents.setLayout(new DynamicGridLayout(0, 1, 0, 5));

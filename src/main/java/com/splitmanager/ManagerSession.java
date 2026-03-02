@@ -366,6 +366,14 @@ public class ManagerSession
 			// End current child (but keep kills)
 			curr.setEnd(Instant.now());
 
+			// Record a JOINED event kill in the new child
+			Kill joinEvent = new Kill(newChild.getId(), fMain, 0L, Instant.now());
+			joinEvent.setType("JOINED");
+			newChild.getKills().add(joinEvent);
+
+			// Update mother cache incrementally
+			motherKillsCache.computeIfAbsent(motherId, k -> new ArrayList<>()).add(joinEvent);
+
 			// Activate new child
 			sessions.put(newChild.getId(), newChild);
 			currentSessionId = newChild.getId();
@@ -373,6 +381,14 @@ public class ManagerSession
 		else
 		{
 			curr.getPlayers().add(player);
+			// Record a JOINED event kill in the current child (no kills yet)
+			Kill joinEvent = new Kill(curr.getId(), fMain, 0L, Instant.now());
+			joinEvent.setType("JOINED");
+			curr.getKills().add(joinEvent);
+
+			// Update mother cache incrementally
+			String motherId = curr.getMotherId() == null ? curr.getId() : curr.getMotherId();
+			motherKillsCache.computeIfAbsent(motherId, k -> new ArrayList<>()).add(joinEvent);
 		}
 		saveToConfig();
 		return true;
@@ -414,13 +430,31 @@ public class ManagerSession
 				curr.getPlayers().stream().filter(p -> !p.equalsIgnoreCase(finalPlayer)).collect(Collectors.toList())
 			);
 
+			// End the current child
 			curr.setEnd(Instant.now());
+
+			// Record a LEFT event kill in the new child
+			Kill leaveEvent = new Kill(newChild.getId(), finalPlayer, 0L, Instant.now());
+			leaveEvent.setType("LEFT");
+			newChild.getKills().add(leaveEvent);
+
+			// Update mother cache incrementally
+			motherKillsCache.computeIfAbsent(motherId, k -> new ArrayList<>()).add(leaveEvent);
+
 			sessions.put(newChild.getId(), newChild);
 			currentSessionId = newChild.getId();
 		}
 		else
 		{
 			curr.getPlayers().remove(player);
+			// Record a LEFT event kill in the current child (no kills yet)
+			Kill leaveEvent = new Kill(curr.getId(), player, 0L, Instant.now());
+			leaveEvent.setType("LEFT");
+			curr.getKills().add(leaveEvent);
+
+			// Update mother cache incrementally
+			String motherId = curr.getMotherId() == null ? curr.getId() : curr.getMotherId();
+			motherKillsCache.computeIfAbsent(motherId, k -> new ArrayList<>()).add(leaveEvent);
 		}
 		saveToConfig();
 		return true;
@@ -677,6 +711,12 @@ public class ManagerSession
 			}
 			for (Kill k : part.getKills())
 			{
+				// Ignore JOINED/LEFT events in split math; only count regular loot
+				String t = k.getType();
+				if (t != null && !t.equalsIgnoreCase("LOOT"))
+				{
+					continue;
+				}
 				perSessionTotals.computeIfPresent(k.getPlayer(), (k1, v) -> v + k.getAmount());
 			}
 
@@ -721,8 +761,8 @@ public class ManagerSession
 			Long total = totals.getOrDefault(p, 0L);
 			Long split = splits.getOrDefault(p, 0L);
 
-			// Skip players with total = 0
-			if (total == 0.0 && split == 0.0)
+			// Skip players with total = 0, unless they are active now
+			if (!isActiveNow && total == 0.0 && split == 0.0)
 			{
 				continue;
 			}

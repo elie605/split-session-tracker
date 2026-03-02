@@ -41,12 +41,21 @@ public interface PluginConfig extends Config
 	@ConfigItem(
 		keyName = "enablePopout",
 		name = "Enable popout",
+		hidden = true,
 		description = "Show a popout button that enables the user to pop the plugin out into its own window."
 	)
 	default boolean enablePopout()
 	{
 		return false;
 	}
+
+	@ConfigItem(
+		keyName = "enablePopout",
+		name = "Enable popout",
+		hidden = true,
+		description = "Show a popout button that enables the user to pop the plugin out into its own window."
+	)
+	void enablePopout(boolean value);
 
 	@ConfigItem(
 		keyName = "defaultValueMultiplier",
@@ -194,6 +203,8 @@ public interface PluginConfig extends Config
 		return true;
 	}
 
+	// TODO When Direct Payement is used there is no method to remove players, this needs to be fixed before direct payment mode is enabled again
+
 	/**
 	 * Determines whether direct payments between players are enabled, bypassing a middleman or bank.
 	 * If enabled, the settlement guidance assumes players directly settle payments with one another.
@@ -205,12 +216,22 @@ public interface PluginConfig extends Config
 		keyName = "directPayments",
 		name = "Direct payments (no middleman)",
 		description = "If enabled, settlement guidance assumes players pay each other directly instead of settling via a bank/middleman. Off = middleman mode.",
-		section = settlementSection
+		section = settlementSection,
+		hidden = true
 	)
 	default boolean directPayments()
 	{
 		return false;
 	}
+
+	@ConfigItem(
+		keyName = "directPayments",
+		name = "Direct payments (no middleman)",
+		description = "If enabled, settlement guidance assumes players pay each other directly instead of settling via a bank/middleman. Off = middleman mode.",
+		section = settlementSection,
+		hidden = true
+	)
+	void directPayments(boolean value);
 
 	/**
 	 * Determines whether chat detection is enabled.

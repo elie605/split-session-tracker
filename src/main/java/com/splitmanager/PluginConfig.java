@@ -248,7 +248,7 @@ public interface PluginConfig extends Config
 	)
 	default boolean enableChatDetection()
 	{
-		return false;
+		return true;
 	}
 
 	/**

@@ -112,6 +112,7 @@ public class PanelView extends PluginPanel
 	private final JTable recentSplitsTable;
 	//Icons
 	private final String infoIconUniCode = "\uD83D\uDEC8";
+	private final JPanel metricsContentWrapper = new JPanel(new BorderLayout());
 	private PanelActions actions;
 	// Tutorial UI
 	private JPanel tutorialPanel;
@@ -129,7 +130,6 @@ public class PanelView extends PluginPanel
 	private JButton btnCopyJson;
 	private JButton btnCopyMd;
 	private DropdownRip detectedValuesDropdown;
-	private final JPanel metricsContentWrapper = new JPanel(new BorderLayout());
 
 	public PanelView(ManagerSession sessionManager, PluginConfig config, ManagerKnownPlayers playerManager, PanelController controller)
 	{

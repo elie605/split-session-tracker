@@ -48,6 +48,7 @@ import net.runelite.client.util.Text;
  */
 public class ManagerPlugin extends Plugin
 {
+	private static final BufferedImage ICON = ImageUtil.loadImageResource(ManagerPlugin.class, "/com/splitmanager/icons/icon.png");
 	@Getter
 	private static ManagerPanel panel;
 	@Inject
@@ -61,7 +62,6 @@ public class ManagerPlugin extends Plugin
 	private OverlayManager overlayManager;
 	private ChatStatusOverlay chatOverlay;
 	private NavigationButton navButton;
-
 	@Inject
 	private ManagerPanel panelManager;
 	@Inject
@@ -69,8 +69,6 @@ public class ManagerPlugin extends Plugin
 	@Inject
 	private ManagerKnownPlayers playerManager;
 	private PanelView view;
-
-	private static final BufferedImage ICON = ImageUtil.loadImageResource(ManagerPlugin.class, "/com/splitmanager/icons/icon.png");
 
 	@Override
 	/**

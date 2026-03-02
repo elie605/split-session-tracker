@@ -316,7 +316,7 @@ public class ManagerPlugin extends Plugin
 		// Try parse PvM drop
 		if (config.detectPvmValues())
 		{
-			java.util.regex.Matcher m = java.util.regex.Pattern.compile("^(.+?) has received a drop: .*?\\((\\d[\\d,]*) coins\\)").matcher(msg);
+			java.util.regex.Matcher m = java.util.regex.Pattern.compile("^(.+?) received a drop: .*?\\((\\d[\\d,]*) coins\\)").matcher(msg);
 			if (m.find())
 			{
 				String player = m.group(1);

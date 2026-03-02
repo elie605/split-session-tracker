@@ -4,8 +4,7 @@ A RuneLite plugin for automatically managing and tracking splits in group activi
 
 | Start the session, to start adding kills | Keep track of who owes what | Keep track of detected chat messages   |
 | ------------- |:-------------:| -----:|
-| <img width="324" height="401" alt="image" src="https://github.com/user-attachments/assets/bd8c4aa4-54d8-4c55-86a6-71c12d398edb" />| <img width="322" height="564" alt="image" src="https://github.com/user-attachments/assets/268324ca-448b-484a-8757-3013ee9e0713" />|<img width="309" height="277" alt="image" src="https://github.com/user-attachments/assets/f172a6e9-0f64-4da1-a2f2-a21fc0088877" />
-|
+| <img width="324" height="401" alt="image" src="https://github.com/user-attachments/assets/bd8c4aa4-54d8-4c55-86a6-71c12d398edb" />| <img width="322" height="564" alt="image" src="https://github.com/user-attachments/assets/268324ca-448b-484a-8757-3013ee9e0713" />|<img width="309" height="277" alt="image" src="https://github.com/user-attachments/assets/f172a6e9-0f64-4da1-a2f2-a21fc0088877" />|
 
 ## Features
 

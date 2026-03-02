@@ -78,6 +78,7 @@ public class ManagerPlugin extends Plugin
 	{
 		//Force diable pop out for now
 		config.enablePopout(false);
+		config.directPayments(false);
 
 		Formats.setConfig(config);
 		playerManager.init();

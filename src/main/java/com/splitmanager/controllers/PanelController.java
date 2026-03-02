@@ -373,6 +373,7 @@ public class PanelController implements PanelActions
 		if (current != null)
 		{
 			((Metrics) view.getMetricsTable().getModel()).setData(sessionManager.computeMetricsFor(current, true));
+			view.refreshMetrics();
 			view.getRecentSplitsModel().setFromKills(sessionManager.getAllKills());
 		}
 		else
@@ -398,6 +399,7 @@ public class PanelController implements PanelActions
 			((Metrics) view.getMetricsTable().getModel()).setData(
 				sessionManager.computeMetricsFor(target, true)
 			);
+			view.refreshMetrics();
 		}
 		// Keep the recent splits list up-to-date (it shows all kills)
 		view.getRecentSplitsModel().setFromKills(sessionManager.getAllKills());

@@ -54,6 +54,7 @@ import javax.swing.ListSelectionModel;
 import javax.swing.SwingConstants;
 import javax.swing.Timer;
 import javax.swing.border.Border;
+import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.text.DefaultFormatterFactory;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -128,6 +129,7 @@ public class PanelView extends PluginPanel
 	private JButton btnCopyJson;
 	private JButton btnCopyMd;
 	private DropdownRip detectedValuesDropdown;
+	private final JPanel metricsContentWrapper = new JPanel(new BorderLayout());
 
 	public PanelView(ManagerSession sessionManager, PluginConfig config, ManagerKnownPlayers playerManager, PanelController controller)
 	{
@@ -1044,6 +1046,41 @@ public class PanelView extends PluginPanel
 	private JComponent generateMetrics()
 	{
 		JPanel wrapper = new JPanel(new BorderLayout(0, 6));
+		wrapper.add(generateMetricsHeader(), BorderLayout.NORTH);
+
+		configureMetricsTable();
+		refreshMetricsContent();
+
+		wrapper.add(metricsContentWrapper, BorderLayout.CENTER);
+
+		JPanel btns = new JPanel(new GridLayout(1, 2, 6, 0));
+		btns.add(btnCopyJson);
+		btns.add(btnCopyMd);
+		wrapper.add(btns, BorderLayout.SOUTH);
+
+		return new DropdownRip("Settlement information", wrapper);
+	}
+
+	private void refreshMetricsContent()
+	{
+		metricsContentWrapper.removeAll();
+
+		JComponent centerContent = config.directPayments()
+			? generateDirectPaymentsContent()
+			: new JScrollPane(metricsTable);
+
+		if (centerContent instanceof JScrollPane)
+		{
+			centerContent.setPreferredSize(ll);
+		}
+
+		metricsContentWrapper.add(centerContent, BorderLayout.CENTER);
+		metricsContentWrapper.revalidate();
+		metricsContentWrapper.repaint();
+	}
+
+	private JPanel generateMetricsHeader()
+	{
 		JLabel title = new JLabel("Settlement");
 		title.setFont(title.getFont().deriveFont(Font.BOLD));
 
@@ -1085,8 +1122,11 @@ public class PanelView extends PluginPanel
 			}
 		});
 
-		wrapper.add(header, BorderLayout.NORTH);
+		return header;
+	}
 
+	private void configureMetricsTable()
+	{
 		metricsTable.setFillsViewportHeight(true);
 		metricsTable.setAutoResizeMode(JTable.AUTO_RESIZE_ALL_COLUMNS);
 
@@ -1113,7 +1153,7 @@ public class PanelView extends PluginPanel
 			metricsTable.getColumnModel().getColumn(actionColViewIndex).setPreferredWidth(40);
 		}
 
-		javax.swing.table.DefaultTableCellRenderer greyingRenderer = new javax.swing.table.DefaultTableCellRenderer()
+		DefaultTableCellRenderer greyingRenderer = new DefaultTableCellRenderer()
 		{
 			@Override
 			public java.awt.Component getTableCellRendererComponent(JTable table, Object value,
@@ -1147,7 +1187,7 @@ public class PanelView extends PluginPanel
 		{
 		}
 
-		javax.swing.table.DefaultTableCellRenderer splitRenderer = new javax.swing.table.DefaultTableCellRenderer()
+		DefaultTableCellRenderer splitRenderer = new DefaultTableCellRenderer()
 		{
 			@Override
 			public java.awt.Component getTableCellRendererComponent(JTable table, Object value,
@@ -1192,73 +1232,52 @@ public class PanelView extends PluginPanel
 		catch (IllegalArgumentException ignored)
 		{
 		}
-
-		JComponent centerContent;
-		if (direct)
-		{
-			Session currentSession = sessionManager.getCurrentSession().orElse(null);
-			List<PlayerMetrics> data = sessionManager.computeMetricsFor(currentSession, true);
-			List<Transfer> transfers = PaymentProcessor.computeDirectPaymentsStructured(data);
-
-			if (transfers != null && !transfers.isEmpty())
-			{
-				javax.swing.table.DefaultTableModel txModel =
-					new javax.swing.table.DefaultTableModel(new Object[]{"Suggested direct payments"}, 0)
-					{
-						@Override
-						public boolean isCellEditable(int r, int c)
-						{
-							return false;
-						}
-					};
-
-				for (Transfer t : transfers)
-				{
-					String payerShort = shortenName(t.getFrom(), 7);
-					String payeeShort = shortenName(t.getTo(), 7);
-					String amountStr = toSuffixString(Math.abs(t.getAmount()), config.defaultValueMultiplier().getValue());
-					String display = payerShort + " -> " + payeeShort + ": " + amountStr;
-					txModel.addRow(new Object[]{display});
-				}
-
-				JTable txTable = new JTable(txModel);
-				txTable.setFillsViewportHeight(true);
-				txTable.setAutoResizeMode(JTable.AUTO_RESIZE_ALL_COLUMNS);
-				txTable.setRowSelectionAllowed(false);
-				txTable.setShowGrid(false);
-
-				JScrollPane txScroll = new JScrollPane(txTable);
-				txScroll.setPreferredSize(ll);
-				centerContent = txScroll;
-			}
-			else
-			{
-				JScrollPane tableScroll = new JScrollPane(metricsTable);
-				tableScroll.setPreferredSize(ll);
-				centerContent = tableScroll;
-			}
-		}
-		else
-		{
-			JScrollPane tableScroll = new JScrollPane(metricsTable);
-			tableScroll.setPreferredSize(ll);
-			centerContent = tableScroll;
-		}
-
-		wrapper.add(centerContent, BorderLayout.CENTER);
-
-		JPanel btns = new JPanel(new GridLayout(1, 2, 6, 0));
-		btns.add(btnCopyJson);
-		btns.add(btnCopyMd);
-		wrapper.add(btns, BorderLayout.SOUTH);
-
-		return new DropdownRip("Settlement information", wrapper);
 	}
 
-	private void refreshMetrics()
+	private JComponent generateDirectPaymentsContent()
+	{
+		Session currentSession = sessionManager.getCurrentSession().orElse(null);
+		List<PlayerMetrics> data = sessionManager.computeMetricsFor(currentSession, true);
+		List<Transfer> transfers = PaymentProcessor.computeDirectPaymentsStructured(data);
+
+		if (transfers != null && !transfers.isEmpty())
+		{
+			javax.swing.table.DefaultTableModel txModel =
+				new javax.swing.table.DefaultTableModel(new Object[]{"Suggested direct payments"}, 0)
+				{
+					@Override
+					public boolean isCellEditable(int r, int c)
+					{
+						return false;
+					}
+				};
+
+			for (Transfer t : transfers)
+			{
+				String payerShort = shortenName(t.getFrom(), 7);
+				String payeeShort = shortenName(t.getTo(), 7);
+				String amountStr = toSuffixString(Math.abs(t.getAmount()), config.defaultValueMultiplier().getValue());
+				String display = payerShort + " -> " + payeeShort + ": " + amountStr;
+				txModel.addRow(new Object[]{display});
+			}
+
+			JTable txTable = new JTable(txModel);
+			txTable.setFillsViewportHeight(true);
+			txTable.setAutoResizeMode(JTable.AUTO_RESIZE_ALL_COLUMNS);
+			txTable.setRowSelectionAllowed(false);
+			txTable.setShowGrid(false);
+
+			return new JScrollPane(txTable);
+		}
+
+		return new JScrollPane(metricsTable);
+	}
+
+	public void refreshMetrics()
 	{
 		Session currentSession = sessionManager.getCurrentSession().orElse(null);
 		((Metrics) metricsTable.getModel()).setData(sessionManager.computeMetricsFor(currentSession, true));
+		refreshMetricsContent();
 	}
 
 	private void copyMetricsJsonToClipboard()

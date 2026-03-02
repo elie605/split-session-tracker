@@ -709,16 +709,16 @@ public class ManagerSession
 			{
 				perSessionTotals.put(p, 0L);
 			}
- 		for (Kill k : part.getKills())
- 		{
- 			// Ignore JOINED/LEFT events in split math; only count regular loot
- 			String t = k.getType();
- 			if (t != null && !t.equalsIgnoreCase("LOOT"))
- 			{
- 				continue;
- 			}
- 			perSessionTotals.computeIfPresent(k.getPlayer(), (k1, v) -> v + k.getAmount());
- 		}
+			for (Kill k : part.getKills())
+			{
+				// Ignore JOINED/LEFT events in split math; only count regular loot
+				String t = k.getType();
+				if (t != null && !t.equalsIgnoreCase("LOOT"))
+				{
+					continue;
+				}
+				perSessionTotals.computeIfPresent(k.getPlayer(), (k1, v) -> v + k.getAmount());
+			}
 
 			// Session average across the entire roster
 			Long sessionAvg = 0L;

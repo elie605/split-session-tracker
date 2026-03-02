@@ -57,7 +57,7 @@ A RuneLite plugin for automatically managing and tracking splits in group activi
 ### Settlement Settings
 
 - **Copy for Discord**: Format Markdown tables with proper spacing for Discord
-- **Direct payments**: Toggle between direct player payments or using a middleman/bank
+- ~**Direct payments**: Toggle between direct player payments or using a middleman/bank~ Disabled, broken :(
 - **Flip settlement sign**: Change perspective of settlement values (+ means bank pays player vs. player pays bank)
 
 ### Chat Detection Settings

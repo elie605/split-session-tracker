@@ -576,13 +576,14 @@ public class PanelView extends PluginPanel
 		t.getColumnModel().getColumn(2).setCellRenderer(right);
 
 		// Row-aware player editor
-		javax.swing.DefaultCellEditor playerEditor = new javax.swing.DefaultCellEditor(new JComboBox<String>())
+		final JComboBox<String> playerCombo = new JComboBox<>();
+		javax.swing.DefaultCellEditor playerEditor = new javax.swing.DefaultCellEditor(playerCombo)
 		{
 			@Override
 			public java.awt.Component getTableCellEditorComponent(
 				JTable table, Object value, boolean isSelected, int row, int column)
 			{
-				JComboBox<String> combo = (JComboBox<String>) getComponent();
+				JComboBox<String> combo = playerCombo;
 
 				// Determine players for this row's session
 				String[] choices;
@@ -959,12 +960,13 @@ public class PanelView extends PluginPanel
 		}
 
 		// Editor for Player column (use known players list)
-		DefaultCellEditor wlPlayerEditor = new DefaultCellEditor(new JComboBox<String>())
+		final JComboBox<String> wlPlayerCombo = new JComboBox<>();
+		DefaultCellEditor wlPlayerEditor = new DefaultCellEditor(wlPlayerCombo)
 		{
 			@Override
 			public Component getTableCellEditorComponent(JTable table, Object value, boolean isSelected, int row, int column)
 			{
-				JComboBox<String> combo = (JComboBox<String>) getComponent();
+				JComboBox<String> combo = wlPlayerCombo;
 				combo.setModel(new DefaultComboBoxModel<>(playerManager.getKnownMains().toArray(new String[0])));
 				combo.setSelectedItem(value);
 				return combo;
